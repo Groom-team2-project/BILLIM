@@ -1,0 +1,42 @@
+.policy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.policy-title {
+  margin: 0;
+}
+
+.policy-muted {
+  color: var(--ink-muted);
+  margin: 0;
+}
+
+.policy-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.policy-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 14px var(--space-4);
+  color: var(--ink);
+}
+
+.policy-row + .policy-row {
+  border-top: 1px solid var(--line);
+}
+
+.policy-row-title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.policy-row > svg {
+  color: var(--ink-muted);
+}

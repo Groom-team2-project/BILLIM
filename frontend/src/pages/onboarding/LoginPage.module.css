@@ -1,0 +1,79 @@
+.login {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  text-align: center;
+}
+
+/* 프로토타입 Logo height 64 → 폰트 86px (×1.35) */
+.login-wordmark {
+  margin: 0;
+  font-family: var(--font-logo);
+  font-size: 86px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.login-tagline {
+  margin: 0;
+  max-width: 260px;
+  color: var(--ink-muted);
+  font-weight: 500;
+  text-wrap: balance;
+}
+
+.login-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-6) var(--space-6);
+  align-items: center;
+}
+
+.login-kakao {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: min(360px, 100%);
+  min-height: 52px;
+  border-radius: var(--radius-md);
+  /* 카카오 브랜드 가이드 색 — 토큰 예외 */
+  background: #fee500;
+  color: #191600;
+}
+
+.login-naver {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  width: min(360px, 100%);
+  min-height: 52px;
+  border-radius: var(--radius-md);
+  /* 네이버 브랜드 가이드 색 — 토큰 예외 */
+  background: #03c75a;
+  color: #fff;
+}
+
+.login-naver-mark {
+  font-weight: 900;
+  font-size: 17px;
+}
+
+.login-hint {
+  margin-top: var(--space-1);
+  color: var(--ink-muted);
+  text-align: center;
+}
