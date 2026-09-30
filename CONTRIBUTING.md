@@ -55,7 +55,8 @@ feat/12-rental-request   # 이슈와 연결하는 경우
 3. CodeRabbit 의견은 검토 대상이지 통과 조건이 아니다. 반영하지 않은 의견에는 이유를 답글로 남긴다.
 4. CI 통과 + 팀원 1명 승인이 되면 `develop`에 Squash merge 한다.
 5. 배포 시점에 `develop` → `main` PR을 만들고 1명 승인 후 머지한다.
-6. `main`과 `develop`에는 직접 push 하지 않는다.
+6. `main`과 `develop`에는 직접 push 하지 않는다. 두 브랜치는 GitHub Ruleset으로 보호한다. (PR 필수, 승인 1명, force push·삭제 차단)
+7. 긴급 상황으로 Ruleset을 bypass한 경우 팀에 즉시 공유한다.
 
 리뷰어가 보는 것: 작업 목적 달성(이슈가 있으면 완료 조건 충족), 명세·문서 갱신 여부, 비밀값 노출 여부.
 
