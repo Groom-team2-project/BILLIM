@@ -1,0 +1,154 @@
+name: PR Automation
+
+on:
+  pull_request:
+    types: [ opened, edited, reopened, ready_for_review, synchronize ]
+  issues:
+    types: [ opened ]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync-pr:
+    if: github.event_name == 'pull_request' && github.event.action != 'synchronize'
+    runs-on: ubuntu-latest
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+      # 팀원 GitHub 아이디를 공백으로 구분해 넣으면 PR 열릴 때 작성자를 제외하고 자동 리뷰어 지정 (예: "alice bob")
+      REVIEWERS: ""
+
+    steps:
+      - name: Assign author, sync type label, request reviewers
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repo="${{ github.repository }}"
+          pr_number="${{ github.event.pull_request.number }}"
+          actor="${{ github.event.pull_request.user.login }}"
+          action="${{ github.event.action }}"
+          draft="$(jq -r '.pull_request.draft // false' "$GITHUB_EVENT_PATH")"
+          title="$(jq -r '.pull_request.title // ""' "$GITHUB_EVENT_PATH")"
+          title_changed="$(jq -r '.changes.title != null' "$GITHUB_EVENT_PATH")"
+
+          types="feat fix refactor test docs ci chore"
+
+          label_color() {
+            case "$1" in
+              feat) echo "28dc88" ;;
+              fix) echo "d73a4a" ;;
+              refactor) echo "a2eeef" ;;
+              test) echo "029856" ;;
+              docs) echo "0075ca" ;;
+              ci) echo "edf30d" ;;
+              chore) echo "c5def5" ;;
+            esac
+          }
+
+          if [ "$action" = "opened" ]; then
+            gh pr edit "$pr_number" --repo "$repo" --add-assignee "$actor"
+          fi
+
+          # 제목 접두사(`type: 요약`)에 맞춰 타입 라벨 하나만 유지
+          if [ "$action" = "opened" ] || { [ "$action" = "edited" ] && [ "$title_changed" = "true" ]; }; then
+            pr_type=""
+            for t in $types; do
+              case "$title" in
+                "$t:"*|"$t("*)
+                  pr_type="$t"
+                  ;;
+              esac
+            done
+
+            for t in $types; do
+              if [ "$t" != "$pr_type" ]; then
+                gh pr edit "$pr_number" --repo "$repo" --remove-label "$t" >/dev/null 2>&1 || true
+              fi
+            done
+
+            if [ -n "$pr_type" ]; then
+              gh label create "$pr_type" --repo "$repo" --color "$(label_color "$pr_type")" 2>/dev/null || true
+              gh pr edit "$pr_number" --repo "$repo" --add-label "$pr_type"
+            fi
+          fi
+
+          if { [ "$action" = "opened" ] || [ "$action" = "reopened" ] || [ "$action" = "ready_for_review" ]; } && [ "$draft" != "true" ] && [ -n "$REVIEWERS" ]; then
+            reviewers=()
+            for reviewer in $REVIEWERS; do
+              if [ "$reviewer" != "$actor" ]; then
+                reviewers+=("$reviewer")
+              fi
+            done
+
+            if [ "${#reviewers[@]}" -gt 0 ]; then
+              reviewer_csv="$(IFS=,; echo "${reviewers[*]}")"
+              gh pr edit "$pr_number" --repo "$repo" --add-reviewer "$reviewer_csv"
+            fi
+          fi
+
+  board-sync:
+    # 이슈·PR을 BILLIM 보드에 자동 추가하고(무료 플랜엔 내장 Auto-add 없음), PR은 코드 변경량 필드를 채운다.
+    # Todo/Done 이동은 보드 내장 워크플로(Item added, PR merged, Item closed)가 처리한다.
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Add item to BILLIM board
+        id: add
+        uses: actions/add-to-project@v2.0.0
+        with:
+          project-url: https://github.com/orgs/Groom-team2-project/projects/2
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+
+      - name: Set code size field
+        if: github.event_name == 'pull_request' && contains(fromJSON('["opened", "synchronize", "reopened"]'), github.event.action)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          ITEM_ID: ${{ steps.add.outputs.itemId }}
+          PROJECT_ID: PVT_kwDOEcFTq84Bk9TB
+          CODE_SIZE_FIELD_ID: PVTSSF_lADOEcFTq84Bk9TBzhjr_EY
+        run: |
+          set -euo pipefail
+
+          additions="$(jq -r '.pull_request.additions // 0' "$GITHUB_EVENT_PATH")"
+          deletions="$(jq -r '.pull_request.deletions // 0' "$GITHUB_EVENT_PATH")"
+          changed_lines=$((additions + deletions))
+
+          if [ "$changed_lines" -ge 401 ]; then
+            option_id="91d53947"   # Large
+          elif [ "$changed_lines" -ge 101 ]; then
+            option_id="35cd4aca"   # Medium
+          elif [ "$changed_lines" -ge 21 ]; then
+            option_id="0979a265"   # Small
+          else
+            option_id="f9e998db"   # Tiny
+          fi
+
+          gh api graphql \
+            -f projectId="$PROJECT_ID" \
+            -f itemId="$ITEM_ID" \
+            -f fieldId="$CODE_SIZE_FIELD_ID" \
+            -f optionId="$option_id" \
+            -f query='
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
+                updateProjectV2ItemFieldValue(
+                  input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: { singleSelectOptionId: $optionId }
+                  }
+                ) {
+                  projectV2Item {
+                    id
+                  }
+                }
+              }' >/dev/null
