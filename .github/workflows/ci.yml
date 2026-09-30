@@ -63,7 +63,20 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # frontend/가 저장소에 올라오기 전까지 이후 단계를 건너뛴다 (프런트엔드 머지 후 제거)
+      - name: Check frontend sources
+        id: sources
+        working-directory: .
+        run: |
+          if [ -f frontend/package-lock.json ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "frontend/package-lock.json 없음 — 프런트엔드 검증 생략" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Set up Node.js
+        if: steps.sources.outputs.exists == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -71,10 +84,13 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
+        if: steps.sources.outputs.exists == 'true'
         run: npm ci
 
       - name: Lint
+        if: steps.sources.outputs.exists == 'true'
         run: npm run lint
 
       - name: Build
+        if: steps.sources.outputs.exists == 'true'
         run: npm run build
