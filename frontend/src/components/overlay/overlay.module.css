@@ -1,0 +1,148 @@
+.ui-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.ui-modal {
+  width: 100%;
+  max-width: 320px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: var(--shadow-float);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ui-modal-title {
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.ui-modal-body {
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--ink-muted);
+  margin: 0;
+}
+
+.ui-modal--wide {
+  max-width: 340px;
+}
+
+.ui-modal-hint {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.ui-opts {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.ui-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  text-align: left;
+  width: 100%;
+}
+
+.ui-opt:last-child {
+  border-bottom: none;
+}
+
+.ui-opt--on {
+  background: var(--surface-sunken);
+}
+
+.ui-opt-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--line-control);
+  flex: none;
+  position: relative;
+}
+
+.ui-opt--on .ui-opt-radio {
+  border-color: var(--action);
+}
+
+.ui-opt--on .ui-opt-radio::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: var(--radius-full);
+  background: var(--action);
+}
+
+.ui-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line-control);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: vertical;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.ui-textarea:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.ui-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.ui-modal-actions > * {
+  flex: 1;
+  height: 46px;
+}
+
+.ui-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 88px;
+  transform: translateX(-50%);
+  z-index: 85;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 12px 18px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: var(--shadow-float);
+  white-space: nowrap;
+  max-width: calc(100% - 48px);
+}
