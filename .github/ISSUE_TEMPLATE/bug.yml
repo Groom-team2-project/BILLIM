@@ -1,0 +1,20 @@
+name: 버그 수정
+description: 잘못 동작하는 부분을 공유해요.
+title: "fix: "
+labels: ["fix"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 문제와 기대 동작
+      placeholder: 겹치는 기간 요청의 중복 승인 (기대는 승인 거부)
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 재현 방법
+      placeholder: |
+        1. 9/26–9/28 대여 승인
+        2. 겹치는 기간으로 새 요청 승인 → 중복 승인

@@ -1,0 +1,21 @@
+name: 기술 작업
+description: 리팩터링, 테스트, 문서, CI, 설정 같은 유지보수 작업을 제안해요.
+title: "type: "
+body:
+  - type: markdown
+    attributes:
+      value: 제목의 `type:`을 refactor / test / docs / ci / chore 중 하나로 바꿔 주세요.
+
+  - type: textarea
+    id: what-why
+    attributes:
+      label: 무엇을, 왜
+      placeholder: 대여 상태 전이 검증 중복 제거
+    validations:
+      required: true
+
+  - type: textarea
+    id: done-when
+    attributes:
+      label: 완료 조건
+      placeholder: 기존 동작·테스트 유지, 중복 코드 제거

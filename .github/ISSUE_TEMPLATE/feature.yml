@@ -1,0 +1,18 @@
+name: 기능 개발
+description: 새로운 기능이나 기존 기능의 확장을 제안해요.
+title: "feat: "
+labels: ["feat"]
+body:
+  - type: textarea
+    id: what-why
+    attributes:
+      label: 무엇을, 왜
+      placeholder: 전달·반납 약속 잡기 지원
+    validations:
+      required: true
+
+  - type: textarea
+    id: done-when
+    attributes:
+      label: 완료 조건
+      placeholder: 약속 제안·확정 동작, 관련 테스트 통과
