@@ -1,0 +1,16 @@
+# CodeRabbit 설정
+# https://docs.coderabbit.ai/reference/configuration
+
+language: "ko-KR"
+
+reviews:
+  auto_review:
+    enabled: true
+  path_filters:
+    # 빌드 산출물과 자동 생성 파일은 리뷰 제외
+    - "!**/build/**"
+    - "!**/.gradle/**"
+    - "!**/gradle/wrapper/**"
+    - "!**/gradlew"
+    - "!**/gradlew.bat"
+    - "!**/*.jar"

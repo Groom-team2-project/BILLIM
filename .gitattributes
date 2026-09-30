@@ -1,0 +1,9 @@
+# 저장소에는 LF로 정규화, 텍스트 여부는 자동 판별
+* text=auto eol=lf
+
+# Windows 스크립트는 CRLF 유지
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 바이너리
+*.jar binary
