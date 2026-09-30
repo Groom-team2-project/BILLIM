@@ -1,0 +1,12 @@
+name: billim   # Compose 프로젝트 이름 — 컨테이너가 billim-mysql-1로 생성됨
+
+services:
+  mysql:
+    image: 'mysql:8.4'
+    environment:
+      - 'MYSQL_DATABASE=billim'
+      - 'MYSQL_USER=billim'
+      - 'MYSQL_PASSWORD=${MYSQL_PASSWORD}'
+      - 'MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}'
+    ports:
+      - '3306'
