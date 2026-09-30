@@ -1,0 +1,200 @@
+/* DESIGN_SYSTEM.md §3 디자인 토큰 — 값의 유일한 출처. 수정은 문서와 함께 */
+
+@font-face {
+  font-family: "Pretendard Variable";
+  src: url("/fonts/PretendardVariable.woff2") format("woff2");
+  font-weight: 45 920;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Array";
+  src: url("/fonts/Array.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root, [data-theme="light"] {
+  --black-b: #10100e;
+  --gray-d3: #191815;
+  --gray-d2: #30302b;
+  --gray-d1: #606055;
+  --gray-b: #c0c0ab;
+  --gray-l1: #e8e8cf;
+  --gray-l2: #f8f8dd;
+  --white-b: #ffffe3;
+  --bg: var(--gray-l2);
+  --surface: var(--white-b);
+  --surface-sunken: var(--gray-l1);
+  --line: var(--gray-b);
+  --line-control: #8a8a7a;
+  --ink: var(--black-b);
+  --ink-muted: var(--gray-d1);
+  --action: var(--black-b);
+  --on-action: var(--white-b);
+  --focus: var(--black-b);
+  --scrim: rgba(16,16,14,0.40);
+  --status-requested-fg: #4f3f94;
+  --status-requested-bg: #e6e1f5;
+  --status-requested-mark: #7b6cc4;
+  --status-approved-fg: #1f5a8f;
+  --status-approved-bg: #dce8f4;
+  --status-approved-mark: #4d86bd;
+  --status-active-fg: #2b6436;
+  --status-active-bg: #d8ebd5;
+  --status-active-mark: #4f9160;
+  --status-returned-fg: #4d5057;
+  --status-returned-bg: #e3e4e6;
+  --status-returned-mark: #80848c;
+  --status-overdue-fg: #a1321a;
+  --status-overdue-bg: #f8dcd2;
+  --status-overdue-mark: #d4593a;
+  --status-rejected-fg: #8a2f57;
+  --status-rejected-bg: #f3dae5;
+  --status-rejected-mark: #c0578a;
+  --status-canceled-fg: #606055;
+  --status-canceled-bg: #f8f8dd;
+  --status-canceled-mark: #8a8a7a;
+  --shadow-float: 0 6px 20px rgba(16,16,14,0.08);
+}
+
+/* 색상 테마 5종 — 기본 팔레트 교체. 기본값(클래스 없음)은 크림 (프로토타입 THEMES) */
+:root.theme-white {
+  --black-b: #101010;
+  --gray-d3: #191818;
+  --gray-d2: #303030;
+  --gray-d1: #606060;
+  --gray-b: #c0c0c0;
+  --gray-l1: #e8e8e8;
+  --gray-l2: #f8f8f8;
+  --white-b: #ffffff;
+}
+
+:root.theme-blue {
+  --black-b: #0e1010;
+  --gray-d3: #161818;
+  --gray-d2: #2b2f2f;
+  --gray-d1: #555f5f;
+  --gray-b: #aabebe;
+  --gray-l1: #cee5e5;
+  --gray-l2: #dcf5f5;
+  --white-b: #e2fcfc;
+}
+
+:root.theme-red {
+  --black-b: #100f0f;
+  --gray-d3: #191616;
+  --gray-d2: #2f2c2c;
+  --gray-d1: #5f5959;
+  --gray-b: #beb2b2;
+  --gray-l1: #e5d7d7;
+  --gray-l2: #f5e6e6;
+  --white-b: #fcecec;
+}
+
+:root.theme-green {
+  --black-b: #0e100e;
+  --gray-d3: #161816;
+  --gray-d2: #2b302b;
+  --gray-d1: #555f57;
+  --gray-b: #aabead;
+  --gray-l1: #cee6d1;
+  --gray-l2: #dcf6e0;
+  --white-b: #e2fde6;
+}
+
+[data-theme="dark"] {
+  --bg: var(--black-b);
+  --surface: var(--gray-d3);
+  --surface-sunken: var(--gray-d2);
+  --line: var(--gray-d2);
+  --line-control: #77776a;
+  --ink: var(--white-b);
+  --ink-muted: var(--gray-b);
+  --action: var(--white-b);
+  --on-action: var(--black-b);
+  --focus: var(--white-b);
+  --scrim: rgba(0,0,0,0.60);
+  --status-requested-fg: #cdc4f2;
+  --status-requested-bg: #2a2540;
+  --status-requested-mark: #8f82d6;
+  --status-approved-fg: #b8d4f0;
+  --status-approved-bg: #1b2a3a;
+  --status-approved-mark: #5f97cc;
+  --status-active-fg: #b6e0bb;
+  --status-active-bg: #1c2e1f;
+  --status-active-mark: #62a371;
+  --status-returned-fg: #c9ccd2;
+  --status-returned-bg: #26282c;
+  --status-returned-mark: #8a8e96;
+  --status-overdue-fg: #f5b7a5;
+  --status-overdue-bg: #3d1f17;
+  --status-overdue-mark: #e0704f;
+  --status-rejected-fg: #efb6cf;
+  --status-rejected-bg: #3a1d29;
+  --status-rejected-mark: #cf6d9b;
+  --status-canceled-fg: #c0c0ab;
+  --status-canceled-bg: #191815;
+  --status-canceled-mark: #77776a;
+  --shadow-float: 0 6px 20px rgba(0,0,0,0.45);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: var(--black-b);
+    --surface: var(--gray-d3);
+    --surface-sunken: var(--gray-d2);
+    --line: var(--gray-d2);
+    --line-control: #77776a;
+    --ink: var(--white-b);
+    --ink-muted: var(--gray-b);
+    --action: var(--white-b);
+    --on-action: var(--black-b);
+    --focus: var(--white-b);
+    --scrim: rgba(0,0,0,0.60);
+    --status-requested-fg: #cdc4f2;
+    --status-requested-bg: #2a2540;
+    --status-requested-mark: #8f82d6;
+    --status-approved-fg: #b8d4f0;
+    --status-approved-bg: #1b2a3a;
+    --status-approved-mark: #5f97cc;
+    --status-active-fg: #b6e0bb;
+    --status-active-bg: #1c2e1f;
+    --status-active-mark: #62a371;
+    --status-returned-fg: #c9ccd2;
+    --status-returned-bg: #26282c;
+    --status-returned-mark: #8a8e96;
+    --status-overdue-fg: #f5b7a5;
+    --status-overdue-bg: #3d1f17;
+    --status-overdue-mark: #e0704f;
+    --status-rejected-fg: #efb6cf;
+    --status-rejected-bg: #3a1d29;
+    --status-rejected-mark: #cf6d9b;
+    --status-canceled-fg: #c0c0ab;
+    --status-canceled-bg: #191815;
+    --status-canceled-mark: #77776a;
+    --shadow-float: 0 6px 20px rgba(0,0,0,0.45);
+  }
+}
+
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 999px;
+  --size-touch: 44px;
+  --size-header: 56px;
+  --size-tabbar: 64px;
+  --size-content: 1120px;
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  --font-logo: Array, "Pretendard Variable", Pretendard, system-ui, sans-serif;
+}
