@@ -1,0 +1,169 @@
+/* 상단 헤더 — 모바일 제목/뒤로, 데스크톱 내비·검색·액션 (§7) */
+
+.shell-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.shell-header-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  height: var(--size-header);
+  padding: 0 var(--space-4);
+}
+
+.shell-wordmark {
+  font-family: var(--font-logo);
+  font-size: 30px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.shell-desktop-nav,
+.shell-register-button,
+.shell-header-search {
+  display: none;
+}
+
+.shell-back,
+.shell-header-inner .shell-more {
+  display: none;
+}
+
+.shell-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.shell-icon-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border-radius: var(--radius-full);
+  color: var(--ink);
+}
+
+.shell-icon-badge {
+  position: absolute;
+  top: 3px;
+  right: 1px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--radius-full);
+  background: var(--action);
+  color: var(--on-action);
+  font-size: 10px;
+  line-height: 16px;
+  font-weight: 700;
+  text-align: center;
+  border: 2px solid var(--surface);
+  box-sizing: content-box;
+}
+
+@media (max-width: 759px) {
+  .shell-wordmark--desk-only {
+    display: none;
+  }
+
+  .shell-header--sub .shell-back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--size-touch);
+    height: var(--size-touch);
+    color: var(--ink);
+  }
+
+  .shell-header--sub .shell-header-inner .shell-more {
+    display: inline-flex;
+    margin-left: auto;
+  }
+
+  .shell-header--sub .shell-header-actions {
+    display: none;
+  }
+}
+
+@media (min-width: 760px) {
+  .shell-title {
+    display: none;
+  }
+}
+
+@media (min-width: 760px) {
+  .shell-header-inner {
+    max-width: var(--size-content);
+    margin: 0 auto;
+    height: 68px;
+    padding: 0 var(--space-6);
+    gap: var(--space-6);
+  }
+
+  .shell-wordmark {
+    font-size: 32px;
+  }
+
+  .shell-desktop-nav {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .shell-nav-link {
+    display: inline-flex;
+    align-items: center;
+    height: 40px;
+    padding: 0 14px;
+    border-radius: var(--radius-full);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink-muted);
+  }
+
+  .shell-nav-link--on {
+    color: var(--ink);
+    background: var(--surface-sunken);
+  }
+
+  .shell-header-search {
+    display: flex;
+    flex: 1;
+    max-width: 340px;
+    margin-left: auto;
+  }
+
+  .shell-search-input {
+    flex: 1;
+    min-height: 40px;
+  }
+
+  .shell-header-search--home {
+    visibility: hidden;
+  }
+
+  .shell-header-actions {
+    margin-left: 0;
+  }
+
+  .shell-register-button {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-md);
+    background: var(--action);
+    color: var(--on-action);
+  }
+}
