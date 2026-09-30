@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [ opened, edited, reopened, ready_for_review, synchronize ]
   issues:
-    types: [ opened ]
+    types: [ opened, edited ]
 
 permissions:
   contents: read
@@ -94,8 +94,85 @@ jobs:
             fi
           fi
 
+  sync-issue:
+    # 이슈의 타입 라벨·GitHub 이슈 타입·제목 형식을 팀 컨벤션(`type: 요약`)에 맞춘다.
+    # 템플릿 밖에서 만든 이슈(CodeRabbit·자유 양식)와 기술 작업 이슈가 대상.
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Sync type label, issue type, title
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repo="${{ github.repository }}"
+          number="$(jq -r '.issue.number' "$GITHUB_EVENT_PATH")"
+          title="$(jq -r '.issue.title // ""' "$GITHUB_EVENT_PATH")"
+
+          types="feat fix refactor test docs ci chore"
+          alt="feat|fix|refactor|test|docs|ci|chore"
+
+          # 제목 접두사에서 타입 추출 — `type: 요약` `type(범위): 요약` `[TYPE] 요약` 인식
+          lowered="$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]')"
+          issue_type=""
+          for t in $types; do
+            case "$lowered" in
+              "$t:"*|"$t("*|"[$t]"*)
+                issue_type="$t"
+                ;;
+            esac
+          done
+
+          if [ -z "$issue_type" ]; then
+            echo "제목에서 타입을 찾지 못해 건너뜀: $title"
+            echo "제목을 \`type: 요약\` 형식으로 고치면 라벨과 이슈 타입이 자동으로 붙습니다." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # 1. 타입 라벨 하나만 유지
+          case "$issue_type" in
+            feat) color="28dc88" ;;
+            fix) color="d73a4a" ;;
+            refactor) color="a2eeef" ;;
+            test) color="029856" ;;
+            docs) color="0075ca" ;;
+            ci) color="edf30d" ;;
+            chore) color="c5def5" ;;
+          esac
+
+          gh label create "$issue_type" --repo "$repo" --color "$color" 2>/dev/null || true
+          for t in $types; do
+            if [ "$t" != "$issue_type" ]; then
+              gh issue edit "$number" --repo "$repo" --remove-label "$t" >/dev/null 2>&1 || true
+            fi
+          done
+          gh issue edit "$number" --repo "$repo" --add-label "$issue_type"
+
+          # 2. GitHub 기본 이슈 타입 (feat → Feature, fix → Bug, 나머지 → Task)
+          case "$issue_type" in
+            feat) gh_type="Feature" ;;
+            fix) gh_type="Bug" ;;
+            *) gh_type="Task" ;;
+          esac
+          gh api -X PATCH "/repos/$repo/issues/$number" -f "type=$gh_type" >/dev/null
+
+          # 3. 제목을 `type: 요약`으로 정규화 — 이미 맞는 형식이면 그대로 둔다
+          if printf '%s' "$title" | grep -qE "^($alt)(\([^)]+\))?: .+"; then
+            echo "제목이 이미 컨벤션 형식: $title"
+          else
+            summary="$(printf '%s' "$title" | sed -E "s/^(\[[[:alpha:]]+\]|[[:alpha:]]+(\([^)]*\))?)[:[:space:]]*//")"
+            if [ -n "$summary" ]; then
+              gh issue edit "$number" --repo "$repo" --title "$issue_type: $summary"
+              echo "제목 정규화: $title → $issue_type: $summary"
+            fi
+          fi
+
   board-sync:
-    # 이슈·PR을 BILLIM 보드에 자동 추가하고(무료 플랜엔 내장 Auto-add 없음), PR은 코드 변경량 필드를 채운다.
+    # 이슈·PR을 BILLIM 보드에 자동 추가하고, PR은 코드 변경량 필드를 채운다.
     # Todo/Done 이동은 보드 내장 워크플로(Item added, PR merged, Item closed)가 처리한다.
     runs-on: ubuntu-latest
 
