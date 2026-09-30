@@ -1,0 +1,73 @@
+/* 메시지 — 프로토타입 nb-msg 계열 */
+
+.msg-date {
+  align-self: center;
+  padding: 4px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+}
+
+.msg-system {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 90%;
+  padding: 6px 12px;
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+/* 말풍선 + 시간은 가로 배치 (시간이 말풍선 옆 아래쪽) */
+.msg {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 82%;
+}
+
+.msg--me {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.msg-bubble {
+  padding: 10px 14px;
+  border-radius: 18px 18px 18px 6px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.msg--me .msg-bubble {
+  background: var(--action);
+  color: var(--on-action);
+  border-color: var(--action);
+  border-radius: 18px 18px 6px 18px;
+}
+
+.msg--failed .msg-bubble {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1.5px dashed var(--status-overdue-fg);
+}
+
+.msg-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.msg--failed .msg-time {
+  color: var(--status-overdue-fg);
+  font-weight: 600;
+}

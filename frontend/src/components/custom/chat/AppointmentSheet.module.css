@@ -1,0 +1,146 @@
+.appt-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  z-index: 5;
+}
+
+.appt-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+}
+
+.appt-sheet {
+  position: relative;
+  max-height: 92%;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: var(--shadow-float);
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.appt-sheet-grab {
+  width: 40px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--line);
+  margin: 0 auto;
+  flex: none;
+}
+
+.appt-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.appt-sheet-head h2 {
+  margin: 0;
+}
+
+.appt-sheet-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border-radius: var(--radius-full);
+  color: var(--ink);
+}
+
+.appt-muted {
+  color: var(--ink-muted);
+}
+
+.appt-sheet-note {
+  margin: -6px 0 0;
+}
+
+.appt-sheet-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.appt-sheet-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.appt-radio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.appt-radio {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line-control);
+  background: var(--surface);
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.appt-radio[aria-checked="true"] {
+  border: 2px solid var(--ink);
+  padding: 11px 13px;
+}
+
+.appt-radio-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--line-control);
+  flex: none;
+}
+
+.appt-radio[aria-checked="true"] .appt-radio-dot {
+  border: 6px solid var(--ink);
+}
+
+.appt-radio-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.appt-radio-sub {
+  display: block;
+  font-weight: 400;
+}
+
+.appt-sheet-lock {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+@media (min-width: 760px) {
+  .appt-overlay {
+    justify-content: center;
+    align-items: center;
+  }
+
+  .appt-sheet {
+    width: 440px;
+    border-radius: var(--radius-xl);
+  }
+
+  .appt-sheet-grab {
+    display: none;
+  }
+}
