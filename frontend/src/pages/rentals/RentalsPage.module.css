@@ -1,0 +1,79 @@
+.rentals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: 800px;
+}
+
+.rentals-title {
+  margin: 0;
+}
+
+.rentals-muted {
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+/* 탭 — 프로토타입 nb-tabs: 2등분 그리드 + 안쪽 인디케이터 */
+.rentals-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-bottom: 1px solid var(--line);
+}
+
+.rentals-tab {
+  position: relative;
+  height: 48px;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.rentals-tab[aria-selected="true"] {
+  color: var(--ink);
+}
+
+.rentals-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--ink);
+  border-radius: 2px;
+}
+
+
+
+.rentals-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* 로딩 뼈대 카드 */
+.rentals-skel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.rentals-skel-top {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.rentals-skel-lines {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
