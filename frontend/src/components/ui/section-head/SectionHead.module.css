@@ -1,0 +1,23 @@
+/* 섹션 제목 + 링크 — 프로토타입 nb-section__head / nb-link */
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.section-head h2 {
+  margin: 0;
+}
+
+.section-head-more {
+  padding: 0;
+  background: none;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}

@@ -1,0 +1,68 @@
+/* 버튼 — 프로토타입 nb-btn 규격 */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--size-touch);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.btn--sm {
+  height: 36px;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+}
+
+.btn--lg {
+  height: 52px;
+  padding: 0 var(--space-6);
+  font-size: 16px;
+  border-radius: var(--radius-lg);
+}
+
+.btn--block {
+  width: 100%;
+}
+
+.btn--primary {
+  background: var(--action);
+  color: var(--on-action);
+}
+
+.btn--secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line-control);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--ink);
+}
+
+.btn--ghost:hover,
+.btn--secondary:hover {
+  background: var(--surface-sunken);
+}
+
+.btn--danger {
+  background: var(--surface);
+  color: var(--status-overdue-fg);
+  border-color: var(--status-overdue-fg);
+}
+
+.btn[disabled],
+.btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

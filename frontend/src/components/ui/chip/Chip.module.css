@@ -1,0 +1,31 @@
+/* 칩 — 프로토타입 nb-chip */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line-control);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chip[aria-pressed="true"] {
+  background: var(--action);
+  border-color: var(--action);
+  color: var(--on-action);
+}
+
+/* 개수는 별도 배경 없이 흐린 숫자 */
+.chip-count {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.75;
+}
