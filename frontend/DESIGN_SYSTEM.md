@@ -242,8 +242,8 @@ const c = classes(styles);
 
 | 테마 | 루트 클래스 | 대표색 |
 |---|---|---|
-| 크림 (기본) | *(클래스 없음)* | `#f8f8dd` |
-| 화이트 | `.theme-white` | `#f8f8f8` |
+| 화이트 (기본) | *(클래스 없음)* | `#f8f8f8` |
+| 크림 | `.theme-cream` | `#f8f8dd` |
 | 블루 | `.theme-blue` | `#dcf5f5` |
 | 레드 | `.theme-red` | `#f5e6e6` |
 | 그린 | `.theme-green` | `#dcf6e0` |

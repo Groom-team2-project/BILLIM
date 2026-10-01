@@ -1,0 +1,27 @@
+# Netlify 배포 설정 — 모노레포의 frontend만 빌드
+
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # CI(.github/workflows/ci.yml)와 동일하게 고정
+  NODE_VERSION = "22"
+
+# SPA 라우팅 — /profile 같은 주소로 직접 들어와도 index.html 반환
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 해시가 붙은 정적 파일은 길게 캐시
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
