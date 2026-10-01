@@ -15,14 +15,14 @@
 }
 
 :root, [data-theme="light"] {
-  --black-b: #10100e;
-  --gray-d3: #191815;
-  --gray-d2: #30302b;
-  --gray-d1: #606055;
-  --gray-b: #c0c0ab;
-  --gray-l1: #e8e8cf;
-  --gray-l2: #f8f8dd;
-  --white-b: #ffffe3;
+  --black-b: #101010;
+  --gray-d3: #191818;
+  --gray-d2: #303030;
+  --gray-d1: #606060;
+  --gray-b: #c0c0c0;
+  --gray-l1: #e8e8e8;
+  --gray-l2: #f8f8f8;
+  --white-b: #ffffff;
   --bg: var(--gray-l2);
   --surface: var(--white-b);
   --surface-sunken: var(--gray-l1);
@@ -59,15 +59,15 @@
 }
 
 /* 색상 테마 5종 — 기본 팔레트 교체. 기본값(클래스 없음)은 크림 (프로토타입 THEMES) */
-:root.theme-white {
-  --black-b: #101010;
-  --gray-d3: #191818;
-  --gray-d2: #303030;
-  --gray-d1: #606060;
-  --gray-b: #c0c0c0;
-  --gray-l1: #e8e8e8;
-  --gray-l2: #f8f8f8;
-  --white-b: #ffffff;
+:root.theme-cream {
+  --black-b: #10100e;
+  --gray-d3: #191815;
+  --gray-d2: #30302b;
+  --gray-d1: #606055;
+  --gray-b: #c0c0ab;
+  --gray-l1: #e8e8cf;
+  --gray-l2: #f8f8dd;
+  --white-b: #ffffe3;
 }
 
 :root.theme-blue {
