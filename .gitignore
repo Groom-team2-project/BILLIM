@@ -8,3 +8,6 @@
 
 # 환경변수 (비밀값)
 .env
+
+# Netlify CLI 로컬 상태
+.netlify/
