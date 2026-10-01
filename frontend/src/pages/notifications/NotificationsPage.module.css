@@ -1,0 +1,88 @@
+/* 알림 — 프로토타입 NotifScreen: 화면 헤더(.hdr) + 구분선 리스트(.nitem) */
+
+.notif {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 목록은 화면 가장자리까지 (프로토타입 동일) */
+/* 창 가장자리까지 채우는 목록 (프로토타입은 카드 없이 전체 폭) */
+.notif-list {
+  margin: 0 -16px -20px;
+  background: var(--surface);
+}
+
+.notif-read-all {
+  padding: 0 12px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.notif-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.notif-item:last-child {
+  border-bottom: 0;
+}
+
+.notif-item--unread {
+  background: var(--surface-sunken);
+}
+
+.notif-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+}
+
+.notif-icon--requested { background: var(--status-requested-bg); color: var(--status-requested-fg); }
+.notif-icon--approved { background: var(--status-approved-bg); color: var(--status-approved-fg); }
+.notif-icon--returned { background: var(--status-returned-bg); color: var(--status-returned-fg); }
+.notif-icon--rejected { background: var(--status-rejected-bg); color: var(--status-rejected-fg); }
+.notif-icon--canceled {
+  background: var(--status-canceled-bg);
+  color: var(--status-canceled-fg);
+  border: 1px dashed var(--status-canceled-mark);
+}
+
+.notif-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-item-title {
+  display: block;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.notif-item-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-muted);
+}
+
+.notif-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: var(--radius-full);
+  background: var(--status-overdue-mark);
+}

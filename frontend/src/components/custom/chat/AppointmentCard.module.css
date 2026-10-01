@@ -1,0 +1,73 @@
+/* 약속 카드 — 프로토타입 nb-appt */
+
+.appt {
+  width: 280px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-lg);
+}
+
+.appt--me {
+  align-self: flex-end;
+}
+
+.appt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.appt-kind {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 값 영역은 sunken 배경 카드 */
+.appt-rows {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 8px 10px;
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.appt-rows dt {
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+.appt-rows dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.appt-muted {
+  display: block;
+  color: var(--ink-muted);
+  font-weight: 500;
+}
+
+/* 버튼은 폭을 나눠 가짐 (nb-rental__actions) */
+.appt-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.appt-actions > * {
+  flex: 1;
+}
+
+.appt-note {
+  margin: 0;
+}

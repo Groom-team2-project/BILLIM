@@ -1,0 +1,155 @@
+.comm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.comm-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+}
+
+.comm-sheet {
+  position: relative;
+  max-height: 92%;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  box-shadow: var(--shadow-float);
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.comm-grab {
+  width: 40px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--line);
+  margin: 0 auto;
+  flex: none;
+}
+
+.comm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.comm-head h2 {
+  margin: 0;
+}
+
+.comm-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  border-radius: var(--radius-full);
+  color: var(--ink);
+}
+
+.comm-muted {
+  color: var(--ink-muted);
+}
+
+.comm-note {
+  margin: calc(-1 * var(--space-2)) 0 0;
+}
+
+.comm-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.comm-row {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+}
+
+.comm-row--on {
+  background: var(--surface-sunken);
+}
+
+.comm-row + .comm-row {
+  border-top: 1px solid var(--line);
+}
+
+.comm-pick {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.comm-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  border: 2px solid var(--line-control);
+  flex: none;
+  position: relative;
+}
+
+.comm-row--on .comm-radio {
+  border-color: var(--action);
+}
+
+.comm-row--on .comm-radio::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: var(--radius-full);
+  background: var(--action);
+}
+
+.comm-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.comm-del {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+@media (min-width: 760px) {
+  .comm-overlay {
+    justify-content: center;
+    align-items: center;
+  }
+
+  .comm-sheet {
+    width: 440px;
+    border-radius: var(--radius-xl);
+  }
+
+  .comm-grab {
+    display: none;
+  }
+}

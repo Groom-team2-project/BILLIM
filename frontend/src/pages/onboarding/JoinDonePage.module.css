@@ -1,0 +1,81 @@
+.joindone {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.joindone-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.joindone-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--radius-full);
+  background: var(--status-active-bg);
+  color: var(--status-active-fg);
+}
+
+.joindone-title {
+  margin: 0;
+}
+
+.joindone-muted {
+  color: var(--ink-muted);
+}
+
+.joindone-desc {
+  margin: 0;
+  max-width: 280px;
+}
+
+.joindone-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  text-align: left;
+}
+
+.joindone-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--status-active-bg);
+  color: var(--status-active-fg);
+}
+
+.joindone-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.joindone-card-title {
+  font-weight: 600;
+}
+
+.joindone-actions {
+  padding: var(--space-4);
+}
