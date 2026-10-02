@@ -89,7 +89,7 @@ export function AppLayout() {
       : [
           { label: "소유자 프로필", onSelect: () => navigate(`/neighbors/${moreItem.owner.displayName}`) },
           {
-            label: `${moreItem.owner.displayName} 님 신고하기`,
+            label: "이 물건 신고하기",
             danger: true,
             onSelect: () => doReport(moreItem.owner.displayName),
           },

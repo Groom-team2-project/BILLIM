@@ -222,9 +222,10 @@ export function ItemDetailPage() {
           <button
             type="button"
             className={c("t-label detail-report")}
+            // TODO(F): 신고 API 연동 시 대상 유형 ITEM과 물건 ID로 보낸다 (지금은 기존 신고 모달만 연다)
             onClick={() => report({ name: owner, onConfirm: () => toast("신고를 접수했어요") })}
           >
-            {owner} 님 신고하기
+            이 물건 신고하기
           </button>
           )}
         </div>
