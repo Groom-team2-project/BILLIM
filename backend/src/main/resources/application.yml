@@ -13,8 +13,19 @@ spring:
     open-in-view: false         # 뷰 렌더링 중 커넥션 점유 방지
     hibernate:
       ddl-auto: validate        # 스키마는 Flyway로 관리, JPA는 검증만
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC        # DATETIME(6)은 UTC instant (ERD 1장)
   flyway:
     enabled: true
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true   # 선언하지 않은 요청 필드는 400 (API 명세 0.1)
+  servlet:
+    multipart:
+      max-file-size: 10MB               # 10MiB. 애플리케이션 검증(ImageInspector)과 같은 값
+      max-request-size: 11MB            # multipart 경계·헤더 여유 1MiB
 
   security:
     oauth2:
@@ -33,6 +44,10 @@ spring:
             token-uri: https://kauth.kakao.com/oauth/token
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
+
+billim:
+  media:
+    storage-path: ${MEDIA_STORAGE_PATH:./data/media}   # 사진 영속 볼륨 경로
 
 server:
   shutdown: graceful            # 종료 시 처리 중인 요청을 마치고 종료
