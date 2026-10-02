@@ -15,17 +15,24 @@ export function Photo({
   iconSize = 36,
   className,
   alt,
+  src,
 }: {
   cat: CategoryId;
   count?: string | number;
   iconSize?: number;
   className?: string;
   alt?: string;
+  /** 실제 사진 주소 — 없으면 카테고리 아이콘 */
+  src?: string;
 }) {
   const category = CATEGORY_MAP[cat];
   return (
     <div className={c(`item-photo${className ? ` ${className}` : ""}`)} role="img" aria-label={alt ?? `${category.label} 사진`}>
-      <Icon name={category.icon} size={iconSize} strokeWidth={1.4} />
+      {src ? (
+        <img src={src} alt="" className={c("item-photo-img")} loading="lazy" draggable={false} />
+      ) : (
+        <Icon name={category.icon} size={iconSize} strokeWidth={1.4} />
+      )}
       {count != null ? <span className={c("item-photo-count")}>{count}</span> : null}
     </div>
   );
@@ -65,24 +72,30 @@ type ItemCardProps = {
 export function ItemCard({ item, layout = "grid", range }: ItemCardProps) {
   const to = `/items/${item.id}`;
   if (layout === "row") {
-    const trustLine = item.trust.total
-      ? `반납 약속 ${item.trust.kept}/${item.trust.total}`
-      : "첫 대여를 기다려요";
+    // 신뢰 지표(C_008)가 없는 API 데이터는 소유자·등록 시각만 표시
+    const trustLine = !item.trust
+      ? null
+      : item.trust.total
+        ? `반납 약속 ${item.trust.kept}/${item.trust.total}`
+        : "첫 대여를 기다려요";
+    const count = item.photos && item.photos > 1 ? item.photos : undefined;
     return (
       <Link to={to} className={c("item-card item-card--row")}>
-        <Photo cat={item.cat} count={item.photos > 1 ? item.photos : undefined} iconSize={30} />
+        <Photo cat={item.cat} count={count} iconSize={30} src={item.thumbnailUrl} />
         <div className={c("item-card-body")}>
           <span className={c("item-card-title")}>{item.title}</span>
           <Meta icon="pin">{`${item.place} · ${item.dist}`}</Meta>
           <Avail item={item} range={range} />
-          <span className={c("item-card-trust t-caption")}>{`${item.owner} · ${trustLine} · ${item.ago}`}</span>
+          <span className={c("item-card-trust t-caption")}>
+            {[item.owner, trustLine, item.ago].filter(Boolean).join(" · ")}
+          </span>
         </div>
       </Link>
     );
   }
   return (
     <Link to={to} className={c("item-card")}>
-      <Photo cat={item.cat} count={item.photos > 1 ? item.photos : undefined} />
+      <Photo cat={item.cat} count={item.photos && item.photos > 1 ? item.photos : undefined} src={item.thumbnailUrl} />
       <div className={c("item-card-body")}>
         <span className={c("item-card-title")}>{item.title}</span>
         <Meta icon="pin">{item.place}</Meta>

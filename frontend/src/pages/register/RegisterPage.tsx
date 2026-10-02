@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError, newIdempotencyKey } from "@/api/client";
 import {
   type ApiCategory,
+  type ApiItemDetail,
   type ApiPlace,
   createItem,
   deleteMedia,
   getCategories,
+  getItem,
   getMyCommunityPlaces,
+  updateItem,
   uploadMedia,
 } from "@/api/items";
+import { EmptyState, Loading, Skeleton } from "@/components/ui/state";
+import { parseIsoDate } from "@/utils/itemView";
 import { useUi } from "@/components/overlay/UiContext";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -37,6 +42,8 @@ type Photo = {
   status: "uploading" | "done" | "error";
   mediaId?: string;
   error?: string;
+  /** 수정 모드에서 불러온 기존 사진 (ATTACHED) — 지워도 서버 삭제 API를 부르지 않는다 */
+  existing?: boolean;
 };
 
 type Load<T> = { state: "loading" } | { state: "error"; message: string } | { state: "ok"; data: T };
@@ -48,6 +55,10 @@ function messageOf(e: unknown): string {
 export function RegisterPage() {
   const { toast } = useUi();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  /** ?itemId= 가 있으면 수정 모드 (B_021) */
+  const editId = params.get("itemId");
+  const [editing, setEditing] = useState<Load<ApiItemDetail> | null>(editId ? { state: "loading" } : null);
 
   const [categories, setCategories] = useState<Load<ApiCategory[]>>({ state: "loading" });
   const [places, setPlaces] = useState<Load<ApiPlace[]>>({ state: "loading" });
@@ -85,10 +96,42 @@ export function RegisterPage() {
     };
   }, [reload]);
 
-  // 화면을 떠날 때 미리보기 주소 해제
+  // 수정 모드: 기존 값을 불러와 폼을 채운다. 사진은 서버 순서(sortOrder) 그대로, 첫 번째가 대표
+  useEffect(() => {
+    if (!editId) return;
+    let alive = true;
+    getItem(editId)
+      .then((item) => {
+        if (!alive) return;
+        setTitle(item.title);
+        setDescription(item.description ?? "");
+        setCategoryId(item.category.id);
+        setPlaceId(item.place.id);
+        setRange([parseIsoDate(item.availableStartDate), parseIsoDate(item.availableEndDate)]);
+        setPhotos(
+          [...item.images]
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((img) => ({ key: img.mediaId, previewUrl: img.contentUrl, status: "done", mediaId: img.mediaId, existing: true })),
+        );
+        setEditing({ state: "ok", data: item });
+      })
+      .catch((e: unknown) => {
+        if (!alive) return;
+        if (e instanceof ApiError && e.unauthenticated) {
+          navigate("/login");
+          return;
+        }
+        setEditing({ state: "error", message: messageOf(e) });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [editId, navigate]);
+
+  // 화면을 떠날 때 미리보기 주소 해제 (기존 사진은 서버 주소라 해제 대상 아님)
   useEffect(
     () => () => {
-      for (const p of photosRef.current) URL.revokeObjectURL(p.previewUrl);
+      for (const p of photosRef.current) if (!p.existing) URL.revokeObjectURL(p.previewUrl);
     },
     [],
   );
@@ -127,9 +170,11 @@ export function RegisterPage() {
 
   const removePhoto = (index: number) => {
     const target = photos[index];
-    URL.revokeObjectURL(target.previewUrl);
     setPhotos((list) => list.filter((_, i) => i !== index));
-    // 올라간 TEMP 사진은 바로 지운다 (실패해도 24시간 뒤 만료)
+    // 기존 사진은 수정 저장 때 목록에서 빠지는 것으로 처리한다 (단독 삭제는 409 MEDIA_IN_USE)
+    if (target.existing) return;
+    URL.revokeObjectURL(target.previewUrl);
+    // 이번에 올린 TEMP 사진은 바로 지운다 (실패해도 24시간 뒤 만료)
     if (target.mediaId) void deleteMedia(target.mediaId).catch(() => undefined);
   };
 
@@ -150,12 +195,19 @@ export function RegisterPage() {
       return;
     }
     const body = toCreateBody(draft);
-    const serialized = JSON.stringify(body);
-    if (attempt.current?.body !== serialized) attempt.current = { body: serialized, key: newIdempotencyKey() };
 
     setError(null);
     setSubmitting(true);
     try {
+      if (editId && editing?.state === "ok") {
+        // 수정(B_021): 마지막으로 불러온 version으로 낙관적 잠금. imageIds 순서가 새 표시 순서
+        await updateItem(editId, { ...body, expectedVersion: editing.data.version });
+        toast("물건을 수정했어요");
+        navigate(`/items/${editId}`);
+        return;
+      }
+      const serialized = JSON.stringify(body);
+      if (attempt.current?.body !== serialized) attempt.current = { body: serialized, key: newIdempotencyKey() };
       await createItem(body, attempt.current.key);
       toast("물건을 등록했어요");
       navigate("/");
@@ -172,10 +224,35 @@ export function RegisterPage() {
   };
 
   const busy = submitting || photos.some((p) => p.status === "uploading");
+  const pageTitle = editId ? "물건 수정" : "물건 등록";
+  const backTo = editId ? `/items/${editId}` : "/";
+
+  if (editing?.state === "loading") {
+    return (
+      <div className={c("register page-window")}>
+        <PageHeader title={pageTitle} backTo={backTo} />
+        <Loading label="물건 정보 불러오는 중">
+          <Skeleton h={84} r={12} />
+          <Skeleton h={48} />
+          <Skeleton h={120} r={12} />
+        </Loading>
+      </div>
+    );
+  }
+  if (editing?.state === "error") {
+    return (
+      <div className={c("register page-window")}>
+        <PageHeader title={pageTitle} backTo={backTo} />
+        <EmptyState icon="grid" title="이 물건을 수정할 수 없어요">
+          {editing.message}
+        </EmptyState>
+      </div>
+    );
+  }
 
   return (
     <div className={c("register page-window")}>
-      <PageHeader title="물건 등록" backTo="/" />
+      <PageHeader title={pageTitle} backTo={backTo} />
 
       <div className={c("register-field")}>
         <span className={c("t-label")}>
@@ -244,7 +321,7 @@ export function RegisterPage() {
       </div>
 
       <div onInput={(e) => setTitle((e.target as HTMLInputElement).value)}>
-        <TextField label="제목" hint="물건 이름과 규격을 적어 주세요" />
+        <TextField label="제목" hint="물건 이름과 규격을 적어 주세요" defaultValue={title} />
       </div>
 
       <div className={c("register-field")}>
@@ -270,7 +347,13 @@ export function RegisterPage() {
       </div>
 
       <div onInput={(e) => setDescription((e.target as HTMLTextAreaElement).value)}>
-        <TextField label="설명" optional multiline placeholder="함께 빌려주는 구성품, 사용할 때 주의할 점" />
+        <TextField
+          label="설명"
+          optional
+          multiline
+          placeholder="함께 빌려주는 구성품, 사용할 때 주의할 점"
+          defaultValue={description}
+        />
       </div>
 
       <div className={c("register-field")}>
@@ -334,7 +417,7 @@ export function RegisterPage() {
       ) : null}
 
       <Button size="lg" block disabled={busy} onClick={() => void submit()}>
-        {submitting ? "등록하는 중…" : "등록하기"}
+        {editId ? (submitting ? "수정하는 중…" : "수정하기") : submitting ? "등록하는 중…" : "등록하기"}
       </Button>
     </div>
   );
