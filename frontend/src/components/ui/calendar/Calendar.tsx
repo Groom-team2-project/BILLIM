@@ -18,6 +18,8 @@ type CalendarProps = {
   booked?: DayRange[];
   value: DayRange | null;
   onChange?: (range: DayRange) => void;
+  /** 조회용 범례(대여 가능·예약됨 등) 숨김 — 등록 화면처럼 선택 전용일 때 */
+  hideLegend?: boolean;
 };
 
 const dayN = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -25,7 +27,7 @@ const sameDay = (a: Date, b: Date) => dayN(a) === dayN(b);
 const inRange = (d: Date, r: DayRange) => dayN(d) >= dayN(r[0]) && dayN(d) <= dayN(r[1]);
 
 /** 월 달력 — 실제 날짜 계산 · 월 이동 · 기간 선택 (DESIGN_SYSTEM.md §6) */
-export function Calendar({ today, from, to, booked = [], value, onChange }: CalendarProps) {
+export function Calendar({ today, from, to, booked = [], value, onChange, hideLegend }: CalendarProps) {
   const base = value?.[0] ?? today;
   const [month, setMonth] = useState(() => new Date(base.getFullYear(), base.getMonth(), 1));
   const y = month.getFullYear();
@@ -97,12 +99,12 @@ export function Calendar({ today, from, to, booked = [], value, onChange }: Cale
         ))}
         {cells}
       </div>
-      <div className={c("cal-legend t-micro")}>
+      {hideLegend ? null : <div className={c("cal-legend t-micro")}>
         <span><i className={c("cal-swatch cal-swatch--sel")} />선택</span>
         <span><i className={c("cal-swatch cal-swatch--ok")} />대여 가능</span>
         <span><i className={c("cal-swatch cal-swatch--booked")} />예약됨</span>
         <span><i className={c("cal-swatch cal-swatch--off")} />지난 날짜·기간 외</span>
-      </div>
+      </div>}
     </div>
   );
 }
