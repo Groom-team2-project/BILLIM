@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Icon } from "@/components/ui/icon";
 import { SearchField } from "@/components/ui/search-field";
@@ -11,18 +11,28 @@ import { CommunitySheet } from "@/components/custom/community/CommunitySheet";
 import { useActiveCommunity } from "@/stores/community";
 import { CategoryGrid } from "@/components/custom/items/CategoryGrid";
 import { ItemCard } from "@/components/custom/items/ItemCard";
-import { MOCK_ITEMS } from "@/data/items";
+import { ApiError } from "@/api/client";
+import { type ApiItemSummary, searchItems } from "@/api/items";
+import { fillPlace, toCardItem } from "@/utils/itemView";
+import { useCommunityPlaces } from "@/hooks/useCommunityPlaces";
 import type { RentalStatusView } from "@/components/custom/rentals/status";
 import { STATUS_UI } from "@/components/custom/rentals/status";
 import styles from "@/pages/home/HomePage.module.css";
 import { classes } from "@/utils/classes";
 import { EmptyState, ErrorState, Loading, SkeletonItem } from "@/components/ui/state";
-import { useScreenState } from "@/hooks/useScreenState";
 
 const c = classes(styles);
 
-/** 프로토타입 목데이터 — 커뮤니티·대여 요약. API 연동 시 교체 */
-const COMMUNITY = { name: "새솔마을 5단지", neighbors: 128, items: 46 };
+/** 프로토타입 목데이터 — 이웃 수(E)·대여 요약(C). 해당 API 연동 시 교체 */
+const COMMUNITY = { neighbors: 128 };
+
+/** 홈 최신 물건 개수 */
+const LATEST_SIZE = 6;
+
+type Latest =
+  | { state: "loading" }
+  | { state: "error"; message: string }
+  | { state: "ok"; items: ApiItemSummary[]; total: number };
 
 const RENTAL_SUMMARY: { label: string; count: number; note: string; status: RentalStatusView }[] = [
   { label: "요청 대기", count: 2, note: "빌려준 물건", status: "requested" },
@@ -34,7 +44,27 @@ export function HomePage() {
   const navigate = useNavigate();
   const activeName = useActiveCommunity();
   const [commOpen, setCommOpen] = useState(false);
-  const state = useScreenState();
+  const [latest, setLatest] = useState<Latest>({ state: "loading" });
+  const places = useCommunityPlaces();
+  const [retry, setRetry] = useState(0);
+
+  // 최신 물건 (B_017 LATEST). TODO(B_027): 홈 조립 API가 생기면 교체
+  useEffect(() => {
+    let alive = true;
+    searchItems({ sort: "LATEST", page: 0, size: LATEST_SIZE })
+      .then((page) => alive && setLatest({ state: "ok", items: page.items, total: page.totalElements }))
+      .catch((e: unknown) => {
+        if (!alive) return;
+        if (e instanceof ApiError && e.unauthenticated) {
+          navigate("/login");
+          return;
+        }
+        setLatest({ state: "error", message: e instanceof ApiError ? e.message : "물건을 불러오지 못했어요." });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [retry, navigate]);
   return (
     <div className={c("home")}>
       <div className={c("home-head")}>
@@ -50,7 +80,7 @@ export function HomePage() {
             {activeName}
           </button>
           <span className={c("t-caption home-muted")}>
-            이웃 {COMMUNITY.neighbors}명 · 물건 {COMMUNITY.items}개
+            이웃 {COMMUNITY.neighbors}명{latest.state === "ok" ? ` · 물건 ${latest.total}개` : ""}
           </span>
         </div>
         <h1 className={c("t-display home-greeting")}>
@@ -61,7 +91,8 @@ export function HomePage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            navigate("/search");
+            const keyword = (e.currentTarget.querySelector("input")?.value ?? "").trim();
+            navigate(keyword ? `/search?keyword=${encodeURIComponent(keyword)}` : "/search");
           }}
         >
           <SearchField />
@@ -75,7 +106,7 @@ export function HomePage() {
       <div className={c("home-two")}>
         <section className={c("home-latest")}>
           <SectionHead title="최신 물건" more="더 보기" moreTo="/search" />
-          {state === "loading" ? (
+          {latest.state === "loading" ? (
             <Loading label="물건 불러오는 중">
               <div className={c("home-grid")}>
                 {[0, 1, 2, 3].map((i) => (
@@ -83,16 +114,21 @@ export function HomePage() {
                 ))}
               </div>
             </Loading>
-          ) : state === "error" ? (
-            <ErrorState title="물건을 불러오지 못했어요" />
-          ) : state === "empty" ? (
+          ) : latest.state === "error" ? (
+            <ErrorState title="물건을 불러오지 못했어요" onRetry={() => {
+              setLatest({ state: "loading" });
+              setRetry((n) => n + 1);
+            }}>
+              {latest.message}
+            </ErrorState>
+          ) : latest.items.length === 0 ? (
             <EmptyState icon="grid" title="아직 등록된 물건이 없어요">
               우리 동네 첫 물건을 올려 보세요. 가끔 쓰는 물건이면 충분해요.
             </EmptyState>
           ) : (
             <div className={c("home-grid")}>
-              {MOCK_ITEMS.slice(0, 6).map((item) => (
-                <ItemCard key={item.id} item={item} />
+              {latest.items.map((item) => (
+                <ItemCard key={item.id} item={toCardItem(fillPlace(item, places))} />
               ))}
             </div>
           )}

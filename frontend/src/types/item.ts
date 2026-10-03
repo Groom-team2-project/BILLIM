@@ -30,7 +30,8 @@ export type Trust = {
 export type ItemAvailability = "ok" | "partial" | "none";
 
 export type Item = {
-  id: number;
+  /** 목데이터는 number, API 데이터는 ID 문자열 */
+  id: number | string;
   title: string;
   cat: CategoryId;
   owner: string;
@@ -38,7 +39,11 @@ export type Item = {
   dist: string;
   avail: ItemAvailability;
   availText?: string;
-  trust: Trust;
+  /** 거래 신뢰 지표 — C_008 연동 전에는 API 데이터에 없음 */
+  trust?: Trust;
   ago: string;
-  photos: number;
+  /** 사진 장수 — 목록 API에는 없음 */
+  photos?: number;
+  /** 대표 사진 주소 (API 데이터) */
+  thumbnailUrl?: string;
 };

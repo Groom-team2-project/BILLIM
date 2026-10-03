@@ -25,6 +25,13 @@
 }
 
 /* 사진 장수 — 밝은 알약 (프로토타입 nb-photo__dots) */
+.item-photo-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .item-photo-count {
   position: absolute;
   right: 10px;
