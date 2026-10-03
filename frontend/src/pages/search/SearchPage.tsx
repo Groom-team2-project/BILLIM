@@ -158,7 +158,10 @@ export function SearchPage() {
               <Chip selected={!!categoryId} caret onClick={() => setPicker("category")}>
                 {catLabel}
               </Chip>
-              <Chip icon="filter" onClick={() => setPicker("category")}>필터</Chip>
+              {/* 선택한 필터가 있을 때만 "필터 초기화" 칩을 보여 준다 */}
+              {period || categoryId ? (
+                <Chip icon="refresh" onClick={clearAll}>필터 초기화</Chip>
+              ) : null}
             </ChipScroller>
           </div>
           <div className={c("only-desk")} ref={fieldRef} onInput={onFieldInput}>
