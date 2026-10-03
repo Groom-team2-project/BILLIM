@@ -20,7 +20,7 @@ public record ItemDetailResponse(
         LocalDate availableStartDate,
         LocalDate availableEndDate,
         String visibility,
-        int distanceMeters,
+        Integer distanceMeters,   // TODO(E): 동네 중심·장소 좌표 연동 전에는 null(생략)
         String distanceBasis,
         long version,
         List<String> allowedActions,

@@ -8,14 +8,12 @@ import com.billim.domain.item.dto.ItemSearchCondition;
 import com.billim.domain.item.dto.ItemSort;
 import com.billim.domain.item.dto.MemberSummaryResponse;
 import com.billim.domain.item.dto.PlaceResponse;
-import com.billim.domain.item.port.CurrentMemberProvider;
 import com.billim.domain.item.service.CategoryService;
 import com.billim.domain.item.service.ItemService;
 import com.billim.domain.item.service.MediaService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import com.billim.global.exception.VersionConflictException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -53,7 +51,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * 물건 API 컨트롤러 테스트. 운영 Security 설정은 건드리지 않는다.
- * 로그인 회원은 CurrentMemberProvider Mock으로, Security 필터 통과는 spring-security-test(@WithMockUser, csrf())로 처리한다.
+ * 로그인 회원은 spring-security-test(@WithMockUser, csrf())로 만든다. 컨트롤러는 인증 이름을 회원 ID로 읽는다(TODO(A): principal 형식 확정 시 갱신).
  * 401·403 계약은 운영 SecurityFilterChain이 아직 없으므로 Spring Boot 기본 보안 설정 기준으로 확인한다.
  */
 // OAuth2 client-id/secret은 실제 환경변수 없이도 컨텍스트가 뜨도록 테스트 값을 주입 (BillimApplicationTests와 같은 방식)
@@ -61,7 +59,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.security.oauth2.client.registration.kakao.client-id=test-client-id",
         "spring.security.oauth2.client.registration.kakao.client-secret=test-client-secret"
 })
-@WithMockUser
+@WithMockUser(username = "1")
 class ItemControllerTest {
 
     private static final String KEY = "4429a68a-0270-4c19-9c5f-427b08aaac87";
@@ -76,12 +74,6 @@ class ItemControllerTest {
     @MockitoBean ItemService itemService;
     @MockitoBean MediaService mediaService;
     @MockitoBean CategoryService categoryService;
-    @MockitoBean CurrentMemberProvider currentMember;
-
-    @BeforeEach
-    void setUp() {
-        when(currentMember.requireMemberId()).thenReturn(1L);
-    }
 
     private static ItemDetailResponse detail() {
         return new ItemDetailResponse("7", "전동드릴", "설명",
@@ -191,10 +183,9 @@ class ItemControllerTest {
     }
 
     @Test
-    @DisplayName("인증되지 않은 요청은 401이다")
-    void createWhenMemberUnresolvedReturns401() throws Exception {
-        when(currentMember.requireMemberId()).thenThrow(new BusinessException(ErrorCode.UNAUTHENTICATED));
-
+    @WithMockUser(username = "not-a-member-id")
+    @DisplayName("회원 ID를 읽을 수 없는 인증 정보는 401 UNAUTHENTICATED다")
+    void createWithUnreadableMemberIdReturns401() throws Exception {
         mvc.perform(post("/api/v1/items").with(csrf()).header("Idempotency-Key", KEY)
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE_BODY))
                 .andExpect(status().isUnauthorized())

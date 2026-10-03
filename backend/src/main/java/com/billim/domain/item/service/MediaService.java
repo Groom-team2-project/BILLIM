@@ -4,7 +4,6 @@ import com.billim.domain.item.dto.MediaFileResponse;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.MediaFile;
 import com.billim.domain.item.entity.MediaStatus;
-import com.billim.domain.item.port.RentalPort;
 import com.billim.domain.item.repository.ItemImageRepository;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.repository.MediaFileRepository;
@@ -39,19 +38,17 @@ public class MediaService {
     private final ImageInspector inspector;
     private final MediaStorage storage;
     private final ItemAccessPolicy accessPolicy;
-    private final RentalPort rentalPort;
     private final Clock clock;
 
     public MediaService(MediaFileRepository mediaFileRepository, ItemImageRepository itemImageRepository,
                         ItemRepository itemRepository, ImageInspector inspector, MediaStorage storage,
-                        ItemAccessPolicy accessPolicy, RentalPort rentalPort, Clock clock) {
+                        ItemAccessPolicy accessPolicy, Clock clock) {
         this.mediaFileRepository = mediaFileRepository;
         this.itemImageRepository = itemImageRepository;
         this.itemRepository = itemRepository;
         this.inspector = inspector;
         this.storage = storage;
         this.accessPolicy = accessPolicy;
-        this.rentalPort = rentalPort;
         this.clock = clock;
     }
 
@@ -85,7 +82,7 @@ public class MediaService {
         }
     }
 
-    /** TEMP는 업로더만. ATTACHED는 물건 조회 권한 또는 기존 거래 당사자. 그 외는 존재를 숨기는 404 */
+    /** TEMP는 업로더만. ATTACHED는 물건 조회 권한이 있는 회원만. 그 외는 존재를 숨기는 404 */
     @Transactional(readOnly = true)
     public MediaContent read(long memberId, long mediaId) {
         MediaFile m = mediaFileRepository.findById(mediaId)
@@ -98,10 +95,8 @@ public class MediaService {
         } else {
             Long itemId = itemImageRepository.findItemIdByMediaFileId(mediaId).orElseThrow(MediaService::notFound);
             Item item = itemRepository.findById(itemId).orElseThrow(MediaService::notFound);
-            boolean allowed = accessPolicy.canView(item, memberId)
-                    || item.isOwnedBy(memberId)
-                    || rentalPort.isRentalParticipant(itemId, memberId);
-            if (!allowed) {
+            // TODO(C): 물건을 볼 수 없게 된 뒤에도 기존 대여 당사자(요청자·소유자)는 사진을 읽을 수 있어야 한다.
+            if (!accessPolicy.canView(item, memberId)) {
                 throw notFound();
             }
         }

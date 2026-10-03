@@ -5,7 +5,6 @@ import com.billim.domain.item.entity.ItemVisibility;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
-import java.util.Collection;
 
 /**
  * 물건 검색 조건 조합. 인덱스 시작 후보:
@@ -50,20 +49,6 @@ public final class ItemSpecifications {
         return (root, q, cb) -> cb.and(
                 cb.lessThanOrEqualTo(root.<LocalDate>get("availableStartDate"), start),
                 cb.greaterThanOrEqualTo(root.<LocalDate>get("availableEndDate"), end));
-    }
-
-    public static Specification<Item> ownerNotIn(Collection<Long> ownerIds) {
-        if (ownerIds == null || ownerIds.isEmpty()) {
-            return null;
-        }
-        return (root, q, cb) -> cb.not(root.get("ownerId").in(ownerIds));
-    }
-
-    public static Specification<Item> idNotIn(Collection<Long> itemIds) {
-        if (itemIds == null || itemIds.isEmpty()) {
-            return null;
-        }
-        return (root, q, cb) -> cb.not(root.get("id").in(itemIds));
     }
 
     /** null 조건은 건너뛰고 AND로 묶는다. (Spring Data JPA 4의 and(null) 비허용 대응) */

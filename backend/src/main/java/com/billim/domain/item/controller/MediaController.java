@@ -1,7 +1,6 @@
 package com.billim.domain.item.controller;
 
 import com.billim.domain.item.dto.MediaFileResponse;
-import com.billim.domain.item.port.CurrentMemberProvider;
 import com.billim.domain.item.service.IdParser;
 import com.billim.domain.item.service.MediaService;
 import com.billim.global.exception.BusinessException;
@@ -10,6 +9,7 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,18 +29,17 @@ import java.io.IOException;
 public class MediaController {
 
     private final MediaService mediaService;
-    private final CurrentMemberProvider currentMember;
 
-    public MediaController(MediaService mediaService, CurrentMemberProvider currentMember) {
+    public MediaController(MediaService mediaService) {
         this.mediaService = mediaService;
-        this.currentMember = currentMember;
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public MediaFileResponse upload(@RequestHeader("Idempotency-Key") String idempotencyKey,
-                                    @RequestPart("file") MultipartFile file) {
-        long memberId = currentMember.requireMemberId();
+                                    @RequestPart("file") MultipartFile file,
+                                    Authentication authentication) {
+        long memberId = AuthenticatedMember.id(authentication);
         IdempotencyKeys.require(idempotencyKey);
         try {
             return mediaService.upload(memberId, file.getBytes(), file.getContentType());
@@ -50,8 +49,8 @@ public class MediaController {
     }
 
     @GetMapping("/{mediaId}/content")
-    public ResponseEntity<byte[]> content(@PathVariable String mediaId) {
-        long memberId = currentMember.requireMemberId();
+    public ResponseEntity<byte[]> content(@PathVariable String mediaId, Authentication authentication) {
+        long memberId = AuthenticatedMember.id(authentication);
         MediaService.MediaContent c = mediaService.read(memberId, IdParser.parse(mediaId));
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(c.mimeType()))
@@ -62,8 +61,8 @@ public class MediaController {
 
     @DeleteMapping("/{mediaId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable String mediaId) {
-        long memberId = currentMember.requireMemberId();
+    public void delete(@PathVariable String mediaId, Authentication authentication) {
+        long memberId = AuthenticatedMember.id(authentication);
         mediaService.deleteTemp(memberId, IdParser.parse(mediaId));
     }
 }

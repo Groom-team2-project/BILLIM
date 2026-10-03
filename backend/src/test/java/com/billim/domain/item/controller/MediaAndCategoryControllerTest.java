@@ -3,13 +3,11 @@ package com.billim.domain.item.controller;
 import com.billim.domain.item.dto.CategoryListResponse;
 import com.billim.domain.item.dto.CategoryResponse;
 import com.billim.domain.item.dto.MediaFileResponse;
-import com.billim.domain.item.port.CurrentMemberProvider;
 import com.billim.domain.item.service.CategoryService;
 import com.billim.domain.item.service.ItemService;
 import com.billim.domain.item.service.MediaService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.security.oauth2.client.registration.kakao.client-id=test-client-id",
         "spring.security.oauth2.client.registration.kakao.client-secret=test-client-secret"
 })
-@WithMockUser
+@WithMockUser(username = "1")
 class MediaAndCategoryControllerTest {
 
     private static final String KEY = "4429a68a-0270-4c19-9c5f-427b08aaac87";
@@ -51,12 +49,6 @@ class MediaAndCategoryControllerTest {
     @MockitoBean ItemService itemService;
     @MockitoBean MediaService mediaService;
     @MockitoBean CategoryService categoryService;
-    @MockitoBean CurrentMemberProvider currentMember;
-
-    @BeforeEach
-    void setUp() {
-        when(currentMember.requireMemberId()).thenReturn(1L);
-    }
 
     private static MockMultipartFile file(byte[] bytes) {
         return new MockMultipartFile("file", "a.jpg", "image/jpeg", bytes);
@@ -76,10 +68,9 @@ class MediaAndCategoryControllerTest {
     }
 
     @Test
-    @DisplayName("인증되지 않으면 카테고리 조회는 401이다")
-    void categoriesWhenMemberUnresolvedReturn401() throws Exception {
-        when(currentMember.requireMemberId()).thenThrow(new BusinessException(ErrorCode.UNAUTHENTICATED));
-
+    @WithMockUser(username = "not-a-member-id")
+    @DisplayName("회원 ID를 읽을 수 없는 인증 정보로 카테고리를 조회하면 401이다")
+    void categoriesWithUnreadableMemberIdReturn401() throws Exception {
         mvc.perform(get("/api/v1/categories"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));

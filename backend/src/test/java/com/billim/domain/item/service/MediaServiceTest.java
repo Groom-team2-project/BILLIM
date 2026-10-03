@@ -4,7 +4,6 @@ import com.billim.domain.item.dto.MediaFileResponse;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.MediaFile;
 import com.billim.domain.item.entity.MediaStatus;
-import com.billim.domain.item.port.RentalPort;
 import com.billim.domain.item.repository.ItemImageRepository;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.repository.MediaFileRepository;
@@ -53,7 +52,6 @@ class MediaServiceTest {
     @Mock ItemImageRepository itemImageRepository;
     @Mock ItemRepository itemRepository;
     @Mock ItemAccessPolicy accessPolicy;
-    @Mock RentalPort rentalPort;
     @TempDir Path root;
 
     LocalMediaStorage storage;
@@ -63,7 +61,7 @@ class MediaServiceTest {
     void setUp() {
         storage = new LocalMediaStorage(root.toString());
         service = new MediaService(mediaFileRepository, itemImageRepository, itemRepository, new ImageInspector(),
-                storage, accessPolicy, rentalPort, Clock.fixed(NOW, ZoneOffset.UTC));
+                storage, accessPolicy, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private static byte[] jpg() throws IOException {
@@ -151,7 +149,7 @@ class MediaServiceTest {
     }
 
     @Test
-    @DisplayName("연결된 사진은 물건 조회 권한이나 기존 거래 당사자여야 읽을 수 있다")
+    @DisplayName("연결된 사진은 물건 조회 권한이 있는 회원만 읽을 수 있다 (기존 대여 당사자 예외는 TODO(C))")
     void attachedMediaFollowsItemPermission() throws IOException {
         MediaFile m = stored(5, OTHER, "2026/10/b.jpg", jpg());
         m.attach(OTHER, NOW);
@@ -165,10 +163,6 @@ class MediaServiceTest {
         assertThat(service.read(ME, 5).mimeType()).isEqualTo("image/jpeg");
 
         when(accessPolicy.canView(item, ME)).thenReturn(false);
-        when(rentalPort.isRentalParticipant(7L, ME)).thenReturn(true);
-        assertThat(service.read(ME, 5).bytes()).isNotEmpty();
-
-        when(rentalPort.isRentalParticipant(7L, ME)).thenReturn(false);
         assertCode(() -> service.read(ME, 5), ErrorCode.RESOURCE_NOT_FOUND);
     }
 

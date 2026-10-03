@@ -5,7 +5,6 @@ import com.billim.domain.item.dto.ItemDetailResponse;
 import com.billim.domain.item.dto.ItemPageResponse;
 import com.billim.domain.item.dto.ItemSearchCondition;
 import com.billim.domain.item.dto.ItemSort;
-import com.billim.domain.item.dto.ItemSummaryResponse;
 import com.billim.domain.item.dto.UpdateItemRequest;
 import com.billim.domain.item.dto.VisibilityChangeRequest;
 import com.billim.domain.item.entity.Category;
@@ -13,11 +12,6 @@ import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemImage;
 import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.item.entity.MediaFile;
-import com.billim.domain.item.port.BlockPort;
-import com.billim.domain.item.port.CommunityPort;
-import com.billim.domain.item.port.CommunityPort.PlaceInfo;
-import com.billim.domain.item.port.RentalPort;
-import com.billim.domain.item.port.RentalPort.DateRange;
 import com.billim.domain.item.repository.CategoryRepository;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.repository.ItemSpecifications;
@@ -38,13 +32,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /** 물건 등록·수정·삭제·공개 변경·검색·상세 유스케이스 */
 @Service
@@ -59,23 +51,16 @@ public class ItemService {
     private final CategoryRepository categoryRepository;
     private final ItemAssembler assembler;
     private final ItemAccessPolicy accessPolicy;
-    private final CommunityPort communityPort;
-    private final RentalPort rentalPort;
-    private final BlockPort blockPort;
     private final Clock clock;
 
     public ItemService(ItemRepository itemRepository, MediaFileRepository mediaFileRepository,
                        CategoryRepository categoryRepository, ItemAssembler assembler,
-                       ItemAccessPolicy accessPolicy, CommunityPort communityPort,
-                       RentalPort rentalPort, BlockPort blockPort, Clock clock) {
+                       ItemAccessPolicy accessPolicy, Clock clock) {
         this.itemRepository = itemRepository;
         this.mediaFileRepository = mediaFileRepository;
         this.categoryRepository = categoryRepository;
         this.assembler = assembler;
         this.accessPolicy = accessPolicy;
-        this.communityPort = communityPort;
-        this.rentalPort = rentalPort;
-        this.blockPort = blockPort;
         this.clock = clock;
     }
 
@@ -84,12 +69,13 @@ public class ItemService {
     @Transactional
     public ItemDetailResponse create(long memberId, CreateItemRequest req) {
         Instant now = clock.instant();
-        long communityId = communityPort.requireActiveCommunityId(memberId);
+        long communityId = accessPolicy.requireActiveCommunityId(memberId);   // TODO(E): 동네 연동 전에는 503
         List<Long> imageIds = parseImageIds(req.imageIds());
         Category category = requireCategory(IdParser.parse(req.categoryId()));
-        PlaceInfo place = requirePlace(IdParser.parse(req.placeId()), communityId);
+        // TODO(E): 거래 장소가 존재하고, 활성이며, 이 동네의 공용 장소인지 검증한다. 연동 전에는 ID 형식만 확인한다.
+        long placeId = IdParser.parse(req.placeId());
 
-        Item item = Item.create(memberId, communityId, category.getId(), place.id(),
+        Item item = Item.create(memberId, communityId, category.getId(), placeId,
                 req.title(), req.description(), req.availableStartDate(), req.availableEndDate(), now);
         attachMedia(memberId, imageIds, Set.of(), now);
         item.replaceImages(imageIds, now);
@@ -108,7 +94,7 @@ public class ItemService {
     public ItemDetailResponse get(long memberId, long itemId) {
         Item item = itemRepository.findById(itemId).orElseThrow(ItemService::notFound);
         if (!item.isOwnedBy(memberId)) {
-            communityPort.requireActiveCommunityId(memberId);
+            accessPolicy.requireActiveCommunityId(memberId);   // TODO(E): 동네 연동 전 타인 물건 조회는 503
         }
         if (!accessPolicy.canView(item, memberId)) {
             throw notFound();
@@ -122,30 +108,22 @@ public class ItemService {
     public ItemDetailResponse update(long memberId, long itemId, UpdateItemRequest req) {
         Instant now = clock.instant();
         Item item = loadForCommand(memberId, itemId);
-        requireOwnCommunity(memberId, item);
+        // TODO(E): 수정하는 회원의 현재 유효 동네가 이 물건의 동네와 같은지 확인한다(다르면 403).
         requireVersion(item, req.expectedVersion());
 
         List<Long> imageIds = parseImageIds(req.imageIds());
         Category category = requireCategory(IdParser.parse(req.categoryId()));
-        PlaceInfo place = requirePlace(IdParser.parse(req.placeId()), item.getCommunityId());
-
-        // 가능 기간은 진행 중인 요청·거래 기간을 모두 포함해야 한다.
-        List<DateRange> openRanges = rentalPort.findOpenRentalRanges(itemId);
-        for (DateRange r : openRanges) {
-            if (r.startDate().isBefore(req.availableStartDate()) || r.endDate().isAfter(req.availableEndDate())) {
-                throw new BusinessException(ErrorCode.ITEM_HAS_OPEN_RENTALS,
-                        "진행 중인 대여 기간을 벗어나도록 가능 기간을 줄일 수 없습니다.");
-            }
-        }
+        // TODO(E): 거래 장소가 존재하고, 활성이며, 이 물건의 동네 공용 장소인지 검증한다.
+        long placeId = IdParser.parse(req.placeId());
+        // TODO(C): 진행 중인 요청·거래(REQUESTED/APPROVED/ACTIVE)가 있으면
+        //          ① 가능 기간이 그 기간을 모두 포함해야 하고(아니면 409 ITEM_HAS_OPEN_RENTALS),
+        //          ② 사진을 제거할 수 없다(409 MEDIA_IN_USE). 연동 전에는 검사하지 않는다.
 
         List<Long> currentIds = item.getImages().stream().map(ItemImage::getMediaFileId).toList();
         Set<Long> removed = new LinkedHashSet<>(currentIds);
         removed.removeAll(imageIds);
-        if (!removed.isEmpty() && !openRanges.isEmpty()) {
-            throw new BusinessException(ErrorCode.MEDIA_IN_USE);   // 진행 거래 중 사진 제거 금지
-        }
 
-        item.update(category.getId(), place.id(), req.title(), req.description(),
+        item.update(category.getId(), placeId, req.title(), req.description(),
                 req.availableStartDate(), req.availableEndDate(), now);
 
         if (!currentIds.equals(imageIds)) {
@@ -173,10 +151,7 @@ public class ItemService {
         Instant now = clock.instant();
         Item item = loadForCommand(memberId, itemId);
         requireVersion(item, req.expectedVersion());
-        if (req.visibility() == ItemVisibility.PUBLIC) {
-            // 공개 복원은 해당 동네의 유효 소속이 필요. HIDDEN 전환은 정리 목적이라 소속과 무관하게 허용
-            requireOwnCommunity(memberId, item);
-        }
+        // TODO(E): 공개(PUBLIC) 복원은 해당 동네의 유효 소속이 필요하다(아니면 403). HIDDEN 전환은 소속과 무관하게 허용.
         item.changeVisibility(req.visibility(), now);
         itemRepository.flush();
         return assembler.detail(item, memberId);
@@ -189,9 +164,7 @@ public class ItemService {
         Instant now = clock.instant();
         Item item = loadForCommand(memberId, itemId);
         requireVersion(item, expectedVersion);
-        if (rentalPort.hasOpenRentals(itemId)) {
-            throw new BusinessException(ErrorCode.ITEM_HAS_OPEN_RENTALS);
-        }
+        // TODO(C): 진행 중인 요청·거래(REQUESTED/APPROVED/ACTIVE)가 있으면 409 ITEM_HAS_OPEN_RENTALS. 연동 전에는 검사하지 않는다.
         item.delete(now);   // visibility=DELETED, deleted_at. 행·사진은 물리 삭제하지 않는다.
         itemRepository.flush();
     }
@@ -202,46 +175,27 @@ public class ItemService {
     public ItemPageResponse search(long memberId, ItemSearchCondition cond) {
         ItemSort sort = cond.sort() == null ? ItemSort.LATEST : cond.sort();
         validateSearch(cond);
-        long communityId = communityPort.requireActiveCommunityId(memberId);
+        if (sort == ItemSort.NEAREST) {
+            // TODO(E): 동네 중심과 장소 좌표가 연동되면 거리순 정렬을 구현한다. 연동 전에는 다른 정렬로 바꿔 응답하지 않는다.
+            throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE, "거리순 정렬은 동네 연동 후 사용할 수 있습니다.");
+        }
+        long communityId = accessPolicy.requireActiveCommunityId(memberId);   // TODO(E): 동네 연동 전에는 503
 
-        boolean ranged = cond.startDate() != null;
-        Set<Long> blocked = blockPort.findBlockRelatedMemberIds(memberId);
-        Set<Long> unavailable = ranged
-                ? rentalPort.findUnavailableItemIds(communityId, cond.startDate(), cond.endDate())
-                : Set.of();
-
+        // TODO(E): 차단 관계(내가 차단했거나 나를 차단한 회원)의 물건을 제외한다.
+        // TODO(C): 선택 기간에 승인·진행 중인 대여가 있는 물건을 제외하고 availableForRange를 채운다.
+        //          연동 전에는 물건의 대여 가능 기간이 선택 기간을 포함하는지만 본다.
         Specification<Item> spec = ItemSpecifications.allOf(
                 ItemSpecifications.community(communityId),
                 ItemSpecifications.publicOnly(),
                 ItemSpecifications.category(cond.categoryId()),
                 ItemSpecifications.place(cond.placeId()),
                 ItemSpecifications.titleContains(cond.keyword()),
-                ItemSpecifications.availableCovers(cond.startDate(), cond.endDate()),
-                ItemSpecifications.ownerNotIn(blocked),
-                ItemSpecifications.idNotIn(unavailable));
+                ItemSpecifications.availableCovers(cond.startDate(), cond.endDate()));
 
-        Boolean availableForRange = ranged ? Boolean.TRUE : null;
-        if (sort == ItemSort.LATEST) {
-            Page<Item> page = itemRepository.findAll(spec, PageRequest.of(cond.page(), cond.size(),
-                    Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))));
-            return new ItemPageResponse(assembler.summaries(page.getContent(), availableForRange, null),
-                    cond.page(), cond.size(), page.getTotalElements(), page.hasNext());
-        }
-
-        // NEAREST: 거리는 다른 담당의 장소 좌표에서 계산되므로 조건에 맞는 물건을 모아 메모리에서 정렬한다.
-        // TODO: 물건 수가 커지면 장소별 거리 선계산이나 DB 정렬로 교체 (성능 측정 후 결정)
-        List<Item> all = itemRepository.findAll(spec);
-        Map<Long, Integer> dist = assembler.distancesByPlace(
-                all.stream().map(Item::getPlaceId).collect(Collectors.toSet()), communityId);
-        List<Item> sorted = all.stream()
-                .sorted(Comparator.<Item>comparingInt(i -> dist.getOrDefault(i.getPlaceId(), Integer.MAX_VALUE))
-                        .thenComparing(Comparator.comparing(Item::getId).reversed()))
-                .toList();
-        long from = (long) cond.page() * cond.size();
-        int fromIdx = (int) Math.min(from, sorted.size());
-        int toIdx = (int) Math.min(from + cond.size(), sorted.size());
-        List<ItemSummaryResponse> content = assembler.summaries(sorted.subList(fromIdx, toIdx), availableForRange, null);
-        return new ItemPageResponse(content, cond.page(), cond.size(), sorted.size(), toIdx < sorted.size());
+        Page<Item> page = itemRepository.findAll(spec, PageRequest.of(cond.page(), cond.size(),
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))));
+        return new ItemPageResponse(assembler.summaries(page.getContent()),
+                cond.page(), cond.size(), page.getTotalElements(), page.hasNext());
     }
 
     /** 검색 조건 검증 (API 명세 B_017). 위반은 모두 400 INVALID_REQUEST */
@@ -288,13 +242,6 @@ public class ItemService {
         return item;
     }
 
-    private void requireOwnCommunity(long memberId, Item item) {
-        long active = communityPort.requireActiveCommunityId(memberId);
-        if (active != item.getCommunityId()) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
-        }
-    }
-
     private static void requireVersion(Item item, long expectedVersion) {
         if (item.getVersion() != expectedVersion) {
             throw new VersionConflictException(item.getVersion());
@@ -305,12 +252,6 @@ public class ItemService {
         return categoryRepository.findById(categoryId)
                 .filter(Category::isActive)
                 .orElseThrow(() -> invalid("유효하지 않은 카테고리입니다."));
-    }
-
-    private PlaceInfo requirePlace(long placeId, long communityId) {
-        return communityPort.findPlace(placeId)
-                .filter(p -> p.active() && p.communityId() == communityId)
-                .orElseThrow(() -> invalid("유효하지 않은 거래 장소입니다."));
     }
 
     private static List<Long> parseImageIds(List<String> raw) {

@@ -7,7 +7,6 @@ import com.billim.domain.item.dto.ItemSearchCondition;
 import com.billim.domain.item.dto.ItemSort;
 import com.billim.domain.item.dto.UpdateItemRequest;
 import com.billim.domain.item.dto.VisibilityChangeRequest;
-import com.billim.domain.item.port.CurrentMemberProvider;
 import com.billim.domain.item.service.IdParser;
 import com.billim.domain.item.service.ItemService;
 import com.billim.global.exception.BusinessException;
@@ -15,6 +14,7 @@ import com.billim.global.exception.ErrorCode;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -36,11 +36,9 @@ import java.time.LocalDate;
 public class ItemController {
 
     private final ItemService itemService;
-    private final CurrentMemberProvider currentMember;
 
-    public ItemController(ItemService itemService, CurrentMemberProvider currentMember) {
+    public ItemController(ItemService itemService) {
         this.itemService = itemService;
-        this.currentMember = currentMember;
     }
 
     @GetMapping
@@ -52,8 +50,9 @@ public class ItemController {
             @RequestParam(required = false) String placeId,
             @RequestParam(required = false) String sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        long memberId = currentMember.requireMemberId();
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication) {
+        long memberId = AuthenticatedMember.id(authentication);
         ItemSearchCondition cond = new ItemSearchCondition(
                 keyword,
                 categoryId == null ? null : IdParser.parse(categoryId),
@@ -66,35 +65,39 @@ public class ItemController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ItemDetailResponse create(@RequestHeader("Idempotency-Key") String idempotencyKey,
-                                     @Valid @RequestBody CreateItemRequest request) {
-        long memberId = currentMember.requireMemberId();
+                                     @Valid @RequestBody CreateItemRequest request,
+                                     Authentication authentication) {
+        long memberId = AuthenticatedMember.id(authentication);
         IdempotencyKeys.require(idempotencyKey);
         return itemService.create(memberId, request);
     }
 
     @GetMapping("/{itemId}")
-    public ItemDetailResponse get(@PathVariable String itemId) {
-        long memberId = currentMember.requireMemberId();
+    public ItemDetailResponse get(@PathVariable String itemId, Authentication authentication) {
+        long memberId = AuthenticatedMember.id(authentication);
         return itemService.get(memberId, IdParser.parse(itemId));
     }
 
     @PutMapping("/{itemId}")
-    public ItemDetailResponse update(@PathVariable String itemId, @Valid @RequestBody UpdateItemRequest request) {
-        long memberId = currentMember.requireMemberId();
+    public ItemDetailResponse update(@PathVariable String itemId, @Valid @RequestBody UpdateItemRequest request,
+                                     Authentication authentication) {
+        long memberId = AuthenticatedMember.id(authentication);
         return itemService.update(memberId, IdParser.parse(itemId), request);
     }
 
     @PatchMapping("/{itemId}/visibility")
     public ItemDetailResponse changeVisibility(@PathVariable String itemId,
-                                               @Valid @RequestBody VisibilityChangeRequest request) {
-        long memberId = currentMember.requireMemberId();
+                                               @Valid @RequestBody VisibilityChangeRequest request,
+                                               Authentication authentication) {
+        long memberId = AuthenticatedMember.id(authentication);
         return itemService.changeVisibility(memberId, IdParser.parse(itemId), request);
     }
 
     @DeleteMapping("/{itemId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable String itemId, @RequestParam Long expectedVersion) {
-        long memberId = currentMember.requireMemberId();
+    public void delete(@PathVariable String itemId, @RequestParam Long expectedVersion,
+                       Authentication authentication) {
+        long memberId = AuthenticatedMember.id(authentication);
         if (expectedVersion < 0) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "expectedVersion은 0 이상이어야 합니다.");
         }
