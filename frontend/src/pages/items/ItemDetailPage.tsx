@@ -22,12 +22,14 @@ import {
   formatAgo,
   formatDistance,
   formatMonthDay,
+  fillPlace,
   formatYearMonth,
   parseIsoDate,
   toCategoryId,
 } from "@/utils/itemView";
 import { objectParticle } from "@/utils/korean";
 import { setCurrentItem, useCurrentItem } from "@/stores/currentItem";
+import { useCommunityPlaces } from "@/hooks/useCommunityPlaces";
 
 const c = classes(styles);
 
@@ -54,6 +56,7 @@ export function ItemDetailPage() {
   const [today] = useState(() => new Date());
   // 불러온 상세는 공유 저장소에 둔다 (헤더 더보기 메뉴가 같은 값을 쓴다)
   const current = useCurrentItem(itemId);
+  const places = useCommunityPlaces();
 
   useEffect(() => {
     let alive = true;
@@ -113,7 +116,7 @@ export function ItemDetailPage() {
     );
   }
 
-  const item = current as ApiItemDetail;
+  const item = fillPlace(current as ApiItemDetail, places);
   const cat = toCategoryId(item.category.code);
   const owner = item.owner.displayName ?? UNKNOWN_OWNER;
   const place = item.place.name ?? UNKNOWN_PLACE;

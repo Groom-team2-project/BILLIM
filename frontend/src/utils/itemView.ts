@@ -36,6 +36,30 @@ export function toCategoryId(code: string): CategoryId {
 export const UNKNOWN_OWNER = "이웃";
 export const UNKNOWN_PLACE = "거래 장소";
 
+export type PlaceInfo = { name?: string; latitude?: number; longitude?: number; guide?: string };
+
+/**
+ * 물건의 장소에 빠진 이름·좌표·안내를 공용 장소 목록으로 채운다. 서버가 준 값이 있으면 그 값을 쓴다.
+ * 목록에 없는 장소(또는 목록을 못 불러온 경우)는 그대로 둔다.
+ */
+export function fillPlace<T extends { place: { id: string } & PlaceInfo }>(
+  item: T,
+  places: ReadonlyMap<string, PlaceInfo> | null | undefined,
+): T {
+  const known = places?.get(item.place.id);
+  if (!known) return item;
+  return {
+    ...item,
+    place: {
+      ...item.place,
+      name: item.place.name ?? known.name,
+      latitude: item.place.latitude ?? known.latitude,
+      longitude: item.place.longitude ?? known.longitude,
+      guide: item.place.guide ?? known.guide,
+    },
+  };
+}
+
 /** 거리(m) 표시: 1km 미만은 m, 이상은 소수 첫째 자리 km */
 export function formatDistance(meters: number): string {
   if (meters < 1000) return `${Math.max(0, Math.round(meters))}m`;

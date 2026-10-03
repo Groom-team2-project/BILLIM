@@ -14,7 +14,8 @@ import { type ApiItemSummary, searchItems } from "@/api/items";
 import { useCategories } from "@/hooks/useCategories";
 import { useActiveCommunity } from "@/stores/community";
 import { categoryIcon, toIsoDate } from "@/utils/registerForm";
-import { formatMonthDay, toCardItem, toMapPins, toSearchQuery } from "@/utils/itemView";
+import { fillPlace, formatMonthDay, toCardItem, toMapPins, toSearchQuery } from "@/utils/itemView";
+import { useCommunityPlaces } from "@/hooks/useCommunityPlaces";
 import styles from "@/pages/search/SearchPage.module.css";
 import overlayStyles from "@/components/overlay/overlay.module.css";
 import { classes } from "@/utils/classes";
@@ -98,7 +99,9 @@ export function SearchPage() {
   };
   const onFieldInput = (e: FormEvent<HTMLDivElement>) => setKeyword((e.target as HTMLInputElement).value);
 
-  const items = result?.state === "ok" && !loading ? result.items : [];
+  const places = useCommunityPlaces();
+  // 물건 응답에 없는 장소 이름·좌표는 동네 공용 장소 목록으로 채운다
+  const items = (result?.state === "ok" && !loading ? result.items : []).map((i) => fillPlace(i, places));
   const pins = toMapPins(items);
   const pin = pins.find((p) => p.id === pinId) ?? pins[0];
   const pinItems = pin ? items.filter((i) => i.place.id === pin.id) : [];

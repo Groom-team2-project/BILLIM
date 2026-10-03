@@ -13,6 +13,7 @@ import {
   UNKNOWN_OWNER,
   UNKNOWN_PLACE,
   formatYearMonth,
+  fillPlace,
 } from "../src/utils/itemView.ts";
 import { toIsoDate } from "../src/utils/registerForm.ts";
 
@@ -141,4 +142,35 @@ test("지도 핀: 좌표가 없는 장소는 건너뛴다", () => {
   assert.equal(pins.length, 1);
   assert.equal(pins[0].id, "2");
   assert.deepEqual(toMapPins([{ place: { id: "1" } }]), []);
+});
+
+test("장소 채우기: 물건 응답에 없는 이름·좌표·안내를 공용 장소 목록으로 채운다", () => {
+  const places = new Map([["2", { name: "정문 경비실 옆 벤치", latitude: 37.4976, longitude: 127.0272, guide: "정문 오른쪽" }]]);
+  const filled = fillPlace({ title: "gdgd", place: { id: "2" } }, places);
+  assert.equal(filled.place.name, "정문 경비실 옆 벤치");
+  assert.equal(filled.place.latitude, 37.4976);
+  assert.equal(filled.place.guide, "정문 오른쪽");
+  assert.equal(filled.title, "gdgd");
+});
+
+test("장소 채우기: 서버가 준 값은 덮어쓰지 않고, 목록에 없거나 목록이 없으면 그대로 둔다", () => {
+  const places = new Map([["2", { name: "목록 이름" }]]);
+  assert.equal(fillPlace({ place: { id: "2", name: "서버 이름" } }, places).place.name, "서버 이름");
+  const unknown = { place: { id: "9" } };
+  assert.equal(fillPlace(unknown, places), unknown);
+  assert.equal(fillPlace(unknown, null), unknown);
+});
+
+test("장소 채우기 결과가 목록 카드에 이름으로 표시된다", () => {
+  const places = new Map([["2", { name: "정문 경비실 옆 벤치" }]]);
+  const summary = {
+    id: "1",
+    title: "gdgd",
+    category: { code: "TOOL" },
+    owner: {},
+    place: { id: "2" },
+    createdAt: "2026-10-02T00:00:00Z",
+  };
+  assert.equal(toCardItem(fillPlace(summary, places)).place, "정문 경비실 옆 벤치");
+  assert.equal(toCardItem(summary).place, UNKNOWN_PLACE, "목록이 없으면 대체 문구");
 });

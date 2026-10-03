@@ -13,7 +13,8 @@ import { CategoryGrid } from "@/components/custom/items/CategoryGrid";
 import { ItemCard } from "@/components/custom/items/ItemCard";
 import { ApiError } from "@/api/client";
 import { type ApiItemSummary, searchItems } from "@/api/items";
-import { toCardItem } from "@/utils/itemView";
+import { fillPlace, toCardItem } from "@/utils/itemView";
+import { useCommunityPlaces } from "@/hooks/useCommunityPlaces";
 import type { RentalStatusView } from "@/components/custom/rentals/status";
 import { STATUS_UI } from "@/components/custom/rentals/status";
 import styles from "@/pages/home/HomePage.module.css";
@@ -44,6 +45,7 @@ export function HomePage() {
   const activeName = useActiveCommunity();
   const [commOpen, setCommOpen] = useState(false);
   const [latest, setLatest] = useState<Latest>({ state: "loading" });
+  const places = useCommunityPlaces();
   const [retry, setRetry] = useState(0);
 
   // 최신 물건 (B_017 LATEST). TODO(B_027): 홈 조립 API가 생기면 교체
@@ -126,7 +128,7 @@ export function HomePage() {
           ) : (
             <div className={c("home-grid")}>
               {latest.items.map((item) => (
-                <ItemCard key={item.id} item={toCardItem(item)} />
+                <ItemCard key={item.id} item={toCardItem(fillPlace(item, places))} />
               ))}
             </div>
           )}
