@@ -11,6 +11,7 @@ import { classes } from "@/utils/classes";
 import { ApiError } from "@/api/client";
 import { changeItemVisibility } from "@/api/items";
 import { setCurrentItem, useCurrentItem } from "@/stores/currentItem";
+import { UNKNOWN_OWNER } from "@/utils/itemView";
 import { objectParticle } from "@/utils/korean";
 
 const c = classes(styles);
@@ -87,11 +88,11 @@ export function AppLayout() {
           },
         ]
       : [
-          { label: "소유자 프로필", onSelect: () => navigate(`/neighbors/${moreItem.owner.displayName}`) },
+          { label: "소유자 프로필", onSelect: () => navigate(`/neighbors/${moreItem.owner.displayName ?? UNKNOWN_OWNER}`) },
           {
             label: "이 물건 신고하기",
             danger: true,
-            onSelect: () => doReport(moreItem.owner.displayName),
+            onSelect: () => doReport(moreItem.owner.displayName ?? UNKNOWN_OWNER),
           },
         ]
     : chatRoomMatch && chatName

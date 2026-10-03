@@ -16,7 +16,16 @@ import { type ApiItemDetail, changeItemVisibility, getItem } from "@/api/items";
 import styles from "@/pages/items/ItemDetailPage.module.css";
 import { classes } from "@/utils/classes";
 import { EmptyState, ErrorState, Loading, Skeleton } from "@/components/ui/state";
-import { formatAgo, formatDistance, formatMonthDay, formatYearMonth, parseIsoDate, toCategoryId } from "@/utils/itemView";
+import {
+  UNKNOWN_OWNER,
+  UNKNOWN_PLACE,
+  formatAgo,
+  formatDistance,
+  formatMonthDay,
+  formatYearMonth,
+  parseIsoDate,
+  toCategoryId,
+} from "@/utils/itemView";
 import { objectParticle } from "@/utils/korean";
 import { setCurrentItem, useCurrentItem } from "@/stores/currentItem";
 
@@ -106,8 +115,8 @@ export function ItemDetailPage() {
 
   const item = current as ApiItemDetail;
   const cat = toCategoryId(item.category.code);
-  const owner = item.owner.displayName;
-  const place = item.place.name;
+  const owner = item.owner.displayName ?? UNKNOWN_OWNER;
+  const place = item.place.name ?? UNKNOWN_PLACE;
   const availFrom = parseIsoDate(item.availableStartDate);
   const availTo = parseIsoDate(item.availableEndDate);
   const selected = range ?? defaultRange(availFrom, availTo, today);
@@ -167,7 +176,7 @@ export function ItemDetailPage() {
 
           {item.description ? <p className={c("t-body detail-desc")}>{item.description}</p> : null}
 
-          <PlaceCard place={place} detail={item.place.guide} distance={formatDistance(item.distanceMeters)} />
+          <PlaceCard place={place} detail={item.place.guide} distance={item.distanceMeters === undefined ? undefined : formatDistance(item.distanceMeters)} />
 
           <section className={c("detail-cal")} aria-labelledby="cal-h">
             <SectionHead id="cal-h" title="대여 가능한 날짜" />
@@ -175,7 +184,7 @@ export function ItemDetailPage() {
               {`${availFrom.getMonth() + 1}/${availFrom.getDate()} – ${availTo.getMonth() + 1}/${availTo.getDate()}`}
             </span>
             {/* TODO(C_026): 예약 구간(booked)은 대여 담당 달력 API 연동 후 표시 */}
-            <Calendar today={today} from={availFrom} to={availTo} value={selected} onChange={setRange} />
+            <Calendar today={today} from={availFrom} to={availTo} value={selected} onChange={setRange} markAvailable />
             <p className={c("t-caption detail-muted detail-cal-note")}>
               시작일과 반납일 모두 대여 기간에 포함돼요. 표시는 지금 기준이고, 승인할 때 다시 확인해요.
             </p>
@@ -222,7 +231,6 @@ export function ItemDetailPage() {
           <button
             type="button"
             className={c("t-label detail-report")}
-            // TODO(F): 신고 API 연동 시 대상 유형 ITEM과 물건 ID로 보낸다 (지금은 기존 신고 모달만 연다)
             onClick={() => report({ name: owner, onConfirm: () => toast("신고를 접수했어요") })}
           >
             이 물건 신고하기

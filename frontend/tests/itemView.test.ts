@@ -10,6 +10,9 @@ import {
   toCategoryId,
   toMapPins,
   toSearchQuery,
+  UNKNOWN_OWNER,
+  UNKNOWN_PLACE,
+  formatYearMonth,
 } from "../src/utils/itemView.ts";
 import { toIsoDate } from "../src/utils/registerForm.ts";
 
@@ -111,4 +114,31 @@ test("지도 핀: 같은 공용 장소 물건을 묶어 개수를 세고 좌표�
   const south = pins.find((p) => p.id === "1");
   assert.ok(north && south && north.y < south.y, "북쪽 장소가 위에 있다");
   assert.deepEqual(toMapPins([]), []);
+});
+
+test("회원·동네 연동 전: 소유자·장소 이름과 거리가 없어도 화면 모델이 깨지지 않는다", () => {
+  const card = toCardItem({
+    id: "4",
+    title: "gdgd",
+    category: { code: "TOOL" },
+    owner: {},
+    place: {},
+    createdAt: "2026-10-02T00:00:00Z",
+  });
+  assert.equal(card.owner, UNKNOWN_OWNER);
+  assert.ok(card.owner.slice(0, 1).length > 0, "Avatar가 첫 글자를 읽을 수 있어야 한다");
+  assert.equal(card.place, UNKNOWN_PLACE);
+  assert.equal(card.dist, "", "거리를 모르면 빈 문자열(표시하지 않음)");
+});
+
+test("가입 시각이 없으면 빈 문자열이고 있으면 'YYYY년 M월'", () => {
+  assert.equal(formatYearMonth(undefined), "");
+  assert.equal(formatYearMonth("2026-09-15T00:00:00Z"), "2026년 9월");
+});
+
+test("지도 핀: 좌표가 없는 장소는 건너뛴다", () => {
+  const pins = toMapPins([{ place: { id: "1" } }, { place: { id: "2", name: "정문", latitude: 37.5, longitude: 127.0 } }]);
+  assert.equal(pins.length, 1);
+  assert.equal(pins[0].id, "2");
+  assert.deepEqual(toMapPins([{ place: { id: "1" } }]), []);
 });

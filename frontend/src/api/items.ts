@@ -5,7 +5,9 @@ import type { CreateItemBody } from "@/utils/registerForm";
 
 export type ApiCategory = { id: string; code: string; name: string; sortOrder: number };
 export type ApiPlace = { id: string; communityId: string; name: string; latitude: number; longitude: number; guide?: string };
-export type ApiMember = { id: string; displayName: string; joinedAt: string };
+/** 물건 응답의 소유자·장소. 회원(A)·동네(E) 도메인 연동 전에는 id 외 값이 내려오지 않는다 */
+export type ApiItemMember = { id: string; displayName?: string; joinedAt?: string };
+export type ApiItemPlace = { id: string; communityId: string; name?: string; latitude?: number; longitude?: number; guide?: string };
 export type ApiMedia = {
   id: string;
   mimeType: string;
@@ -23,12 +25,12 @@ export type ApiItemSummary = {
   id: string;
   title: string;
   category: ApiCategory;
-  owner: ApiMember;
-  place: ApiPlace;
+  owner: ApiItemMember;
+  place: ApiItemPlace;
   thumbnailUrl?: string;
   visibility: ItemVisibility;
-  distanceMeters: number;
-  distanceBasis: "COMMUNITY_CENTER";
+  distanceMeters?: number;
+  distanceBasis?: "COMMUNITY_CENTER";
   availableForRange?: boolean;
   createdAt: string;
   pendingRequestCount?: number;
@@ -39,16 +41,16 @@ export type ApiItemDetail = {
   id: string;
   title: string;
   description?: string;
-  owner: ApiMember;
+  owner: ApiItemMember;
   communityId: string;
   category: ApiCategory;
-  place: ApiPlace;
+  place: ApiItemPlace;
   images: ApiImage[];
   availableStartDate: string;
   availableEndDate: string;
   visibility: ItemVisibility;
-  distanceMeters: number;
-  distanceBasis: "COMMUNITY_CENTER";
+  distanceMeters?: number;
+  distanceBasis?: "COMMUNITY_CENTER";
   version: number;
   allowedActions: string[];
   createdAt: string;

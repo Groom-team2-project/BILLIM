@@ -84,7 +84,7 @@ export function ItemCard({ item, layout = "grid", range }: ItemCardProps) {
         <Photo cat={item.cat} count={count} iconSize={30} src={item.thumbnailUrl} />
         <div className={c("item-card-body")}>
           <span className={c("item-card-title")}>{item.title}</span>
-          <Meta icon="pin">{`${item.place} · ${item.dist}`}</Meta>
+          <Meta icon="pin">{item.dist ? `${item.place} · ${item.dist}` : item.place}</Meta>
           <Avail item={item} range={range} />
           <span className={c("item-card-trust t-caption")}>
             {[item.owner, trustLine, item.ago].filter(Boolean).join(" · ")}

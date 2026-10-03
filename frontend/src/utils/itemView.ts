@@ -6,10 +6,10 @@ export type SummaryLike = {
   id: string;
   title: string;
   category: { code: string };
-  owner: { displayName: string };
-  place: { name: string };
+  owner: { displayName?: string };
+  place: { name?: string };
   thumbnailUrl?: string;
-  distanceMeters: number;
+  distanceMeters?: number;
   availableForRange?: boolean;
   createdAt: string;
 };
@@ -31,6 +31,10 @@ const CATEGORY_ID_BY_CODE: Record<string, CategoryId> = {
 export function toCategoryId(code: string): CategoryId {
   return CATEGORY_ID_BY_CODE[code] ?? "etc";
 }
+
+/** 소유자·장소 이름이 아직 내려오지 않을 때(회원·동네 연동 전) 화면에 쓰는 이름 */
+export const UNKNOWN_OWNER = "이웃";
+export const UNKNOWN_PLACE = "거래 장소";
 
 /** 거리(m) 표시: 1km 미만은 m, 이상은 소수 첫째 자리 km */
 export function formatDistance(meters: number): string {
@@ -66,7 +70,8 @@ export function formatMonthDay(d: Date): string {
 }
 
 /** 가입 시각 → "2026년 9월" */
-export function formatYearMonth(iso: string): string {
+export function formatYearMonth(iso?: string): string {
+  if (!iso) return "";
   const t = new Date(iso);
   return `${t.getFullYear()}년 ${t.getMonth() + 1}월`;
 }
@@ -77,9 +82,9 @@ export function toCardItem(s: SummaryLike, now: Date = new Date()): Item {
     id: s.id,
     title: s.title,
     cat: toCategoryId(s.category.code),
-    owner: s.owner.displayName,
-    place: s.place.name,
-    dist: formatDistance(s.distanceMeters),
+    owner: s.owner.displayName ?? UNKNOWN_OWNER,
+    place: s.place.name ?? UNKNOWN_PLACE,
+    dist: s.distanceMeters === undefined ? "" : formatDistance(s.distanceMeters),
     avail: s.availableForRange === false ? "none" : "ok",
     ago: formatAgo(s.createdAt, now),
     thumbnailUrl: s.thumbnailUrl,
@@ -109,15 +114,17 @@ export function toSearchQuery(f: SearchForm, toIso: (d: Date) => string) {
 }
 
 /** 지도 핀: 결과를 공용 장소별로 묶고 좌표를 지도 영역(%) 안에 배치 */
-export type PinSource = { place: { id: string; name: string; latitude: number; longitude: number } };
+export type PinSource = { place: { id: string; name?: string; latitude?: number; longitude?: number } };
 export type MapPin = { id: string; label: string; x: number; y: number; n: number };
 
 export function toMapPins(items: PinSource[]): MapPin[] {
   const byPlace = new Map<string, { label: string; lat: number; lng: number; n: number }>();
   for (const { place } of items) {
+    // 좌표가 아직 내려오지 않는 장소(동네 연동 전)는 지도에 올리지 않는다
+    if (place.latitude === undefined || place.longitude === undefined) continue;
     const cur = byPlace.get(place.id);
     if (cur) cur.n += 1;
-    else byPlace.set(place.id, { label: place.name, lat: place.latitude, lng: place.longitude, n: 1 });
+    else byPlace.set(place.id, { label: place.name ?? UNKNOWN_PLACE, lat: place.latitude, lng: place.longitude, n: 1 });
   }
   const list = [...byPlace.entries()];
   const lats = list.map(([, p]) => p.lat);
