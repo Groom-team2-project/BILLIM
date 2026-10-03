@@ -39,12 +39,6 @@ type Loaded =
 
 const dayN = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
-/** 처음 보여 줄 선택 기간: 오늘과 대여 가능 시작일 중 늦은 날 하루. 가능 기간이 지났으면 없음 */
-function defaultRange(from: Date, to: Date, today: Date): DayRange | null {
-  const start = dayN(from) > dayN(today) ? from : today;
-  return dayN(start) > dayN(to) ? null : [start, start];
-}
-
 export function ItemDetailPage() {
   const { confirm, report, toast } = useUi();
   const navigate = useNavigate();
@@ -122,7 +116,9 @@ export function ItemDetailPage() {
   const place = item.place.name ?? UNKNOWN_PLACE;
   const availFrom = parseIsoDate(item.availableStartDate);
   const availTo = parseIsoDate(item.availableEndDate);
-  const selected = range ?? defaultRange(availFrom, availTo, today);
+  // 처음에는 아무 날짜도 선택하지 않는다. 사용자가 고른 기간만 선택값이다
+  const selected = range;
+  const expired = dayN(availTo) < dayN(today);   // 대여 가능한 날짜가 모두 지남
   const own = item.allowedActions.includes("EDIT");
   const isPublic = item.visibility === "PUBLIC";
   // TODO(C_008): 거래 신뢰 지표 API 연동 전까지 가입 시기만 실제 값
@@ -187,7 +183,15 @@ export function ItemDetailPage() {
               {`${availFrom.getMonth() + 1}/${availFrom.getDate()} – ${availTo.getMonth() + 1}/${availTo.getDate()}`}
             </span>
             {/* TODO(C_026): 예약 구간(booked)은 대여 담당 달력 API 연동 후 표시 */}
-            <Calendar today={today} from={availFrom} to={availTo} value={selected} onChange={setRange} markAvailable />
+            <Calendar
+              today={today}
+              from={availFrom}
+              to={availTo}
+              value={selected}
+              onChange={setRange}
+              markAvailable
+              initialMonth={dayN(availFrom) > dayN(today) ? availFrom : today}
+            />
             <p className={c("t-caption detail-muted detail-cal-note")}>
               시작일과 반납일 모두 대여 기간에 포함돼요. 표시는 지금 기준이고, 승인할 때 다시 확인해요.
             </p>
@@ -215,7 +219,9 @@ export function ItemDetailPage() {
                   {selected ? (
                     <DateRange start={md(selected[0])} end={md(selected[1])} />
                   ) : (
-                    <span className={c("t-label detail-conflict")}>대여 가능한 날짜가 지났어요</span>
+                    <span className={c(expired ? "t-label detail-conflict" : "t-label detail-muted")}>
+                      {expired ? "대여 가능한 날짜가 지났어요" : "달력에서 대여할 날짜를 선택해 주세요"}
+                    </span>
                   )}
                   <Meta icon="pin">{place}</Meta>
                   <Button size="lg" block disabled={!selected} onClick={onRequest}>대여 요청</Button>

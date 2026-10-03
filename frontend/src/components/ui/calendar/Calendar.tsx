@@ -20,6 +20,10 @@ type CalendarProps = {
   onChange?: (range: DayRange) => void;
   /** 조회용 범례(대여 가능·예약됨 등) 숨김 — 등록 화면처럼 선택 전용일 때 */
   hideLegend?: boolean;
+  /** 대여 가능한 날을 회색 네모 칸으로 표시 — 물건 상세처럼 가능한 날을 보여 주는 화면용 (기본 꺼짐) */
+  markAvailable?: boolean;
+  /** 처음 보여 줄 달 — 선택값이 없을 때 쓴다(기본은 오늘이 있는 달) */
+  initialMonth?: Date;
 };
 
 const dayN = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -27,8 +31,8 @@ const sameDay = (a: Date, b: Date) => dayN(a) === dayN(b);
 const inRange = (d: Date, r: DayRange) => dayN(d) >= dayN(r[0]) && dayN(d) <= dayN(r[1]);
 
 /** 월 달력 — 실제 날짜 계산 · 월 이동 · 기간 선택 (DESIGN_SYSTEM.md §6) */
-export function Calendar({ today, from, to, booked = [], value, onChange, hideLegend }: CalendarProps) {
-  const base = value?.[0] ?? today;
+export function Calendar({ today, from, to, booked = [], value, onChange, hideLegend, markAvailable, initialMonth }: CalendarProps) {
+  const base = value?.[0] ?? initialMonth ?? today;
   const [month, setMonth] = useState(() => new Date(base.getFullYear(), base.getMonth(), 1));
   const y = month.getFullYear();
   const m = month.getMonth();
@@ -58,6 +62,7 @@ export function Calendar({ today, from, to, booked = [], value, onChange, hideLe
     const cls = [
       "cal-day",
       off && "cal-day--off",
+      markAvailable && !off && !isBooked && !isSel && "cal-day--ok",
       isBooked && "cal-day--booked",
       sameDay(d, today) && "cal-day--today",
       isSel && value && !sameDay(value[0], value[1]) && "cal-day--in",
@@ -101,7 +106,7 @@ export function Calendar({ today, from, to, booked = [], value, onChange, hideLe
       </div>
       {hideLegend ? null : <div className={c("cal-legend t-micro")}>
         <span><i className={c("cal-swatch cal-swatch--sel")} />선택</span>
-        <span><i className={c("cal-swatch cal-swatch--ok")} />대여 가능</span>
+        <span><i className={c(`cal-swatch cal-swatch--ok${markAvailable ? " cal-swatch--ok-fill" : ""}`)} />대여 가능</span>
         <span><i className={c("cal-swatch cal-swatch--booked")} />예약됨</span>
         <span><i className={c("cal-swatch cal-swatch--off")} />지난 날짜·기간 외</span>
       </div>}
