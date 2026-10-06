@@ -3,13 +3,15 @@ import { useSession } from "@/stores/session";
 import { useUi } from "@/components/overlay/UiContext";
 import { type MoreMenuItem } from "@/components/ui/more-menu";
 import { CHATS } from "@/data/chat";
-import { MOCK_ITEMS } from "@/data/items";
 import { Footer } from "@/components/layout/footer";
 import { Header } from "@/components/layout/header";
 import { TabBar } from "@/components/layout/nav";
 import styles from "@/components/layout/base/AppLayout.module.css";
 import { classes } from "@/utils/classes";
-import { setVisibility, useMyItems } from "@/stores/items";
+import { ApiError } from "@/api/client";
+import { changeItemVisibility } from "@/api/items";
+import { setCurrentItem, useCurrentItem } from "@/stores/currentItem";
+import { UNKNOWN_OWNER } from "@/utils/itemView";
 import { objectParticle } from "@/utils/korean";
 
 const c = classes(styles);
@@ -40,7 +42,6 @@ export function AppLayout() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { confirm, report, toast } = useUi();
-  const myItems = useMyItems();
   const chatRoomMatch = pathname.match(/^\/chat\/(.+)$/);
   const chatName = chatRoomMatch ? CHATS.find((ch) => ch.id === chatRoomMatch[1])?.name : undefined;
   const hasOwnHeader = OWN_HEADER.some((re) => re.test(pathname));
@@ -52,38 +53,47 @@ export function AppLayout() {
 
   /* 하위 화면 더보기(⋮) — 맥락별 메뉴 */
   const itemMatch = pathname.match(/^\/items\/([^/]+)$/);
-  const moreItem = itemMatch ? MOCK_ITEMS.find((i) => String(i.id) === itemMatch[1]) ?? MOCK_ITEMS[0] : null;
+  // 물건 상세의 더보기 — 상세 화면이 불러온 실제 물건(B_020)을 쓴다. 불러오기 전에는 메뉴 없음
+  const moreItem = useCurrentItem(itemMatch?.[1] ?? "");
   const doReport = (name: string) => report({ name, onConfirm: () => toast("신고를 접수했어요") });
-  const mine = moreItem ? myItems.find((m) => m.id === moreItem.id) : undefined;
+  const changeVisibility = async (next: "PUBLIC" | "HIDDEN") => {
+    if (!moreItem) return;
+    try {
+      setCurrentItem(await changeItemVisibility(moreItem.id, next, moreItem.version));
+      toast(next === "HIDDEN" ? "공개를 중지했어요" : "다시 공개했어요");
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "처리하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    }
+  };
   const moreItems: MoreMenuItem[] = moreItem
-    ? mine
+    ? moreItem.allowedActions.includes("EDIT")
       ? /* 내 물건 — 신고·소유자 프로필 대신 관리 항목 */
         [
-          { label: "수정", onSelect: () => navigate("/register") },
+          { label: "수정", onSelect: () => navigate(`/register?itemId=${moreItem.id}`) },
           { label: "요청 보기", onSelect: () => navigate("/rentals") },
           {
-            label: mine.visibility === "PUBLIC" ? "공개 중지" : "다시 공개",
+            label: moreItem.visibility === "PUBLIC" ? "공개 중지" : "다시 공개",
             onSelect: () => {
-              if (mine.visibility === "PUBLIC") {
+              if (moreItem.visibility === "PUBLIC") {
                 confirm({
-                  title: `${mine.title}${objectParticle(mine.title)} 공개 중지할까요?`,
+                  title: `${moreItem.title}${objectParticle(moreItem.title)} 공개 중지할까요?`,
                   body: "검색과 새 요청이 멈춰요. 진행 중인 대여는 그대로 유지돼요.",
                   confirm: "공개 중지",
-                  onConfirm: () => {
-                    setVisibility(mine.id, "HIDDEN");
-                    toast("공개를 중지했어요");
-                  },
+                  onConfirm: () => void changeVisibility("HIDDEN"),
                 });
               } else {
-                setVisibility(mine.id, "PUBLIC");
-                toast("다시 공개했어요");
+                void changeVisibility("PUBLIC");
               }
             },
           },
         ]
       : [
-          { label: "소유자 프로필", onSelect: () => navigate(`/neighbors/${moreItem.owner}`) },
-          { label: `${moreItem.owner} 님 신고하기`, danger: true, onSelect: () => doReport(moreItem.owner) },
+          { label: "소유자 프로필", onSelect: () => navigate(`/neighbors/${moreItem.owner.displayName ?? UNKNOWN_OWNER}`) },
+          {
+            label: "이 물건 신고하기",
+            danger: true,
+            onSelect: () => doReport(moreItem.owner.displayName ?? UNKNOWN_OWNER),
+          },
         ]
     : chatRoomMatch && chatName
       ? [

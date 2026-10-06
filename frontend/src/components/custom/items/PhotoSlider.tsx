@@ -9,14 +9,17 @@ const c = classes(styles);
 
 type PhotoSliderProps = {
   cat: CategoryId;
-  /** 사진 장수 (1~5) */
-  count: number;
+  /** 사진 장수 (1~5) — images가 있으면 images 길이를 쓴다 */
+  count?: number;
+  /** 실제 사진 주소 (대표 사진이 첫 번째) */
+  images?: string[];
   title: string;
   className?: string;
 };
 
-/** 물건 사진 슬라이드 — 스와이프·드래그·화살표. 이미지 API 연동 시 Photo 자리에 실제 사진 */
-export function PhotoSlider({ cat, count, title, className }: PhotoSliderProps) {
+/** 물건 사진 슬라이드 — 스와이프·드래그·화살표. images가 없으면 카테고리 아이콘 자리 */
+export function PhotoSlider({ cat, count: countProp = 1, images, title, className }: PhotoSliderProps) {
+  const count = images && images.length > 0 ? images.length : countProp;
   const trackRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startX: number; startLeft: number } | null>(null);
   const [idx, setIdx] = useState(0);
@@ -53,7 +56,7 @@ export function PhotoSlider({ cat, count, title, className }: PhotoSliderProps) 
         }}
       >
         {Array.from({ length: count }, (_, i) => (
-          <Photo key={i} cat={cat} iconSize={64} className={c("photo-slide")} alt={`${title} 사진 ${i + 1}/${count}`} />
+          <Photo key={i} cat={cat} iconSize={64} className={c("photo-slide")} alt={`${title} 사진 ${i + 1}/${count}`} src={images?.[i]} />
         ))}
       </div>
 

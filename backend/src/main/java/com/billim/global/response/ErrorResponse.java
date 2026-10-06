@@ -29,4 +29,8 @@ public record ErrorResponse(
     public static ErrorResponse of(ErrorCode code, String requestId, List<FieldError> fieldErrors) {
         return new ErrorResponse(code.name(), code.getMessage(), requestId, fieldErrors, null, null);
     }
+
+    public static ErrorResponse versionConflict(ErrorCode code, String message, String requestId, long currentVersion) {
+        return new ErrorResponse(code.name(), message, requestId, null, currentVersion, null);
+    }
 }
