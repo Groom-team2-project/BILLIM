@@ -51,6 +51,14 @@ billim:
   auth:
     # 로그인 성공 후 이동할 프론트엔드 주소. 배포 환경은 환경 변수로 교체
     login-success-url: ${LOGIN_SUCCESS_URL:http://localhost:5173/auth/complete}
+    # HTTPS 전용 쿠키. 로컬은 http라 false, 운영은 반드시 true
+    cookie-secure: ${COOKIE_SECURE:false}
+    # 유휴 만료. 요청마다 연장되며 절대 만료를 넘지 않음
+    session-idle-ttl: 2h
+    # 절대 만료. 로그인 시각 기준 (ERD auth_sessions)
+    session-absolute-ttl: 24h
+    # 유휴 만료 갱신 주기. 매 요청 UPDATE 방지
+    session-touch-interval: 5m
 
 server:
   shutdown: graceful            # 종료 시 처리 중인 요청을 마치고 종료
