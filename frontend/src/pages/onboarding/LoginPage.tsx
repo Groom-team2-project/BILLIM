@@ -1,16 +1,17 @@
-import { useNavigate } from "react-router-dom";
-import { login } from "@/stores/session";
 import styles from "@/pages/onboarding/LoginPage.module.css";
 import { classes } from "@/utils/classes";
 
 const c = classes(styles);
 
+/** 카카오 로그인 시작. Vite 프록시 경유 */
+const KAKAO_LOGIN_URL = "/oauth2/authorization/kakao";
+
 export function LoginPage() {
-  const navigate = useNavigate();
-  const start = () => {
-    login();
-    navigate("/join");
+  // 카카오 도메인을 거치는 흐름이라 SPA 라우팅이 아닌 브라우저 최상위 이동
+  const startKakao = () => {
+    window.location.href = KAKAO_LOGIN_URL;
   };
+
   return (
     <main className={c("login")}>
       <div className={c("login-hero")}>
@@ -18,11 +19,12 @@ export function LoginPage() {
         <p className={c("t-body-lg login-tagline")}>잠깐 필요한 물건, 이웃에게 무료로 빌려요.</p>
       </div>
       <div className={c("login-actions")}>
-        <button type="button" className={c("login-kakao t-label")} onClick={start}>
+        <button type="button" className={c("login-kakao t-label")} onClick={startKakao}>
           <KakaoMark />
           카카오로 시작하기
         </button>
-        <button type="button" className={c("login-naver t-label")} onClick={start}>
+        {/* 네이버는 후순위 — 백엔드 미구현 (ERD social_accounts.provider) */}
+        <button type="button" className={c("login-naver t-label")} disabled>
           <span className={c("login-naver-mark")}>N</span>
           네이버로 시작하기
         </button>
