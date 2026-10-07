@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AppLayout } from "@/components/layout/base";
 import { UiProvider } from "@/components/overlay/UiProvider";
 import { LoginPage } from "@/pages/onboarding";
+import { AuthCompletePage } from "@/pages/onboarding";
 import { JoinPage } from "@/pages/onboarding";
 import { VerifyPage } from "@/pages/onboarding";
 import { JoinDonePage } from "@/pages/onboarding";
@@ -25,6 +26,7 @@ import { AdminNoticesPage } from "@/pages/admin";
 
 const router = createBrowserRouter([
   { path: "/login", element: <LoginPage /> },
+  { path: "/auth/complete", element: <AuthCompletePage /> },
   { path: "/join", element: <JoinPage /> },
   { path: "/verify", element: <VerifyPage /> },
   { path: "/joindone", element: <JoinDonePage /> },

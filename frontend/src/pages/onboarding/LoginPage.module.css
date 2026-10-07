@@ -67,6 +67,12 @@
   color: #fff;
 }
 
+/* 준비 중 상태 — 문구는 프로토타입 유지, 동작만 차단 */
+.login-naver:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .login-naver-mark {
   font-weight: 900;
   font-size: 17px;

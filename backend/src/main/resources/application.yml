@@ -37,7 +37,7 @@ spring:
             authorization-grant-type: authorization_code
             client-authentication-method: client_secret_post   # 카카오는 POST 방식만 허용
             redirect-uri: "{baseUrl}/login/oauth2/code/kakao"
-            scope: profile_nickname, profile_image
+            scope: profile_nickname            # 프로필 사진은 저장 컬럼이 없어 요청하지 않음
         provider:
           kakao:
             authorization-uri: https://kauth.kakao.com/oauth/authorize
@@ -48,6 +48,9 @@ spring:
 billim:
   media:
     storage-path: ${MEDIA_STORAGE_PATH:./data/media}   # 사진 영속 볼륨 경로
+  auth:
+    # 로그인 성공 후 이동할 프론트엔드 주소. 배포 환경은 환경 변수로 교체
+    login-success-url: ${LOGIN_SUCCESS_URL:http://localhost:5173/auth/complete}
 
 server:
   shutdown: graceful            # 종료 시 처리 중인 요청을 마치고 종료
