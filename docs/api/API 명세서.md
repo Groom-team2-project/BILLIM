@@ -662,7 +662,7 @@
 | --- | --- | --- | --- |
 | afterSequence | N | integer | 이 값 초과 새 메시지 |
 | beforeSequence | N | integer | 이 값 미만 이전 메시지 |
-| limit | N | integer | 기본 50 |
+| limit | N | integer | 기본 50; 최소 1, 최대 50 |
 
 - 요청 본문: 없음
 - 성공 응답: 200 MessagePage
