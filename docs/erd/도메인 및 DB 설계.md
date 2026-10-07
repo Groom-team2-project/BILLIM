@@ -392,6 +392,9 @@ erDiagram
 
 ### 4.5 채팅 (D 박선우)
 
+- V4 적용 FK: `chat_rooms.item_id → items.id`, `chat_participants.room_id → chat_rooms.id`, `messages.room_id → chat_rooms.id`.
+- 회원·대여·약속·사건 참조 FK는 관련 테이블과 정책 구현 후 새 마이그레이션에서 추가한다.
+
 #### chat_rooms — 물건별 두 회원의 대화방 · P1
 
 | 컬럼 | 타입 | NULL | 규칙·의미 | 참조 |
