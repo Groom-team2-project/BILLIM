@@ -1001,7 +1001,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 ### CsrfToken
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
-| csrfToken | string | Y | 최대 길이 64 |
+| csrfToken | string | Y | 최대 길이 128. BREACH 방어로 요청마다 값이 달라지는 마스킹 토큰이며, 세션의 원본 토큰은 유지된다. 받은 값을 `X-CSRF-TOKEN` 헤더로 되돌려주면 되고 캐싱해 재사용할 수 있다 |
 ### MemberSummary
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
