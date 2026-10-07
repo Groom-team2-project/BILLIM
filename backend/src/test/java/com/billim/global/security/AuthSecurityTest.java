@@ -1,5 +1,6 @@
 package com.billim.global.security;
 
+import com.billim.global.security.session.SessionCookies;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
@@ -98,7 +99,7 @@ class AuthSecurityTest {
                 .andReturn().getResponse().getHeader(HttpHeaders.SET_COOKIE);
 
         assertThat(setCookie)
-                .contains("BILLIM_SESSION=")
+                .contains(SessionCookies.NAME + "=")
                 .contains("HttpOnly")
                 .contains("SameSite=Lax")
                 .contains("Path=/");
@@ -143,7 +144,7 @@ class AuthSecurityTest {
                 .andExpect(status().isNoContent())
                 .andReturn().getResponse().getHeader(HttpHeaders.SET_COOKIE);
 
-        assertThat(setCookie).contains("BILLIM_SESSION=").contains("Max-Age=0");
+        assertThat(setCookie).contains(SessionCookies.NAME + "=").contains("Max-Age=0");
     }
 
     /** 폐기된 세션은 복원 불가. 새 세션 발급으로 이어짐 */
@@ -156,7 +157,7 @@ class AuthSecurityTest {
         String setCookie = mockMvc.perform(get("/api/v1/auth/csrf").cookie(session.cookie()))
                 .andReturn().getResponse().getHeader(HttpHeaders.SET_COOKIE);
 
-        assertThat(setCookie).contains("BILLIM_SESSION=");
+        assertThat(setCookie).contains(SessionCookies.NAME + "=");
     }
 
     private MockHttpServletRequestBuilder logout(IssuedSession session) {
@@ -174,7 +175,7 @@ class AuthSecurityTest {
         var response = mockMvc.perform(get("/api/v1/auth/csrf")).andReturn().getResponse();
         String setCookie = response.getHeader(HttpHeaders.SET_COOKIE);
         String value = setCookie.substring(setCookie.indexOf('=') + 1, setCookie.indexOf(';'));
-        return new IssuedSession(new Cookie("BILLIM_SESSION", value),
+        return new IssuedSession(new Cookie(SessionCookies.NAME, value),
                 JsonPath.read(response.getContentAsString(), "$.csrfToken"));
     }
 
