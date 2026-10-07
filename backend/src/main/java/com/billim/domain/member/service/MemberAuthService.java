@@ -41,11 +41,25 @@ public class MemberAuthService {
      */
     static String normalizeDisplayName(String nickname) {
         String trimmed = nickname == null ? "" : nickname.strip();
-        if (trimmed.length() < Member.DISPLAY_NAME_MIN) {
-            return FALLBACK_NAME_PREFIX + (1000 + RANDOM.nextInt(9000));
+        if (trimmed.length() > Member.DISPLAY_NAME_MAX) {
+            trimmed = truncate(trimmed);
         }
-        return trimmed.length() > Member.DISPLAY_NAME_MAX
-                ? trimmed.substring(0, Member.DISPLAY_NAME_MAX)
+        // 하한 검사는 절단 이후. 자른 결과가 공백뿐인 경우도 여기서 처리
+        return trimmed.length() < Member.DISPLAY_NAME_MIN
+                ? FALLBACK_NAME_PREFIX + (1000 + RANDOM.nextInt(9000))
                 : trimmed;
+    }
+
+    /**
+     * 표시 이름 상한까지 절단.
+     * 경계가 서로게이트 쌍 가운데면 한 칸 앞에서 절단. 짝 없는 서로게이트는 utf8mb4 저장 불가.
+     * 코드 포인트가 아닌 char 기준인 이유: Member의 길이 검증이 String.length() 기준.
+     */
+    private static String truncate(String value) {
+        int end = Member.DISPLAY_NAME_MAX;
+        if (Character.isHighSurrogate(value.charAt(end - 1))) {
+            end--;
+        }
+        return value.substring(0, end).strip();
     }
 }

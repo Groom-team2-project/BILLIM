@@ -40,6 +40,25 @@ class MemberAuthServiceTest {
     }
 
     @Test
+    @DisplayName("경계에 걸친 이모지는 쪼개지 않고 통째로 제외")
+    void doesNotSplitSurrogatePair() {
+        // 29자 + 이모지(2 char) = 31 char. 30 경계에서 이모지 분리 발생
+        String withEmoji = "가".repeat(Member.DISPLAY_NAME_MAX - 1) + "😀";
+        String normalized = MemberAuthService.normalizeDisplayName(withEmoji);
+
+        assertThat(normalized).isEqualTo("가".repeat(Member.DISPLAY_NAME_MAX - 1));
+        assertThat(normalized.codePoints().allMatch(Character::isDefined)).isTrue();
+    }
+
+    @Test
+    @DisplayName("자른 뒤 공백만 남으면 대체 이름으로 가입")
+    void replacesWhenTruncationLeavesBlank() {
+        String spaced = "가" + " ".repeat(Member.DISPLAY_NAME_MAX * 2) + "나";
+        assertThat(MemberAuthService.normalizeDisplayName(spaced))
+                .hasSizeBetween(Member.DISPLAY_NAME_MIN, Member.DISPLAY_NAME_MAX);
+    }
+
+    @Test
     @DisplayName("1자 닉네임은 대체 이름으로 가입")
     void replacesTooShortNickname() {
         assertThat(MemberAuthService.normalizeDisplayName("김"))
@@ -59,7 +78,12 @@ class MemberAuthServiceTest {
     @Test
     @DisplayName("보정 결과는 항상 Member가 받아들인다")
     void normalizedNameIsAlwaysAccepted() {
-        String[] nicknames = {null, "", "   ", "김", "홍길동", "가".repeat(Member.DISPLAY_NAME_MAX + 50)};
+        String[] nicknames = {
+                null, "", "   ", "김", "홍길동",
+                "가".repeat(Member.DISPLAY_NAME_MAX + 50),
+                "가".repeat(Member.DISPLAY_NAME_MAX - 1) + "😀",
+                "가" + " ".repeat(Member.DISPLAY_NAME_MAX * 2) + "나",
+        };
         for (String nickname : nicknames) {
             String normalized = MemberAuthService.normalizeDisplayName(nickname);
             assertThatCode(() -> Member.register(normalized)).doesNotThrowAnyException();

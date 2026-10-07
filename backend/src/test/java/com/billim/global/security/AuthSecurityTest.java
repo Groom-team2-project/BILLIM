@@ -76,10 +76,12 @@ class AuthSecurityTest {
                 .andExpect(status().isOk());
     }
 
+    /** 권한 부족(FORBIDDEN)과 구분 필요. 프론트엔드는 CSRF_INVALID일 때만 토큰 폐기 후 재시도 */
     @Test
-    @DisplayName("CSRF 토큰 없는 변경 요청은 403")
+    @DisplayName("CSRF 토큰 없는 변경 요청은 403 CSRF_INVALID")
     void postWithoutCsrfIsForbidden() throws Exception {
         mockMvc.perform(post("/api/v1/items"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("CSRF_INVALID"));
     }
 }

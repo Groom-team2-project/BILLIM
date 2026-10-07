@@ -22,7 +22,7 @@ public interface OauthLoginAttemptRepository extends JpaRepository<OauthLoginAtt
      * state 1회 소비. 반환 1이면 이 요청이 소비에 성공한 유일한 요청.
      * 조회 후 저장 방식은 동시 요청이 함께 통과할 수 있어 단일 UPDATE로 처리.
      */
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
             update OauthLoginAttempt a set a.consumedAt = :now, a.updatedAt = :now
             where a.stateHash = :stateHash and a.consumedAt is null and a.expiresAt > :now
