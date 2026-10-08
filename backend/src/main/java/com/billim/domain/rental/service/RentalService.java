@@ -15,7 +15,7 @@ public class RentalService {
         CreateRentalRequest request,
         LoginMember member) {
 
-        return new
+        throw new UnsupportedOperationException("대여 기능 구현 예정");
     }
 
     @Transactional
@@ -25,7 +25,7 @@ public class RentalService {
         CancelRentalRequest request,
         LoginMember member) {
 
-        return new
+        throw new UnsupportedOperationException("대여 기능 구현 예정");
     }
 
     @Transactional
@@ -35,7 +35,7 @@ public class RentalService {
         RentalVersionRequest request,
         LoginMember member) {
 
-        return new
+        throw new UnsupportedOperationException("대여 기능 구현 예정");
     }
 
     @Transactional
@@ -45,7 +45,7 @@ public class RentalService {
         RejectRentalRequest request,
         LoginMember member) {
 
-        return new
+        throw new UnsupportedOperationException("대여 기능 구현 예정");
     }
 
     @Transactional
@@ -55,7 +55,7 @@ public class RentalService {
         RentalVersionRequest request,
         LoginMember member) {
 
-        return new
+        throw new UnsupportedOperationException("대여 기능 구현 예정");
     }
 
     @Transactional
@@ -65,6 +65,6 @@ public class RentalService {
         RentalVersionRequest request,
         LoginMember member) {
 
-        return new
+        throw new UnsupportedOperationException("대여 기능 구현 예정");
     }
 }
