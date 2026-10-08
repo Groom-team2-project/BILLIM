@@ -3,6 +3,8 @@ package com.billim.global.config;
 import com.billim.global.exception.ErrorCode;
 import com.billim.global.security.KakaoOAuth2UserService;
 import com.billim.global.security.SecurityErrorResponseWriter;
+import com.billim.global.security.oauth.DbAuthorizationRequestRepository;
+import com.billim.global.security.oauth.LoginFailureHandler;
 import com.billim.global.security.session.AuthSessionCsrfTokenRepository;
 import com.billim.global.security.session.AuthSessionSecurityContextRepository;
 import com.billim.global.security.session.LoginSuccessHandler;
@@ -12,6 +14,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CsrfException;
 
@@ -34,6 +37,8 @@ public class SecurityConfig {
     private final AuthSessionSecurityContextRepository securityContextRepository;
     private final AuthSessionCsrfTokenRepository csrfTokenRepository;
     private final LoginSuccessHandler loginSuccessHandler;
+    private final LoginFailureHandler loginFailureHandler;
+    private final DbAuthorizationRequestRepository authorizationRequestRepository;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) {
@@ -46,10 +51,18 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .anyRequest().authenticated())
+                // HTTP 세션 미사용. 인증·CSRF·OAuth state를 모두 DB에 보관
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .oauth2Login(login -> login
+                        // 로그인 시작은 AuthController가 담당. 여기서는 콜백이 쓸 저장소만 지정
+                        // baseUri를 /api/v1/auth로 두면 /auth/csrf·/auth/logout까지 등록 ID로 해석됨
+                        .authorizationEndpoint(endpoint -> endpoint
+                                .authorizationRequestRepository(authorizationRequestRepository))
+                        .redirectionEndpoint(endpoint -> endpoint.baseUri("/api/v1/auth/kakao/callback"))
                         .userInfoEndpoint(userInfo -> userInfo.userService(kakaoOAuth2UserService))
                         // defaultSuccessUrl 대신 핸들러에서 세션 회전 후 이동
-                        .successHandler(loginSuccessHandler))
+                        .successHandler(loginSuccessHandler)
+                        .failureHandler(loginFailureHandler))
                 // 로그아웃은 AuthController가 세션 폐기·쿠키 만료를 직접 수행
                 .logout(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)

@@ -36,7 +36,7 @@ spring:
             client-secret: ${KAKAO_CLIENT_SECRET}
             authorization-grant-type: authorization_code
             client-authentication-method: client_secret_post   # 카카오는 POST 방식만 허용
-            redirect-uri: "{baseUrl}/login/oauth2/code/kakao"
+            redirect-uri: "{baseUrl}/api/v1/auth/kakao/callback"
             scope: profile_nickname            # 프로필 사진은 저장 컬럼이 없어 요청하지 않음
         provider:
           kakao:
@@ -51,6 +51,8 @@ billim:
   auth:
     # 로그인 성공 후 이동할 프론트엔드 주소. 배포 환경은 환경 변수로 교체
     login-success-url: ${LOGIN_SUCCESS_URL:http://localhost:5173/auth/complete}
+    # 사용자가 카카오에서 취소했을 때 복귀할 주소
+    login-cancel-url: ${LOGIN_CANCEL_URL:http://localhost:5173/login?error=OAUTH_CANCELED}
     # HTTPS 전용 쿠키. 로컬은 http라 false, 운영은 반드시 true
     cookie-secure: ${COOKIE_SECURE:false}
     # 유휴 만료. 요청마다 연장되며 절대 만료를 넘지 않음
@@ -59,6 +61,8 @@ billim:
     session-absolute-ttl: 24h
     # 유휴 만료 갱신 주기. 매 요청 UPDATE 방지
     session-touch-interval: 5m
+    # OAuth state 유효 시간 (ERD oauth_login_attempts)
+    oauth-state-ttl: 10m
 
 server:
   shutdown: graceful            # 종료 시 처리 중인 요청을 마치고 종료
