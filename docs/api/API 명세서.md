@@ -542,7 +542,7 @@
 ### 8.6 C_033 대여 거절
 
 - `POST /api/v1/rentals/{rentalId}/reject` · 박소빈 · P0
-- 설명: 소유자만 REQUESTED→REJECTED. reason 선택, UI의 이유 보내기 모드는 값 필수. 제한 계정도 거래 정리 허용.
+- 설명: 소유자만 REQUESTED→REJECTED. reason 필수, 공백만 입력 불가, 최대 500자. 제한 계정도 거래 정리 허용.
 - 요청 본문: ReasonCommand
 - 성공 응답: 200 RentalDetail
 - 관련 테이블: rentals, rental_status_histories, outbox_events
@@ -551,7 +551,7 @@
 ### 8.7 C_034 대여 취소
 
 - `POST /api/v1/rentals/{rentalId}/cancel` · 박소빈 · P0
-- 설명: REQUESTED는 요청자만, APPROVED는 양측 가능하고 reason 필수. ACTIVE/종료 상태 거부.
+- 설명: REQUESTED는 요청자만, APPROVED는 양측 가능. 모든 취소에 reason 필수, 공백만 입력 불가, 최대 500자. ACTIVE/종료 상태 거부.
 - 요청 본문: CancelCommand
 - 성공 응답: 200 RentalDetail
 - 관련 테이블: rentals, rental_status_histories, outbox_events
@@ -1312,12 +1312,12 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
 | expectedVersion | integer(int64) | Y | 최소 0 |
-| reason | string | N | 최대 길이 500 |
+| reason | string | Y | 공백만 입력 불가; 최대 길이 500 |
 ### CancelCommand
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
 | expectedVersion | integer(int64) | Y | 최소 0 |
-| reason | string | N | 최대 길이 500 |
+| reason | string | Y | 공백만 입력 불가; 최대 길이 500 |
 ### ProposeAppointment
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
