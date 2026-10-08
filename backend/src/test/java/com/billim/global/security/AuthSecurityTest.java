@@ -14,7 +14,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -158,6 +163,79 @@ class AuthSecurityTest {
                 .andReturn().getResponse().getHeader(HttpHeaders.SET_COOKIE);
 
         assertThat(setCookie).contains(SessionCookies.NAME + "=");
+    }
+
+    @Test
+    @DisplayName("로그인 시작은 카카오로 302 이동하며 세션을 발급한다")
+    void startsKakaoLogin() throws Exception {
+        var response = mockMvc.perform(get("/api/v1/auth/kakao"))
+                .andExpect(status().isFound())
+                .andReturn().getResponse();
+
+        assertThat(response.getHeader(HttpHeaders.LOCATION))
+                .startsWith("https://kauth.kakao.com/oauth/authorize")
+                .contains("state=")
+                .contains("code_challenge=");
+        assertThat(response.getHeader(HttpHeaders.SET_COOKIE)).contains(SessionCookies.NAME + "=");
+    }
+
+    /** state만 맞고 세션이 다르면 공격자가 피해자를 자기 계정으로 로그인시킬 수 있음 */
+    @Test
+    @DisplayName("세션 쿠키 없는 콜백은 거부한다")
+    void rejectsCallbackFromAnotherBrowser() throws Exception {
+        String state = startLoginAndReadState();
+
+        mockMvc.perform(get("/api/v1/auth/kakao/callback").param("code", "dummy").param("state", state))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    @DisplayName("저장되지 않은 state의 콜백은 거부한다")
+    void rejectsUnknownState() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/kakao/callback").param("code", "dummy").param("state", "없는-state"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    /** 취소는 정상 행동이므로 오류 화면이 아니라 로그인 화면으로 복귀 */
+    @Test
+    @DisplayName("카카오에서 취소하면 로그인 화면으로 돌려보낸다")
+    void redirectsToLoginOnUserCancel() throws Exception {
+        IssuedSession session = issueSession();
+        String state = startLoginAndReadState(session.cookie());
+
+        mockMvc.perform(get("/api/v1/auth/kakao/callback")
+                        .param("error", "access_denied")
+                        .param("state", state)
+                        .cookie(session.cookie()))
+                .andExpect(status().isFound())
+                .andExpect(header().string(HttpHeaders.LOCATION, containsString("error=OAUTH_CANCELED")));
+    }
+
+    /** HTTP 세션을 쓰면 다중 인스턴스에서 콜백이 실패 */
+    @Test
+    @DisplayName("HTTP 세션 쿠키는 발급하지 않는다")
+    void doesNotIssueHttpSessionCookie() throws Exception {
+        var response = mockMvc.perform(get("/api/v1/auth/kakao")).andReturn().getResponse();
+
+        assertThat(response.getHeaders(HttpHeaders.SET_COOKIE))
+                .noneMatch(cookie -> cookie.contains("JSESSIONID"));
+    }
+
+    private String startLoginAndReadState() throws Exception {
+        return readState(mockMvc.perform(get("/api/v1/auth/kakao")));
+    }
+
+    private String startLoginAndReadState(Cookie cookie) throws Exception {
+        return readState(mockMvc.perform(get("/api/v1/auth/kakao").cookie(cookie)));
+    }
+
+    /** getQueryParams()는 인코딩된 값을 돌려주므로 디코딩 필요. 미디코딩 시 state 불일치로 오탐 */
+    private String readState(ResultActions result) throws Exception {
+        String location = result.andReturn().getResponse().getHeader(HttpHeaders.LOCATION);
+        String encoded = UriComponentsBuilder.fromUriString(location).build().getQueryParams().getFirst("state");
+        return URLDecoder.decode(encoded, StandardCharsets.UTF_8);
     }
 
     private MockHttpServletRequestBuilder logout(IssuedSession session) {
