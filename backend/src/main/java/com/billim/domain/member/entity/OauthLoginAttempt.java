@@ -49,18 +49,28 @@ public class OauthLoginAttempt extends BaseTimeEntity {
     @Column
     private Instant consumedAt;
 
-    private OauthLoginAttempt(AuthSession session, String stateHash,
-                              SocialProvider provider, Instant expiresAt) {
+    /** PKCE 검증값. 난수라 재계산 불가하므로 보관. 미사용 제공자는 null */
+    @Column(length = 128)
+    private String codeVerifier;
+
+    /** 인가 요청에 보낸 값. 콜백에서 동일해야 토큰 교환 성립 */
+    @Column(nullable = false, length = 500)
+    private String redirectUri;
+
+    private OauthLoginAttempt(AuthSession session, String stateHash, SocialProvider provider,
+                              Instant expiresAt, String codeVerifier, String redirectUri) {
         this.session = session;
         this.stateHash = stateHash;
         this.provider = provider;
         this.expiresAt = expiresAt;
+        this.codeVerifier = codeVerifier;
+        this.redirectUri = redirectUri;
     }
 
     /** 로그인 시작 시 state 발급 */
-    public static OauthLoginAttempt start(AuthSession session, String stateHash,
-                                          SocialProvider provider, Instant now, Duration ttl) {
-        return new OauthLoginAttempt(session, stateHash, provider, now.plus(ttl));
+    public static OauthLoginAttempt start(AuthSession session, String stateHash, SocialProvider provider,
+                                          Instant now, Duration ttl, String codeVerifier, String redirectUri) {
+        return new OauthLoginAttempt(session, stateHash, provider, now.plus(ttl), codeVerifier, redirectUri);
     }
 
     public void consume(Instant now) {
