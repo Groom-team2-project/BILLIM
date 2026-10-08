@@ -25,7 +25,8 @@ public interface OauthLoginAttemptRepository extends JpaRepository<OauthLoginAtt
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
             update OauthLoginAttempt a set a.consumedAt = :now, a.updatedAt = :now
-            where a.stateHash = :stateHash and a.consumedAt is null and a.expiresAt > :now
+            where a.stateHash = :stateHash and a.session.id = :sessionId
+              and a.consumedAt is null and a.expiresAt > :now
             """)
-    int consumeOnce(String stateHash, Instant now);
+    int consumeOnce(String stateHash, Long sessionId, Instant now);
 }

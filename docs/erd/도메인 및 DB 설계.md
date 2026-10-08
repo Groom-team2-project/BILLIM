@@ -1,7 +1,7 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.0\
-> 수정일 : 2026.09.29
+> 버전 : v0.1.1\
+> 수정일 : 2026.10.08
 
 ## 1. 공통 규칙
 
@@ -155,12 +155,15 @@ erDiagram
 | provider | varchar(20) | N | KAKAO | — |
 | expires_at | datetime(6) | N | 발급 후 10분 제안 | — |
 | consumed_at | datetime(6) | Y | 콜백에서 원자적으로 한 번 소비 | — |
+| code_verifier | varchar(128) | Y | PKCE 검증값. 난수라 재계산 불가. 미사용 제공자는 NULL | — |
+| redirect_uri | varchar(500) | N | 인가 요청에 실어 보낸 값. 콜백에서 동일해야 토큰 교환 성립 | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
 인덱스: UNIQUE (state_hash) · INDEX (expires_at)
 
 - callback은 state와 세션 쿠키를 함께 확인한다. return URL은 서버 고정 허용 경로만 사용한다.
+- 인가 요청을 HTTP 세션에 두지 않는다. 다중 인스턴스에서 로그인 시작과 콜백이 다른 서버로 가도 토큰 교환이 성립해야 한다.
 
 ### 4.2 커뮤니티 (E 노현섭)
 
