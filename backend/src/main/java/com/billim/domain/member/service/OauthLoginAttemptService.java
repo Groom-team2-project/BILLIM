@@ -42,9 +42,9 @@ public class OauthLoginAttemptService {
      * 단일 UPDATE로 소비해 동시 요청 중 하나만 통과. 조회 후 저장 방식은 둘 다 통과 가능.
      */
     @Transactional
-    public OauthLoginAttempt consume(String state) {
+    public OauthLoginAttempt consume(String state, Long sessionId) {
         String stateHash = SessionTokens.hash(state);
-        if (oauthLoginAttemptRepository.consumeOnce(stateHash, Instant.now(clock)) != 1) {
+        if (oauthLoginAttemptRepository.consumeOnce(stateHash, sessionId, Instant.now(clock)) != 1) {
             return null;
         }
         return oauthLoginAttemptRepository.findWithSession(stateHash).orElse(null);

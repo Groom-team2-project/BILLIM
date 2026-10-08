@@ -18,8 +18,6 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.stereotype.Component;
 
-import java.util.Objects;
-
 /**
  * 인가 요청을 HTTP 세션이 아닌 oauth_login_attempts에 보관.
  * 로그인 시작과 콜백이 다른 인스턴스로 가도 state 검증과 토큰 교환 성립.
@@ -58,27 +56,19 @@ public class DbAuthorizationRequestRepository implements AuthorizationRequestRep
     }
 
     /**
-     * 콜백. state를 1회 소비하고 시작 당시 기록으로 인가 요청 재구성.
-     * 같은 브라우저인지 확인하려고 시작 당시 세션과 현재 쿠키의 세션을 대조.
+     * 콜백. 시작한 세션에서만 state를 1회 소비하고 그 기록으로 인가 요청 재구성.
+     * 세션 조건을 소비 쿼리에 넣어 검증과 소비를 한 번에 처리.
      */
     @Override
     public OAuth2AuthorizationRequest removeAuthorizationRequest(HttpServletRequest request,
                                                                  HttpServletResponse response) {
         String state = request.getParameter(OAuth2ParameterNames.STATE);
-        if (state == null) {
+        AuthSession session = currentAuthSession.get(request).orElse(null);
+        if (state == null || session == null) {
             return null;
         }
-        OauthLoginAttempt attempt = oauthLoginAttemptService.consume(state);
-        if (attempt == null || !isSameBrowser(request, attempt)) {
-            return null;
-        }
-        return rebuild(state, attempt);
-    }
-
-    private boolean isSameBrowser(HttpServletRequest request, OauthLoginAttempt attempt) {
-        return currentAuthSession.get(request)
-                .map(session -> Objects.equals(session.getId(), attempt.getSession().getId()))
-                .orElse(false);
+        OauthLoginAttempt attempt = oauthLoginAttemptService.consume(state, session.getId());
+        return attempt == null ? null : rebuild(state, attempt);
     }
 
     /**

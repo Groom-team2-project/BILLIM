@@ -76,7 +76,7 @@ class OauthLoginAttemptServiceTest {
         oauthLoginAttemptService.start(session, "state-value", "verifier", REDIRECT_URI);
         em.flush();
 
-        OauthLoginAttempt saved = oauthLoginAttemptService.consume("state-value");
+        OauthLoginAttempt saved = oauthLoginAttemptService.consume("state-value", session.getId());
         assertThat(saved.getStateHash())
                 .isNotEqualTo("state-value")
                 .isEqualTo(SessionTokens.hash("state-value"));
@@ -89,7 +89,7 @@ class OauthLoginAttemptServiceTest {
         oauthLoginAttemptService.start(session, "state-value", "verifier", REDIRECT_URI);
         em.flush();
 
-        OauthLoginAttempt consumed = oauthLoginAttemptService.consume("state-value");
+        OauthLoginAttempt consumed = oauthLoginAttemptService.consume("state-value", session.getId());
 
         assertThat(consumed).isNotNull();
         assertThat(consumed.getSession().getId()).isEqualTo(session.getId());
@@ -105,14 +105,27 @@ class OauthLoginAttemptServiceTest {
         oauthLoginAttemptService.start(session, "state-value", "verifier", REDIRECT_URI);
         em.flush();
 
-        assertThat(oauthLoginAttemptService.consume("state-value")).isNotNull();
-        assertThat(oauthLoginAttemptService.consume("state-value")).isNull();
+        assertThat(oauthLoginAttemptService.consume("state-value", session.getId())).isNotNull();
+        assertThat(oauthLoginAttemptService.consume("state-value", session.getId())).isNull();
     }
 
     @Test
     @DisplayName("저장되지 않은 state는 소비되지 않는다")
     void rejectsUnknownState() {
-        assertThat(oauthLoginAttemptService.consume("없는-state")).isNull();
+        assertThat(oauthLoginAttemptService.consume("없는-state", givenSession().getId())).isNull();
+    }
+
+    /** state를 알아낸 제3자가 먼저 소비해 정상 사용자의 로그인을 막는 것을 차단 */
+    @Test
+    @DisplayName("다른 세션은 같은 state를 소비하지 못한다")
+    void rejectsConsumeFromAnotherSession() {
+        AuthSession session = givenSession();
+        AuthSession other = givenSession();
+        oauthLoginAttemptService.start(session, "state-value", "verifier", REDIRECT_URI);
+        em.flush();
+
+        assertThat(oauthLoginAttemptService.consume("state-value", other.getId())).isNull();
+        assertThat(oauthLoginAttemptService.consume("state-value", session.getId())).isNotNull();
     }
 
     @Test
@@ -124,7 +137,7 @@ class OauthLoginAttemptServiceTest {
 
         CLOCK.advance(Duration.ofMinutes(10).plusSeconds(1));
 
-        assertThat(oauthLoginAttemptService.consume("state-value")).isNull();
+        assertThat(oauthLoginAttemptService.consume("state-value", session.getId())).isNull();
     }
 
     @Test
@@ -134,7 +147,7 @@ class OauthLoginAttemptServiceTest {
         oauthLoginAttemptService.start(session, "state-value", null, REDIRECT_URI);
         em.flush();
 
-        assertThat(oauthLoginAttemptService.consume("state-value").getCodeVerifier()).isNull();
+        assertThat(oauthLoginAttemptService.consume("state-value", session.getId()).getCodeVerifier()).isNull();
     }
 
     /**
@@ -146,7 +159,9 @@ class OauthLoginAttemptServiceTest {
     @DisplayName("동시에 소비해도 한 번만 성공한다")
     void consumesOnceUnderConcurrency() throws Exception {
         String state = "concurrent-state";
-        oauthLoginAttemptService.start(givenSession(), state, "verifier", REDIRECT_URI);
+        Long sessionId = givenSession().getId();
+        oauthLoginAttemptService.start(authSessionRepository.findById(sessionId).orElseThrow(),
+                state, "verifier", REDIRECT_URI);
 
         int threads = 8;
         CountDownLatch ready = new CountDownLatch(threads);
@@ -160,7 +175,7 @@ class OauthLoginAttemptServiceTest {
                     ready.countDown();
                     try {
                         fire.await();
-                        if (oauthLoginAttemptService.consume(state) != null) {
+                        if (oauthLoginAttemptService.consume(state, sessionId) != null) {
                             consumed.incrementAndGet();
                         }
                     } catch (InterruptedException e) {
