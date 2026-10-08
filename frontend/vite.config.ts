@@ -19,8 +19,6 @@ export default defineConfig({
     // 백엔드와 동일 출처 구성. 세션 쿠키 SameSite=Lax라 타 사이트 요청에는 미전송
     proxy: {
       '/api': toBackend,
-      // 카카오 로그인 시작. A_002를 명세 경로로 옮기면 제거
-      '/oauth2': toBackend,
     },
   },
 })

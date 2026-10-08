@@ -4,7 +4,7 @@ import { classes } from "@/utils/classes";
 const c = classes(styles);
 
 /** 카카오 로그인 시작. Vite 프록시 경유 */
-const KAKAO_LOGIN_URL = "/oauth2/authorization/kakao";
+const KAKAO_LOGIN_URL = "/api/v1/auth/kakao";
 
 export function LoginPage() {
   // 카카오 도메인을 거치는 흐름이라 SPA 라우팅이 아닌 브라우저 최상위 이동
