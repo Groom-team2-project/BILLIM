@@ -16,6 +16,7 @@ public enum ErrorCode {
     VERSION_CONFLICT(HttpStatus.CONFLICT, "다른 곳에서 먼저 변경되었습니다. 새로고침 후 다시 시도해 주세요."),
     INVALID_STATE_TRANSITION(HttpStatus.CONFLICT, "현재 상태에서는 처리할 수 없는 요청입니다."),
     IDEMPOTENCY_KEY_REUSED(HttpStatus.CONFLICT, "같은 요청 키가 다른 내용으로 사용되었습니다."),
+    MESSAGE_KEY_REUSED(HttpStatus.CONFLICT, "같은 메세지 키가 다른 내용으로 재사용되었습니다."),
     RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요."),
     COMMUNITY_VERIFICATION_REQUIRED(HttpStatus.FORBIDDEN, "동네 인증이 필요합니다."),
     MEMBER_RESTRICTED(HttpStatus.FORBIDDEN, "이용이 제한된 계정입니다."),
