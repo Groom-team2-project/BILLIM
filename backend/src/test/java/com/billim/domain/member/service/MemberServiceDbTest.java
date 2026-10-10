@@ -1,5 +1,6 @@
 package com.billim.domain.member.service;
 
+import com.billim.domain.member.dto.MemberSummaryResponse;
 import com.billim.domain.member.entity.Member;
 import com.billim.domain.member.repository.MemberRepository;
 import com.billim.global.config.JpaAuditingConfig;
@@ -7,6 +8,8 @@ import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import com.billim.global.exception.VersionConflictException;
 import jakarta.persistence.EntityManager;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +20,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -102,5 +108,59 @@ class MemberServiceDbTest {
         assertThatThrownBy(() -> memberService.getMyProfile(999_999L))
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("여러 회원의 요약을 ID로 묶어 조회한다")
+    void returnsSummariesByIds() {
+        Member hong = memberRepository.save(Member.register("홍길동"));
+        Member kim = memberRepository.save(Member.register("김철수"));
+        em.flush();
+
+        Map<Long, MemberSummaryResponse> summaries =
+                memberService.getSummaries(List.of(hong.getId(), kim.getId(), hong.getId()));
+
+        assertThat(summaries).hasSize(2);
+        assertThat(summaries.get(kim.getId()).displayName()).isEqualTo("김철수");
+        assertThat(summaries.get(hong.getId()))
+                .isEqualTo(new MemberSummaryResponse(
+                        String.valueOf(hong.getId()), "홍길동", hong.getCreatedAt()));
+    }
+
+    @Test
+    @DisplayName("빈 목록은 빈 Map")
+    void returnsEmptyMapForEmptyIds() {
+        assertThat(memberService.getSummaries(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("없는 ID는 결과에서 빠진다")
+    void skipsUnknownIds() {
+        Member hong = memberRepository.save(Member.register("홍길동"));
+        em.flush();
+
+        Map<Long, MemberSummaryResponse> summaries =
+                memberService.getSummaries(List.of(hong.getId(), 999_999L));
+
+        assertThat(summaries).containsOnlyKeys(hong.getId());
+    }
+
+    /** 단건 조회 반복으로 되돌아가면 실패하는 회귀 테스트 */
+    @Test
+    @DisplayName("회원이 여러 명이어도 쿼리는 한 번만 실행한다")
+    void queriesOnceForManyMembers() {
+        List<Long> ids = List.of(
+                memberRepository.save(Member.register("홍길동")).getId(),
+                memberRepository.save(Member.register("김철수")).getId(),
+                memberRepository.save(Member.register("이영희")).getId());
+        em.flush();
+        em.clear();
+
+        Statistics stats = em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+        stats.setStatisticsEnabled(true);
+        stats.clear();
+
+        assertThat(memberService.getSummaries(ids)).hasSize(3);
+        assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
     }
 }
