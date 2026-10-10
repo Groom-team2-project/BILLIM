@@ -115,9 +115,6 @@ jobs:
           alt="feat|fix|refactor|test|docs|ci|chore"
           marker="<!-- pr-title-check -->"
 
-          # 한글 범위 매칭용 로케일 고정
-          export LC_ALL=C.UTF-8
-
           # 코멘트가 30개를 넘어도 안내 코멘트를 찾도록 전체 페이지 조회
           find_comment() {
             gh api --paginate "repos/$repo/issues/$pr_number/comments" \
@@ -130,7 +127,8 @@ jobs:
             reason="\`type: 한국어 요약\` 형식이 아닙니다."
           else
             summary="${title#*: }"
-            if ! printf '%s' "$summary" | grep -q '[가-힣]'; then
+            # `[가-힣]` 범위는 러너 로케일에서 collation 오류 — 로케일 무관한 PCRE UTF 모드 사용
+            if ! printf '%s' "$summary" | grep -qP '(*UTF)\p{Hangul}'; then
               reason="요약은 한국어로 작성해 주세요. (\`feat: add login\` ❌ → \`feat: 로그인 추가\` ✅)"
             elif printf '%s' "$summary" | grep -qE '(합니다|습니다|입니다|됩니다|해요|했어요|한다|했다|된다|이다)$'; then
               reason="요약은 명사형으로 끝내 주세요. (\`추가했습니다\` ❌ → \`추가\` ✅)"
