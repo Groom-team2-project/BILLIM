@@ -1,6 +1,10 @@
 import { useSyncExternalStore } from "react";
+import { api, resetCsrf } from "@/api/client";
 
-/** 목 세션 — API 연동 시 서버 세션 쿠키·권한 조회로 교체 */
+/**
+ * 화면 표시용 세션 캐시. 실제 인증은 서버의 BILLIM_SESSION 쿠키가 판정한다.
+ * 여기 값은 헤더·가드가 쓰는 표시 상태일 뿐이라 신뢰 경계가 아니다.
+ */
 export type Session = {
   loggedIn: boolean;
   admin: boolean;
@@ -31,12 +35,19 @@ function commit(next: Session) {
   for (const f of subs) f();
 }
 
-/** 목 계정은 관리자 — 관리자 메뉴·콘솔 시연용. 실서비스는 서버 권한 검사 (도메인 가이드 '결정: 관리자 진입') */
-export function login() {
-  commit({ loggedIn: true, admin: true });
+/** 로그인 직후 서버가 준 역할로 표시 상태를 맞춘다 */
+export function signIn(role: "USER" | "ADMIN") {
+  commit({ loggedIn: true, admin: role === "ADMIN" });
 }
 
-export function logout() {
+/** 서버 세션을 폐기한 뒤 로컬 상태를 비운다. 실패해도 로컬은 비운다 */
+export async function logout() {
+  try {
+    await api<void>("/auth/logout", { method: "POST" });
+  } catch {
+    // 이미 만료·폐기된 세션이면 서버 호출이 실패해도 로그아웃으로 처리
+  }
+  resetCsrf();
   commit({ loggedIn: false, admin: false });
 }
 
