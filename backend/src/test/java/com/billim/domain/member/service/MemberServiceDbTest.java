@@ -8,6 +8,8 @@ import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import com.billim.global.exception.VersionConflictException;
 import jakarta.persistence.EntityManager;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -141,5 +143,24 @@ class MemberServiceDbTest {
                 memberService.getSummaries(List.of(hong.getId(), 999_999L));
 
         assertThat(summaries).containsOnlyKeys(hong.getId());
+    }
+
+    /** 단건 조회 반복으로 되돌아가면 실패하는 회귀 테스트 */
+    @Test
+    @DisplayName("회원이 여러 명이어도 쿼리는 한 번만 실행한다")
+    void queriesOnceForManyMembers() {
+        List<Long> ids = List.of(
+                memberRepository.save(Member.register("홍길동")).getId(),
+                memberRepository.save(Member.register("김철수")).getId(),
+                memberRepository.save(Member.register("이영희")).getId());
+        em.flush();
+        em.clear();
+
+        Statistics stats = em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+        stats.setStatisticsEnabled(true);
+        stats.clear();
+
+        assertThat(memberService.getSummaries(ids)).hasSize(3);
+        assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
     }
 }
