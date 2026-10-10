@@ -8,6 +8,7 @@ import com.billim.domain.chat.repository.ChatRoomRepository;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,8 @@ public class ChatMessageSendService {
     private final ChatRoomRepository roomRepository;
     private final ChatMessageRepository messageRepository;
     private final ChatSendAccessPolicy accessPolicy;
+
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public ChatMessage send(
@@ -65,7 +68,11 @@ public class ChatMessageSendService {
             now
         );
 
-        return messageRepository.saveAndFlush(message);
+        ChatMessage saved = messageRepository.saveAndFlush(message);
+        eventPublisher.publishEvent(
+            new ChatMessageCreatedEvent(saved.getId(), saved.getRoomId())
+        );
+        return saved;
     }
 
     private boolean sameContent(ChatMessage existing, SendMessageRequest request, Long rentalId) {
