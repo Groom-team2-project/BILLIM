@@ -63,6 +63,9 @@ billim:
     session-touch-interval: 5m
     # OAuth state 유효 시간 (ERD oauth_login_attempts)
     oauth-state-ttl: 10m
+    # 만료 세션·state 정리 주기와 보존 기간. DB는 TTL 자동 삭제가 없어 직접 정리
+    cleanup-cron: ${CLEANUP_CRON:0 0 4 * * *}
+    cleanup-retention: 7d
 
 server:
   shutdown: graceful            # 종료 시 처리 중인 요청을 마치고 종료
@@ -103,6 +106,18 @@ spring:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+
+billim:
+  auth:
+    # 운영은 HTTPS 전제. 환경 변수 누락으로 http 쿠키가 나가는 실수 방지
+    cookie-secure: true
+
+# 운영에서는 API 문서 비공개. 비로그인에게 전체 API 구조 노출 방지
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
 
 logging:
   level:
