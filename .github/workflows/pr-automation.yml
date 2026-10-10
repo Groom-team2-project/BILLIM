@@ -94,6 +94,57 @@ jobs:
             fi
           fi
 
+  check-pr-title:
+    # PR 제목의 컨벤션(`type: 한국어 요약`) 준수 검사 — 위반 시 체크 실패 + 안내 코멘트 1건, 제목 수정 시 자동 재검사 + 코멘트 정리
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check title format
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repo="${{ github.repository }}"
+          pr_number="${{ github.event.pull_request.number }}"
+          title="$(jq -r '.pull_request.title // ""' "$GITHUB_EVENT_PATH")"
+
+          alt="feat|fix|refactor|test|docs|ci|chore"
+          marker="<!-- pr-title-check -->"
+
+          find_comment() {
+            gh api "repos/$repo/issues/$pr_number/comments" \
+              --jq "[.[] | select(.body | startswith(\"$marker\"))][0].id // empty"
+          }
+
+          if printf '%s' "$title" | grep -qE "^($alt)(\([^)]+\))?: .+"; then
+            # 통과 — 남아 있는 안내 코멘트 정리
+            comment_id="$(find_comment)"
+            if [ -n "$comment_id" ]; then
+              gh api -X DELETE "repos/$repo/issues/comments/$comment_id" >/dev/null
+            fi
+            echo "제목 형식 통과: $title"
+            exit 0
+          fi
+
+          # 위반 — 안내 코멘트는 한 건만 유지
+          if [ -z "$(find_comment)" ]; then
+            body="$(printf '%s\n' \
+              "$marker" \
+              "⚠️ PR 제목을 \`type: 한국어 요약\` 형식으로 수정해 주세요. 예: \`feat: 대여 요청 추가\`" \
+              "- 허용 타입: feat · fix · refactor · test · docs · ci · chore" \
+              "- 요약은 명사형으로 끝내기 (\`추가했습니다\` ❌ → \`추가\` ✅)" \
+              "" \
+              "제목을 수정하면 검사가 자동으로 다시 실행됩니다. (\`CONTRIBUTING.md\` 이름 규칙)")"
+            gh api "repos/$repo/issues/$pr_number/comments" -f body="$body" >/dev/null
+          fi
+
+          echo "::error::PR 제목이 컨벤션(type: 한국어 요약) 위반: $title"
+          exit 1
+
   sync-issue:
     # 이슈의 타입 라벨·GitHub 이슈 타입·제목 형식을 팀 컨벤션(`type: 요약`)에 맞춘다.
     # 템플릿 밖에서 만든 이슈(CodeRabbit·자유 양식)와 기술 작업 이슈가 대상.
