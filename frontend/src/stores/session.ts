@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { api, resetCsrf } from "@/api/client";
+import { api, ApiError, resetCsrf } from "@/api/client";
 
 /**
  * 화면 표시용 세션 캐시. 실제 인증은 서버의 BILLIM_SESSION 쿠키가 판정한다.
@@ -40,15 +40,21 @@ export function signIn(role: "USER" | "ADMIN") {
   commit({ loggedIn: true, admin: role === "ADMIN" });
 }
 
-/** 서버 세션을 폐기한 뒤 로컬 상태를 비운다. 실패해도 로컬은 비운다 */
-export async function logout() {
+/**
+ * 서버 세션 폐기 후 로컬 표시 상태 정리.
+ * 폐기 실패 시 로그인 상태 유지 — 화면만 로그아웃으로 보이고 서버 세션이 살아 있는 상태 방지.
+ * 반환값은 로그아웃 확정 여부.
+ */
+export async function logout(): Promise<boolean> {
   try {
     await api<void>("/auth/logout", { method: "POST" });
-  } catch {
-    // 이미 만료·폐기된 세션이면 서버 호출이 실패해도 로그아웃으로 처리
+  } catch (e) {
+    // 401(이미 만료·폐기된 세션)만 로그아웃 성공으로 간주
+    if (!(e instanceof ApiError && e.unauthenticated)) return false;
   }
   resetCsrf();
   commit({ loggedIn: false, admin: false });
+  return true;
 }
 
 function subscribe(f: () => void) {
