@@ -1,5 +1,6 @@
 package com.billim.domain.member.service;
 
+import com.billim.domain.member.dto.MemberSummaryResponse;
 import com.billim.domain.member.entity.Member;
 import com.billim.domain.member.repository.MemberRepository;
 import com.billim.global.exception.BusinessException;
@@ -8,6 +9,11 @@ import com.billim.global.exception.VersionConflictException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /** 회원 조회와 표시 이름 수정 */
 @Service
@@ -38,6 +44,16 @@ public class MemberService {
         }
         member.changeDisplayName(displayName);
         return member;
+    }
+
+    /** 목록 응답의 소유자·당사자 표시용 */
+    @Transactional(readOnly = true)
+    public Map<Long, MemberSummaryResponse> getSummaries(Collection<Long> memberIds) {
+        if (memberIds.isEmpty()) {
+            return Map.of();
+        }
+        return memberRepository.findAllById(Set.copyOf(memberIds)).stream()
+                .collect(Collectors.toMap(Member::getId, MemberSummaryResponse::from));
     }
 
     private Member find(Long memberId) {

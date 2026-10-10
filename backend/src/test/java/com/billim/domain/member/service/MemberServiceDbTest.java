@@ -1,5 +1,6 @@
 package com.billim.domain.member.service;
 
+import com.billim.domain.member.dto.MemberSummaryResponse;
 import com.billim.domain.member.entity.Member;
 import com.billim.domain.member.repository.MemberRepository;
 import com.billim.global.config.JpaAuditingConfig;
@@ -17,6 +18,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -102,5 +106,40 @@ class MemberServiceDbTest {
         assertThatThrownBy(() -> memberService.getMyProfile(999_999L))
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("여러 회원의 요약을 ID로 묶어 조회한다")
+    void returnsSummariesByIds() {
+        Member hong = memberRepository.save(Member.register("홍길동"));
+        Member kim = memberRepository.save(Member.register("김철수"));
+        em.flush();
+
+        Map<Long, MemberSummaryResponse> summaries =
+                memberService.getSummaries(List.of(hong.getId(), kim.getId(), hong.getId()));
+
+        assertThat(summaries).hasSize(2);
+        assertThat(summaries.get(kim.getId()).displayName()).isEqualTo("김철수");
+        assertThat(summaries.get(hong.getId()))
+                .isEqualTo(new MemberSummaryResponse(
+                        String.valueOf(hong.getId()), "홍길동", hong.getCreatedAt()));
+    }
+
+    @Test
+    @DisplayName("빈 목록은 빈 Map")
+    void returnsEmptyMapForEmptyIds() {
+        assertThat(memberService.getSummaries(List.of())).isEmpty();
+    }
+
+    @Test
+    @DisplayName("없는 ID는 결과에서 빠진다")
+    void skipsUnknownIds() {
+        Member hong = memberRepository.save(Member.register("홍길동"));
+        em.flush();
+
+        Map<Long, MemberSummaryResponse> summaries =
+                memberService.getSummaries(List.of(hong.getId(), 999_999L));
+
+        assertThat(summaries).containsOnlyKeys(hong.getId());
     }
 }
