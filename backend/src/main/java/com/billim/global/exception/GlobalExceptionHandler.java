@@ -3,6 +3,7 @@ package com.billim.global.exception;
 import com.billim.global.response.ErrorResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -37,6 +38,16 @@ public class GlobalExceptionHandler {
         log.warn("버전 충돌: currentVersion={} (requestId={})", e.getCurrentVersion(), requestId);
         return ResponseEntity.status(code.getStatus())
                 .body(ErrorResponse.versionConflict(code, e.getMessage(), requestId, e.getCurrentVersion()));
+    }
+
+    // 커밋 시점에 드러나는 동시 수정. expectedVersion 선검사를 통과한 뒤에도 발생 가능
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLock(OptimisticLockingFailureException e) {
+        ErrorCode code = ErrorCode.VERSION_CONFLICT;
+        String requestId = newRequestId();
+        log.warn("동시 수정 충돌 (requestId={})", requestId);
+        return ResponseEntity.status(code.getStatus())
+                .body(ErrorResponse.of(code, code.getMessage(), requestId));
     }
 
     // 본문 파싱 실패·선언하지 않은 요청 필드(명세 0.1)
