@@ -44,4 +44,19 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
         @Param("memberId") Long memberId,
         @Param("type") ChatMessage.Type type
     );
+
+    @Query("""
+        select  count(message)
+        from    ChatMessage message
+        where   message.roomId = :roomId
+          and   message.sequence > :lastReadSequence
+          and   message.senderId <> :memberId
+          and   message.type = :type
+    """)
+    long countUnreadMessagesInRoom(
+        @Param("roomId") Long roomId,
+        @Param("lastReadSequence") long lastReadSequence,
+        @Param("memberId") Long memberId,
+        @Param("type") ChatMessage.Type type
+    );
 }
