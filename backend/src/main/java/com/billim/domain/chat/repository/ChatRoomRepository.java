@@ -1,5 +1,6 @@
 package com.billim.domain.chat.repository;
 
+import com.billim.domain.chat.entity.ChatMessage;
 import com.billim.domain.chat.entity.ChatRoom;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
@@ -36,6 +37,46 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
     )
     Page<ChatRoom> findParticipatingRooms(
         @Param("memberId") Long memberId,
+        Pageable pageable
+    );
+
+    @Query(
+        value = """
+            select room
+            from ChatRoom room
+            where (room.ownerId = :memberId or room.requesterId = :memberId)
+              and exists (
+                  select message.id
+                  from ChatMessage message, ChatParticipant participant
+                  where participant.roomId = room.id
+                    and participant.memberId = :memberId
+                    and message.roomId = room.id
+                    and message.sequence > participant.lastReadSequence
+                    and message.senderId <> :memberId
+                    and message.type = :type
+              )
+            order by coalesce(room.lastMessageAt, room.createdAt) desc,
+                room.id desc
+            """,
+        countQuery = """
+            select count(room)
+            from ChatRoom room
+            where (room.ownerId = :memberId or room.requesterId = :memberId)
+              and exists (
+                  select message.id
+                  from ChatMessage message, ChatParticipant participant
+                  where participant.roomId = room.id
+                    and participant.memberId = :memberId
+                    and message.roomId = room.id
+                    and message.sequence > participant.lastReadSequence
+                    and message.senderId <> :memberId
+                    and message.type = :type
+              )
+            """
+    )
+    Page<ChatRoom> findParticipatingUnreadRooms(
+        @Param("memberId") Long memberId,
+        @Param("type") ChatMessage.Type type,
         Pageable pageable
     );
 }

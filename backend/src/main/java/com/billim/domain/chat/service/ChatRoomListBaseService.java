@@ -1,5 +1,6 @@
 package com.billim.domain.chat.service;
 
+import com.billim.domain.chat.entity.ChatMessage;
 import com.billim.domain.chat.entity.ChatRoom;
 import com.billim.domain.chat.repository.ChatRoomRepository;
 import com.billim.global.exception.BusinessException;
@@ -43,6 +44,41 @@ public class ChatRoomListBaseService {
             rooms.getTotalElements(),
             rooms.hasNext()
         );
+    }
+
+    @Transactional(readOnly = true)
+    public RoomBasePage getUnread(Long memberId, int page, int size) {
+        validatePage(memberId, page, size);
+        Page<ChatRoom> rooms = roomRepository.findParticipatingUnreadRooms(
+            memberId,
+            ChatMessage.Type.TEXT,
+            PageRequest.of(page, size)
+        );
+        return toBasePage(rooms, memberId, page, size);
+    }
+
+    private RoomBasePage toBasePage(Page<ChatRoom> rooms, Long memberId, int page, int size) {
+        List<ChatRoomBaseService.RoomBase> items = rooms.getContent().stream()
+            .map(room -> baseService.get(room.getId(), memberId))
+            .toList();
+
+        return new RoomBasePage(
+            items,
+            page,
+            size,
+            rooms.getTotalElements(),
+            rooms.hasNext()
+        );
+    }
+
+    private void validatePage(Long memberId, int page, int size) {
+        if (memberId == null || memberId < 1) {
+            throw new BusinessException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        if (page < 0 || size < 1 || size > 50) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
     }
 
     public record RoomBasePage(
