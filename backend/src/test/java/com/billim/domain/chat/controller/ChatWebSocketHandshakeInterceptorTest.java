@@ -1,8 +1,11 @@
 package com.billim.domain.chat.controller;
 
 import com.billim.domain.chat.service.ChatRoomAccessService;
+import com.billim.domain.member.entity.AuthSession;
+import com.billim.domain.member.entity.Member;
 import com.billim.domain.member.entity.MemberRole;
 import com.billim.global.security.LoginMember;
+import com.billim.global.security.session.CurrentAuthSession;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,6 +17,7 @@ import org.springframework.web.socket.WebSocketHandler;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -26,8 +30,9 @@ import static org.mockito.Mockito.when;
 class ChatWebSocketHandshakeInterceptorTest {
 
     private final ChatRoomAccessService accessService = mock(ChatRoomAccessService.class);
+    private final CurrentAuthSession currentAuthSession = mock(CurrentAuthSession.class);
     private final ChatWebSocketHandshakeInterceptor interceptor =
-        new ChatWebSocketHandshakeInterceptor(accessService);
+        new ChatWebSocketHandshakeInterceptor(accessService, currentAuthSession);
     private final ServerHttpResponse response = mock(ServerHttpResponse.class);
     private final WebSocketHandler handler = mock(WebSocketHandler.class);
 
@@ -44,6 +49,7 @@ class ChatWebSocketHandshakeInterceptorTest {
         assertTrue(allowed);
         assertEquals(901L, attributes.get(ChatWebSocketHandshakeInterceptor.ROOM_ID_ATTRIBUTE));
         assertEquals(2L, attributes.get(ChatWebSocketHandshakeInterceptor.MEMBER_ID_ATTRIBUTE));
+        assertEquals(55L, attributes.get(ChatWebSocketHandshakeInterceptor.AUTH_SESSION_ID_ATTRIBUTE));
         verify(accessService).isParticipant(901L, 2L);
     }
 
@@ -94,6 +100,13 @@ class ChatWebSocketHandshakeInterceptorTest {
                 member, null, member.getAuthorities());
         when(servletRequest.getUserPrincipal()).thenReturn(authentication);
         when(servletRequest.getParameterValues("roomId")).thenReturn(roomIds);
+        AuthSession authSession = mock(AuthSession.class);
+        Member sessionMember = mock(Member.class);
+        when(authSession.isLoggedIn()).thenReturn(true);
+        when(authSession.getMember()).thenReturn(sessionMember);
+        when(sessionMember.getId()).thenReturn(2L);
+        when(authSession.getId()).thenReturn(55L);
+        when(currentAuthSession.get(servletRequest)).thenReturn(Optional.of(authSession));
         return servletRequest;
     }
 }
