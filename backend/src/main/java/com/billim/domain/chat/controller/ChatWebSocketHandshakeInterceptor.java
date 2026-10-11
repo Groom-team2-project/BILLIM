@@ -1,7 +1,9 @@
 package com.billim.domain.chat.controller;
 
 import com.billim.domain.chat.service.ChatRoomAccessService;
+import com.billim.domain.member.entity.AuthSession;
 import com.billim.global.security.LoginMember;
+import com.billim.global.security.session.CurrentAuthSession;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
@@ -21,8 +23,10 @@ public class ChatWebSocketHandshakeInterceptor implements HandshakeInterceptor {
 
     public static final String ROOM_ID_ATTRIBUTE = "roomId";
     public static final String MEMBER_ID_ATTRIBUTE = "memberId";
+    public static final String AUTH_SESSION_ID_ATTRIBUTE = "authSessionId";
 
     private final ChatRoomAccessService accessService;
+    private final CurrentAuthSession currentAuthSession;
 
     @Override
     public boolean beforeHandshake(
@@ -41,6 +45,17 @@ public class ChatWebSocketHandshakeInterceptor implements HandshakeInterceptor {
         || !(authentication.getPrincipal() instanceof LoginMember member)
         || !authentication.isAuthenticated()
         || member.memberId() == null) {
+            response.setStatusCode(HttpStatus.UNAUTHORIZED);
+            return false;
+        }
+
+        AuthSession authSession = currentAuthSession
+            .get(servletServerHttpRequest.getServletRequest())
+            .orElse(null);
+
+        if (authSession == null
+            || !authSession.isLoggedIn()
+            || !authSession.getMember().getId().equals(member.memberId())) {
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
             return false;
         }
@@ -73,6 +88,7 @@ public class ChatWebSocketHandshakeInterceptor implements HandshakeInterceptor {
 
         attributes.put(ROOM_ID_ATTRIBUTE, roomId);
         attributes.put(MEMBER_ID_ATTRIBUTE, member.memberId());
+        attributes.put(AUTH_SESSION_ID_ATTRIBUTE, authSession.getId());
         return true;
     }
 

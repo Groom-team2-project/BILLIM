@@ -1,6 +1,7 @@
 package com.billim.domain.chat.service;
 
 import com.billim.domain.chat.dto.SendMessageRequest;
+import com.billim.domain.chat.dto.MessageResponse;
 import com.billim.domain.chat.entity.ChatMessage;
 import com.billim.domain.chat.entity.ChatRoom;
 import com.billim.domain.chat.repository.ChatMessageRepository;
@@ -70,7 +71,10 @@ public class ChatMessageSendService {
 
         ChatMessage saved = messageRepository.saveAndFlush(message);
         eventPublisher.publishEvent(
-            new ChatMessageCreatedEvent(saved.getId(), saved.getRoomId())
+            new ChatMessageCreatedEvent(
+                saved.getRoomId(),
+                MessageResponse.from(saved)
+            )
         );
         return saved;
     }

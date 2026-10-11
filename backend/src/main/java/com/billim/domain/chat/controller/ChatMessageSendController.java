@@ -13,8 +13,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
-
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/chat/rooms")
@@ -38,28 +36,6 @@ public class ChatMessageSendController {
             request
         );
 
-        return toResponse(message);
-    }
-
-    private MessageResponse toResponse(ChatMessage message) {
-        return new MessageResponse(
-            String.valueOf(message.getId()),
-            String.valueOf(message.getRoomId()),
-            message.getSequence(),
-            message.getType().name(),
-            nullableId(message.getSenderId()),
-            message.getBody(),
-            nullableId(message.getRentalId()),
-            null,
-            message.getClientMessageId() == null
-                ? null
-                : UUID.fromString(message.getClientMessageId()),
-            null,
-            message.getCreatedAt()
-        );
-    }
-
-    private String nullableId(Long id) {
-        return id == null ? null : String.valueOf(id);
+        return MessageResponse.from(message);
     }
 }

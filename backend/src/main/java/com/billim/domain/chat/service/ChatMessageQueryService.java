@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -73,7 +72,7 @@ public class ChatMessageQueryService {
             : fetched;
 
         List<MessageResponse> items = currentPage.stream()
-            .map(this::toResponse)
+            .map(MessageResponse::from)
             .toList();
 
         Long nextAfterSequence = null;
@@ -97,25 +96,4 @@ public class ChatMessageQueryService {
         );
     }
 
-    private MessageResponse toResponse(ChatMessage chatMessage) {
-        return new MessageResponse(
-            String.valueOf(chatMessage.getId()),
-            String.valueOf(chatMessage.getRoomId()),
-            chatMessage.getSequence(),
-            chatMessage.getType().name(),
-            nullableId(chatMessage.getSenderId()),
-            chatMessage.getBody(),
-            nullableId(chatMessage.getRentalId()),
-            null,
-            chatMessage.getClientMessageId() == null
-                ? null
-                : UUID.fromString(chatMessage.getClientMessageId()),
-            null,
-            chatMessage.getCreatedAt()
-        );
-    }
-
-    private String nullableId(Long id) {
-        return id == null ? null : String.valueOf(id);
-    }
 }
