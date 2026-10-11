@@ -121,6 +121,42 @@ class ChatRoomListBaseServiceDbTest {
             );
     }
 
+    @Test
+    @DisplayName("안 읽은 방은 상대방의 미열람 TEXT 메시지가 있는 경우만 조회한다")
+    void listsOnlyRoomsWithUnreadMessages() {
+        ChatRoomListBaseService.RoomBasePage unread =
+            listService.getUnread(requesterId, 0, 20);
+
+        assertThat(roomIds(unread)).containsExactly(activeRoomId);
+        assertThat(unread.totalElements()).isEqualTo(1);
+        assertThat(unread.hasNext()).isFalse();
+        assertThat(roomIds(listService.getUnread(ownerId, 0, 20))).isEmpty();
+
+        ChatParticipant participant = em.createQuery("""
+                select participant from ChatParticipant participant
+                where participant.roomId = :roomId and participant.memberId = :memberId
+                """, ChatParticipant.class)
+            .setParameter("roomId", activeRoomId)
+            .setParameter("memberId", requesterId)
+            .getSingleResult();
+        participant.advanceReadSequence(1, 1, NOW.plusSeconds(20));
+        em.flush();
+        em.clear();
+
+        assertThat(roomIds(listService.getUnread(requesterId, 0, 20))).isEmpty();
+    }
+
+    @Test
+    @DisplayName("안 읽은 방 조회는 잘못된 페이지 범위를 거부한다")
+    void rejectsInvalidUnreadPageRequest() {
+        assertThatThrownBy(() -> listService.getUnread(requesterId, -1, 20))
+            .isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST));
+        assertThatThrownBy(() -> listService.getUnread(requesterId, 0, 51))
+            .isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST));
+    }
+
     private Long createRoom(Long owner, Long requester, Long categoryId, Instant createdAt) {
         Item item = Item.create(
             owner, 100L, categoryId, 10L, "전동드릴", null,
