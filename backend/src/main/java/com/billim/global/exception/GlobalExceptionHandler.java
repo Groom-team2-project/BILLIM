@@ -1,5 +1,6 @@
 package com.billim.global.exception;
 
+import com.billim.global.observability.RequestIdFilter;
 import com.billim.global.response.ErrorResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +16,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -111,8 +111,8 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(code, code.getMessage(), newRequestId()));
     }
 
-    // 요청 추적용 ID. 관측 구성 시 필터 + MDC 방식으로 대체
+    // 요청 추적용 ID. RequestIdFilter가 MDC에 심은 값을 그대로 쓴다 (응답 헤더 X-Request-Id와 동일)
     private String newRequestId() {
-        return UUID.randomUUID().toString();
+        return RequestIdFilter.current();
     }
 }
