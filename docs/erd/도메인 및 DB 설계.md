@@ -1,7 +1,7 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.1\
-> 수정일 : 2026.10.08
+> 버전 : v0.1.2\
+> 수정일 : 2026.10.11
 
 ## 1. 공통 규칙
 
@@ -459,6 +459,8 @@ erDiagram
 - sequence 배정과 insert를 같은 방 잠금 트랜잭션으로 처리한다.
 
 ### 4.6 사건·알림 (D 박선우)
+
+`outbox_events`, `event_deliveries`, `notifications` 테이블은 V7 마이그레이션으로 생성한다.
 
 #### outbox_events — 커밋된 도메인 사건 · P0 (사건 생산은 공통)
 

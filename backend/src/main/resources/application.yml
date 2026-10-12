@@ -46,6 +46,21 @@ spring:
             user-name-attribute: id
 
 billim:
+  notification:
+    outbox:
+      # 사건 소비 주기 실행 on/off. 테스트·부하 측정에서 끈다
+      enabled: ${OUTBOX_ENABLED:true}
+      # 한 번에 점유할 사건 수
+      batch-size: 50
+      # 작업자 점유 시간. 넘기면 다른 작업자가 재획득 (ERD outbox_events.lease_until)
+      lease: 1m
+      # 실패 후 재시도 지연. 시도 횟수에 비례해 늘어남
+      retry-backoff: 10s
+      # 재시도 한도. 넘으면 FAILED로 멈추고 운영에서 원인을 확인
+      max-attempts: 5
+      # 기동 직후 지연과 폴링 간격
+      initial-delay: 5s
+      poll-interval: 1s
   media:
     storage-path: ${MEDIA_STORAGE_PATH:./data/media}   # 사진 영속 볼륨 경로
   auth:
@@ -66,6 +81,11 @@ billim:
     # 만료 세션·state 정리 주기와 보존 기간. DB는 TTL 자동 삭제가 없어 직접 정리
     cleanup-cron: ${CLEANUP_CRON:0 0 4 * * *}
     cleanup-retention: 7d
+
+logging:
+  pattern:
+    # requestId는 RequestIdFilter가 MDC에 심는다. 오류 응답·응답 헤더의 X-Request-Id와 같은 값
+    level: "%5p [${spring.application.name},%X{requestId:-}]"
 
 server:
   shutdown: graceful            # 종료 시 처리 중인 요청을 마치고 종료
