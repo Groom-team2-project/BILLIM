@@ -39,13 +39,19 @@ public class OutboxEventStore {
      * 작업자가 죽어 PROCESSING으로 남으면 lease 만료 후 다시 대상이 된다.
      */
     @Transactional
-    public List<Long> claim(Instant now, int batchSize, Duration lease) {
+    public List<ClaimedEvent> claim(Instant now, int batchSize, Duration lease) {
         List<Long> ids = outboxEventRepository.lockClaimableIds(now, batchSize);
         if (ids.isEmpty()) {
             return List.of();
         }
-        outboxEventRepository.findAllById(ids).forEach(event -> event.lease(now, lease));
-        return ids;
+        List<OutboxEvent> events = outboxEventRepository.findAllById(ids);
+        if (events.size() != ids.size()) {
+            throw new IllegalStateException("점유한 사건을 찾을 수 없습니다.");
+        }
+        return events.stream().map(event -> {
+            event.lease(now, lease);
+            return new ClaimedEvent(event.getId(), event.getAttempts());
+        }).toList();
     }
 
     @Transactional(readOnly = true)
@@ -81,14 +87,21 @@ public class OutboxEventStore {
     }
 
     @Transactional
-    public void complete(long eventId, Instant now) {
-        outboxEventRepository.findById(eventId).ifPresent(event -> event.complete(now));
+    public boolean complete(ClaimedEvent claim, Instant now) {
+        return outboxEventRepository.findByIdForUpdate(claim.eventId())
+                .map(event -> event.complete(claim.attempt(), now))
+                .orElse(false);
     }
 
     @Transactional
-    public void fail(long eventId, Instant now, Duration retryBackoff, int maxAttempts) {
-        outboxEventRepository.findById(eventId)
-                .ifPresent(event -> event.fail(now, retryBackoff, maxAttempts));
+    public boolean fail(ClaimedEvent claim, Instant now, Duration retryBackoff, int maxAttempts) {
+        return outboxEventRepository.findByIdForUpdate(claim.eventId())
+                .map(event -> event.fail(claim.attempt(), now, retryBackoff, maxAttempts))
+                .orElse(false);
+    }
+
+    /** 점유한 사건과 해당 시도 번호. 이전 작업자의 결과 기록을 막는 기준 */
+    public record ClaimedEvent(long eventId, int attempt) {
     }
 
     /** 경합으로 같은 소비 단위가 중복 커밋되려 한 경우. 사건 전체를 실패로 보지 않는다 */
