@@ -106,22 +106,34 @@ public class OutboxEvent extends BaseTimeEntity {
         this.leaseUntil = now.plus(leaseDuration);
     }
 
-    public void complete(Instant now) {
+    public boolean complete(int claimedAttempt, Instant now) {
+        if (!isCurrentAttempt(claimedAttempt)) {
+            return false;
+        }
         this.status = OutboxStatus.DONE;
         this.leaseUntil = null;
         this.processedAt = now;
+        return true;
     }
 
     /** 재시도 한도 안이면 지연 후 재시도, 넘었으면 FAILED로 멈춘다 */
-    public void fail(Instant now, Duration retryBackoff, int maxAttempts) {
+    public boolean fail(int claimedAttempt, Instant now, Duration retryBackoff, int maxAttempts) {
+        if (!isCurrentAttempt(claimedAttempt)) {
+            return false;
+        }
         if (attempts >= maxAttempts) {
             this.status = OutboxStatus.FAILED;
             this.leaseUntil = null;
-            return;
+            return true;
         }
         this.status = OutboxStatus.PENDING;
         this.leaseUntil = null;
         this.availableAt = now.plus(retryBackoff.multipliedBy(attempts));
+        return true;
+    }
+
+    private boolean isCurrentAttempt(int claimedAttempt) {
+        return status == OutboxStatus.PROCESSING && attempts == claimedAttempt;
     }
 
     /** 점유가 만료됐는지. 작업자가 죽어 PROCESSING으로 남은 사건을 되살리는 기준 */

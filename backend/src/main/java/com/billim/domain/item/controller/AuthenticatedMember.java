@@ -7,8 +7,7 @@ import org.springframework.security.core.Authentication;
 
 /**
  * 로그인 회원 ID 추출. Spring Security의 Authentication만 사용한다.
- * TODO(A): 인증 담당이 principal 형식(회원 ID를 담는 객체)을 확정하면 이 변환을 그 형식에 맞춘다.
- *          현재는 principal 이름이 회원 ID(숫자 문자열)라고 가정한다.
+ * 계약: 인증 주체(LoginMember)의 getName()이 members.id를 돌려준다 (global/security/LoginMember 참고).
  */
 final class AuthenticatedMember {
 
