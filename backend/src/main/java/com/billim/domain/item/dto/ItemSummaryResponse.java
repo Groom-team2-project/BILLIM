@@ -1,5 +1,6 @@
 package com.billim.domain.item.dto;
 
+import com.billim.domain.member.dto.MemberSummaryResponse;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
