@@ -60,7 +60,7 @@ class OutboxEventTest {
         OutboxEvent event = event();
         event.lease(NOW, LEASE);
 
-        event.fail(NOW, BACKOFF, MAX_ATTEMPTS);
+        event.fail(event.getAttempts(), NOW, BACKOFF, MAX_ATTEMPTS);
 
         assertThat(event.getStatus()).isEqualTo(OutboxStatus.PENDING);
         assertThat(event.getLeaseUntil()).isNull();
@@ -73,7 +73,7 @@ class OutboxEventTest {
         OutboxEvent event = event();
         for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
             event.lease(NOW, LEASE);
-            event.fail(NOW, BACKOFF, MAX_ATTEMPTS);
+            event.fail(event.getAttempts(), NOW, BACKOFF, MAX_ATTEMPTS);
         }
 
         assertThat(event.getStatus()).isEqualTo(OutboxStatus.FAILED);
@@ -86,10 +86,26 @@ class OutboxEventTest {
         OutboxEvent event = event();
         event.lease(NOW, LEASE);
 
-        event.complete(NOW.plusSeconds(1));
+        event.complete(event.getAttempts(), NOW.plusSeconds(1));
 
         assertThat(event.getStatus()).isEqualTo(OutboxStatus.DONE);
         assertThat(event.getProcessedAt()).isEqualTo(NOW.plusSeconds(1));
         assertThat(event.getLeaseUntil()).isNull();
+    }
+
+    @Test
+    @DisplayName("재선점 후 이전 시도의 완료와 실패는 현재 상태를 바꾸지 않는다")
+    void staleAttemptCannotChangeReclaimedEvent() {
+        OutboxEvent event = event();
+        event.lease(NOW, LEASE);
+        int oldAttempt = event.getAttempts();
+        event.lease(NOW.plus(LEASE).plusSeconds(1), LEASE);
+
+        assertThat(event.complete(oldAttempt, NOW.plusSeconds(2))).isFalse();
+        assertThat(event.fail(oldAttempt, NOW.plusSeconds(2), BACKOFF, MAX_ATTEMPTS)).isFalse();
+        assertThat(event.getStatus()).isEqualTo(OutboxStatus.PROCESSING);
+        assertThat(event.getAttempts()).isEqualTo(oldAttempt + 1);
+        assertThat(event.complete(event.getAttempts(), NOW.plusSeconds(3))).isTrue();
+        assertThat(event.getStatus()).isEqualTo(OutboxStatus.DONE);
     }
 }

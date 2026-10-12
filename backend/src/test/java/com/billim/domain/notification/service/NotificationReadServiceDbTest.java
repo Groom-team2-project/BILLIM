@@ -135,9 +135,24 @@ class NotificationReadServiceDbTest {
     @Test
     @DisplayName("모두 읽음은 타인의 알림을 건드리지 않는다")
     void markAllReadTouchesOwnNotificationsOnly() {
-        readService.markAllRead(me, Long.MAX_VALUE);
+        readService.markAllRead(me, myNotificationIds.getLast());
         em.clear();
 
+        assertThat(find(neighborNotificationId).getReadAt()).isNull();
+    }
+
+    @Test
+    @DisplayName("타인 또는 없는 알림을 기준 ID로 지정하면 404이고 읽음 상태를 바꾸지 않는다")
+    void markAllReadRequiresOwnThroughId() {
+        assertThatThrownBy(() -> readService.markAllRead(me, neighborNotificationId))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+        assertThatThrownBy(() -> readService.markAllRead(me, Long.MAX_VALUE))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+
+        em.clear();
+        assertThat(find(myNotificationIds.getFirst()).getReadAt()).isNull();
         assertThat(find(neighborNotificationId).getReadAt()).isNull();
     }
 

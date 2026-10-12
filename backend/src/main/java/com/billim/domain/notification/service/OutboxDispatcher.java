@@ -53,20 +53,20 @@ public class OutboxDispatcher {
      * @return 이번 호출에서 완료 처리한 사건 수
      */
     public int dispatchBatch() {
-        List<Long> claimed = store.claim(clock.instant(), batchSize, lease);
+        List<OutboxEventStore.ClaimedEvent> claimed = store.claim(clock.instant(), batchSize, lease);
         int completed = 0;
-        for (Long eventId : claimed) {
-            if (dispatchOne(eventId)) {
+        for (OutboxEventStore.ClaimedEvent claim : claimed) {
+            if (dispatchOne(claim)) {
                 completed++;
             }
         }
         return completed;
     }
 
-    private boolean dispatchOne(long eventId) {
-        OutboxEvent event = store.find(eventId).orElse(null);
+    private boolean dispatchOne(OutboxEventStore.ClaimedEvent claim) {
+        OutboxEvent event = store.find(claim.eventId()).orElse(null);
         if (event == null) {
-            log.warn("점유한 사건이 사라졌음: eventId={}", eventId);
+            log.warn("점유한 사건이 사라졌음: eventId={}", claim.eventId());
             return false;
         }
 
@@ -74,12 +74,11 @@ public class OutboxDispatcher {
             for (OutboxConsumer consumer : consumers) {
                 deliverAll(event, consumer);
             }
-            store.complete(eventId, clock.instant());
-            return true;
+            return store.complete(claim, clock.instant());
         } catch (RuntimeException e) {
             // 처리에 성공한 소비 단위는 이미 커밋돼 있다. 재시도는 남은 단위만 다시 본다
-            store.fail(eventId, clock.instant(), retryBackoff, maxAttempts);
-            log.error("사건 소비 실패: eventId={} eventKey={}", eventId, event.getEventKey(), e);
+            store.fail(claim, clock.instant(), retryBackoff, maxAttempts);
+            log.error("사건 소비 실패: eventId={} eventKey={}", claim.eventId(), event.getEventKey(), e);
             return false;
         }
     }

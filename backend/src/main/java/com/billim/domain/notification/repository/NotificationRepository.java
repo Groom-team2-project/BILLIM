@@ -27,6 +27,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     long countByRecipientIdAndReadAtIsNull(long recipientId);
 
+    boolean existsByIdAndRecipientId(long id, long recipientId);
+
     /**
      * 기준 ID까지 모두 읽음. 기준 ID보다 큰(= 더 최근) 알림은 건드리지 않는다. (API 명세 D_051)
      * 벌크 갱신이라 JPA Auditing이 동작하지 않으므로 updated_at을 함께 지정한다.

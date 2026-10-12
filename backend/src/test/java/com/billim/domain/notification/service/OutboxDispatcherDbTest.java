@@ -23,6 +23,8 @@ import org.springframework.transaction.IllegalTransactionStateException;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.mysql.MySQLContainer;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,6 +59,7 @@ class OutboxDispatcherDbTest {
 
     @Autowired DomainEventPublisher publisher;
     @Autowired OutboxDispatcher dispatcher;
+    @Autowired OutboxEventStore store;
     @Autowired OutboxEventRepository outboxEventRepository;
     @Autowired NotificationRepository notificationRepository;
     @Autowired MemberRepository memberRepository;
@@ -227,6 +230,27 @@ class OutboxDispatcherDbTest {
 
         assertThat(dispatcher.dispatchBatch()).isEqualTo(1);
         assertThat(notificationRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("재선점된 사건은 이전 작업자의 완료와 실패 기록을 무시한다")
+    void staleWorkerCannotOverwriteReclaimedEvent() {
+        publishInTransaction(DomainEvent.of(EventType.RENTAL_APPROVED, RENTAL_ID, 2L,
+                payload(recipient(borrower, RecipientRole.BORROWER))));
+
+        OutboxEventStore.ClaimedEvent first = store.claim(Instant.now(), 1, Duration.ofMinutes(1)).getFirst();
+        jdbc.update("UPDATE outbox_events SET lease_until = UTC_TIMESTAMP(6) - INTERVAL 10 MINUTE WHERE id = ?",
+                first.eventId());
+        OutboxEventStore.ClaimedEvent second = store.claim(Instant.now(), 1, Duration.ofMinutes(1)).getFirst();
+
+        assertThat(second.attempt()).isEqualTo(first.attempt() + 1);
+        assertThat(store.complete(first, Instant.now())).isFalse();
+        assertThat(store.fail(first, Instant.now(), Duration.ofSeconds(10), 5)).isFalse();
+        assertThat(onlyEvent().getStatus()).isEqualTo(OutboxStatus.PROCESSING);
+        assertThat(onlyEvent().getAttempts()).isEqualTo(second.attempt());
+
+        assertThat(store.complete(second, Instant.now())).isTrue();
+        assertThat(onlyEvent().getStatus()).isEqualTo(OutboxStatus.DONE);
     }
 
     /**

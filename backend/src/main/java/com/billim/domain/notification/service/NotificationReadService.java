@@ -45,6 +45,9 @@ public class NotificationReadService {
      */
     @Transactional
     public int markAllRead(long memberId, long throughId) {
+        if (!notificationRepository.existsByIdAndRecipientId(throughId, memberId)) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
         return notificationRepository.markReadThrough(memberId, throughId, clock.instant());
     }
 }
