@@ -65,6 +65,14 @@ public class Member extends BaseTimeEntity {
         return new Member(displayName);
     }
 
+    public void changeDisplayName(String displayName) {
+        this.displayName = requireValidDisplayName(displayName);
+    }
+
+    public boolean isActive() {
+        return status == MemberStatus.ACTIVE;
+    }
+
     private static String requireValidDisplayName(String value) {
         String trimmed = value == null ? "" : value.strip();
         if (trimmed.length() < DISPLAY_NAME_MIN || trimmed.length() > DISPLAY_NAME_MAX) {

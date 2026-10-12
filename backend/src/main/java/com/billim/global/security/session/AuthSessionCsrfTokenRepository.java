@@ -43,10 +43,13 @@ public class AuthSessionCsrfTokenRepository implements CsrfTokenRepository {
     /**
      * 로그인 전 세션 발급 지점. (BILLIM_SESSION 쿠키 발급)
      * Spring이 토큰을 새로 만들 때 response를 함께 넘겨주므로 여기서 쿠키를 내려보냄.
+     * GET 제한: 세션 없는 변경 요청도 여길 지나는데, 그때 만드는 세션은
+     * 방금 생성된 토큰과 요청의 토큰이 일치할 수 없어 403 확정이라 쓸모없는 행만 남김.
      */
     @Override
     public void saveToken(CsrfToken token, HttpServletRequest request, HttpServletResponse response) {
-        if (token == null || currentAuthSession.get(request).isPresent()) {
+        if (token == null || !"GET".equals(request.getMethod())
+                || currentAuthSession.get(request).isPresent()) {
             return;
         }
         AuthSessionService.Issued issued = authSessionService.issueAnonymous(token.getToken());
