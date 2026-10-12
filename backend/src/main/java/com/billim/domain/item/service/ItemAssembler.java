@@ -5,12 +5,13 @@ import com.billim.domain.item.dto.ImageResponse;
 import com.billim.domain.item.dto.ItemDetailResponse;
 import com.billim.domain.item.dto.ItemSummaryResponse;
 import com.billim.domain.item.dto.MediaFileResponse;
-import com.billim.domain.item.dto.MemberSummaryResponse;
 import com.billim.domain.item.dto.PlaceResponse;
 import com.billim.domain.item.entity.Category;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.repository.CategoryRepository;
 import com.billim.domain.item.repository.ItemImageRepository;
+import com.billim.domain.member.dto.MemberSummaryResponse;
+import com.billim.domain.member.service.MemberService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import org.springframework.stereotype.Component;
@@ -25,22 +26,30 @@ import java.util.stream.Collectors;
 /**
  * Entity → 응답 DTO 변환. 목록은 카테고리·썸네일을 배치 조회해 항목별 쿼리를 만들지 않는다.
  *
- * 다른 도메인 정보는 아직 연동하지 않았다(값을 지어내지 않고 생략한다).
- * TODO(A): owner.displayName·joinedAt · TODO(E): place 이름·좌표·안내, distanceMeters · TODO(C): pendingRequestCount
+ * 소유자 표시 정보는 회원 도메인(MemberService.getSummaries)에서 한 번에 조회한다.
+ * 아직 연동하지 않은 정보는 값을 지어내지 않고 생략한다.
+ * TODO(E): place 이름·좌표·안내, distanceMeters · TODO(C): pendingRequestCount
  */
 @Component
 public class ItemAssembler {
 
     private final CategoryRepository categoryRepository;
     private final ItemImageRepository itemImageRepository;
+    private final MemberService memberService;
 
-    public ItemAssembler(CategoryRepository categoryRepository, ItemImageRepository itemImageRepository) {
+    public ItemAssembler(CategoryRepository categoryRepository, ItemImageRepository itemImageRepository,
+                         MemberService memberService) {
         this.categoryRepository = categoryRepository;
         this.itemImageRepository = itemImageRepository;
+        this.memberService = memberService;
     }
 
     public ItemDetailResponse detail(Item item, long viewerId) {
         Category category = categoryRepository.findById(item.getCategoryId()).orElseThrow(this::missingRef);
+        MemberSummaryResponse owner = memberService.getSummaries(Set.of(item.getOwnerId())).get(item.getOwnerId());
+        if (owner == null) {
+            throw missingRef();
+        }
         List<ImageResponse> images = item.getImages().stream()
                 .map(i -> new ImageResponse(String.valueOf(i.getMediaFileId()), i.getSortOrder(),
                         MediaFileResponse.contentUrl(i.getMediaFileId())))
@@ -51,7 +60,7 @@ public class ItemAssembler {
                 : List.of();
         return new ItemDetailResponse(
                 String.valueOf(item.getId()), item.getTitle(), item.getDescription(),
-                MemberSummaryResponse.ofId(item.getOwnerId()), String.valueOf(item.getCommunityId()),
+                owner, String.valueOf(item.getCommunityId()),
                 CategoryResponse.from(category), PlaceResponse.of(item.getPlaceId(), item.getCommunityId()), images,
                 item.getAvailableStartDate(), item.getAvailableEndDate(), item.getVisibility().name(),
                 null, null, item.getVersion(), actions, item.getCreatedAt());
@@ -64,10 +73,13 @@ public class ItemAssembler {
         }
         Set<Long> categoryIds = new HashSet<>();
         Set<Long> itemIds = new HashSet<>();
+        Set<Long> ownerIds = new HashSet<>();
         for (Item i : items) {
             categoryIds.add(i.getCategoryId());
             itemIds.add(i.getId());
+            ownerIds.add(i.getOwnerId());
         }
+        Map<Long, MemberSummaryResponse> owners = memberService.getSummaries(ownerIds);
         Map<Long, Category> categories = categoryRepository.findAllById(categoryIds).stream()
                 .collect(Collectors.toMap(Category::getId, Function.identity()));
         Map<Long, Long> thumbs = itemImageRepository.findThumbnails(itemIds).stream()
@@ -76,19 +88,20 @@ public class ItemAssembler {
 
         return items.stream().map(i -> {
             Category category = categories.get(i.getCategoryId());
-            if (category == null) {
+            MemberSummaryResponse owner = owners.get(i.getOwnerId());
+            if (category == null || owner == null) {
                 throw missingRef();
             }
             Long thumb = thumbs.get(i.getId());
             return new ItemSummaryResponse(
                     String.valueOf(i.getId()), i.getTitle(), CategoryResponse.from(category),
-                    MemberSummaryResponse.ofId(i.getOwnerId()), PlaceResponse.of(i.getPlaceId(), i.getCommunityId()),
+                    owner, PlaceResponse.of(i.getPlaceId(), i.getCommunityId()),
                     thumb == null ? null : MediaFileResponse.contentUrl(thumb),
                     i.getVisibility().name(), null, null, null, i.getCreatedAt(), null, i.getVersion());
         }).toList();
     }
 
-    /** 참조 대상(카테고리)이 사라진 데이터 정합성 오류 */
+    /** 참조 대상(카테고리·소유 회원)이 사라진 데이터 정합성 오류 */
     private BusinessException missingRef() {
         return new BusinessException(ErrorCode.INTERNAL_ERROR);
     }
