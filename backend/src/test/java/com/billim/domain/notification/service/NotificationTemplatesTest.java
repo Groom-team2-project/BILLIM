@@ -22,9 +22,9 @@ class NotificationTemplatesTest {
             new ReportNotificationTemplate()));
 
     private static final EventPayload.Recipient OWNER =
-            new EventPayload.Recipient(1L, RecipientRole.OWNER);
+            EventPayload.Recipient.of(1L, RecipientRole.OWNER);
     private static final EventPayload.Recipient BORROWER =
-            new EventPayload.Recipient(2L, RecipientRole.BORROWER);
+            EventPayload.Recipient.of(2L, RecipientRole.BORROWER);
 
     private EventPayload rental(EventPayload.Display display) {
         return EventPayload.forRental(501L, List.of(OWNER, BORROWER), display);
@@ -78,16 +78,41 @@ class NotificationTemplatesTest {
     }
 
     @Test
-    @DisplayName("제재 대상에게는 최소 사유만 알리고 신고자 정보를 노출하지 않는다")
-    void sanctionedRecipientGetsMinimalReason() {
-        EventPayload payload = EventPayload.forRental(3L,
-                List.of(new EventPayload.Recipient(9L, RecipientRole.SANCTIONED)),
-                EventPayload.Display.of("신고한 이웃", "전동드릴"));
+    @DisplayName("제재 대상에게는 조치 종류만 알린다")
+    void sanctionedRecipientSeesActionLabel() {
+        EventPayload.Recipient sanctioned = EventPayload.Recipient.of(9L, RecipientRole.SANCTIONED);
+        EventPayload payload = EventPayload.forReport(3L, List.of(sanctioned),
+                EventPayload.Display.ofLabel("7일 이용 정지"));
 
-        String title = templates.title(EventType.REPORT_RESOLVED, payload,
-                new EventPayload.Recipient(9L, RecipientRole.SANCTIONED));
+        String title = templates.title(EventType.REPORT_RESOLVED, payload, sanctioned);
 
-        assertThat(title).doesNotContain("신고한 이웃").doesNotContain("전동드릴");
+        assertThat(title).contains("7일 이용 정지");
+    }
+
+    @Test
+    @DisplayName("신고자와 제재 대상의 문구가 서로의 정보를 담지 않는다")
+    void reportTitlesDoNotLeakCounterpartInfo() {
+        EventPayload.Recipient reporter = EventPayload.Recipient.of(1L, RecipientRole.REPORTER);
+        EventPayload.Recipient sanctioned = EventPayload.Recipient.of(9L, RecipientRole.SANCTIONED);
+        // 발행 측이 자유 입력 사유를 담지 않는 것이 계약이지만, 담겼더라도 문구에 새지 않아야 한다
+        EventPayload payload = EventPayload.forReport(3L, List.of(reporter, sanctioned),
+                new EventPayload.Display("신고한 이웃", "전동드릴", null, null, null, null, "경고"));
+
+        String reporterTitle = templates.title(EventType.REPORT_RESOLVED, payload, reporter);
+        String sanctionedTitle = templates.title(EventType.REPORT_RESOLVED, payload, sanctioned);
+
+        assertThat(reporterTitle).doesNotContain("신고한 이웃").doesNotContain("경고");
+        assertThat(sanctionedTitle).doesNotContain("신고한 이웃").doesNotContain("전동드릴");
+    }
+
+    @Test
+    @DisplayName("조치 라벨이 없어도 제재 대상에게 알릴 문구는 만든다")
+    void sanctionedTitleFallsBackWithoutLabel() {
+        EventPayload.Recipient sanctioned = EventPayload.Recipient.of(9L, RecipientRole.SANCTIONED);
+        EventPayload payload = EventPayload.forReport(3L, List.of(sanctioned),
+                EventPayload.Display.empty());
+
+        assertThat(templates.title(EventType.REPORT_RESOLVED, payload, sanctioned)).isNotBlank();
     }
 
     @Test

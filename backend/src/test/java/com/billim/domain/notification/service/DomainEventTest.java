@@ -15,7 +15,7 @@ class DomainEventTest {
 
     private static final EventPayload PAYLOAD = EventPayload.forRental(
             501L,
-            List.of(new EventPayload.Recipient(7L, RecipientRole.BORROWER)),
+            List.of(EventPayload.Recipient.of(7L, RecipientRole.BORROWER)),
             EventPayload.Display.of("정우", "전동드릴"));
 
     @Test

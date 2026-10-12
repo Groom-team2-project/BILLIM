@@ -25,6 +25,8 @@ public enum ErrorCode {
     FILE_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "사진은 10MiB 이하만 올릴 수 있습니다."),
     UNSUPPORTED_IMAGE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "JPEG, PNG, WebP 사진만 올릴 수 있습니다."),
     INVALID_IMAGE(HttpStatus.UNPROCESSABLE_CONTENT, "읽을 수 없는 사진입니다."),
+    DUPLICATE_REPORT(HttpStatus.CONFLICT, "같은 대상·사유로 접수한 신고가 처리 중입니다."),
+    REPORT_ALREADY_RESOLVED(HttpStatus.CONFLICT, "이미 처리된 신고입니다."),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "일시적인 오류가 발생했습니다."),   // 명세에 500 코드 없음 — 에러 코드.md 추가는 팀 논의 대기
     RETRYABLE_CONFLICT(HttpStatus.SERVICE_UNAVAILABLE, "일시적인 혼잡으로 처리하지 못했습니다. 잠시 후 다시 시도해 주세요."),
     DEPENDENCY_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "외부 연동 오류로 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.");

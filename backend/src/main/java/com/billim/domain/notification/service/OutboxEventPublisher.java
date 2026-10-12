@@ -2,6 +2,7 @@ package com.billim.domain.notification.service;
 
 import com.billim.domain.notification.entity.OutboxEvent;
 import com.billim.domain.notification.repository.OutboxEventRepository;
+import com.billim.global.json.JsonCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -20,13 +21,13 @@ public class OutboxEventPublisher implements DomainEventPublisher {
     private static final Logger log = LoggerFactory.getLogger(OutboxEventPublisher.class);
 
     private final OutboxEventRepository outboxEventRepository;
-    private final EventPayloadCodec payloadCodec;
+    private final JsonCodec jsonCodec;
     private final Clock clock;
 
     public OutboxEventPublisher(OutboxEventRepository outboxEventRepository,
-                                EventPayloadCodec payloadCodec, Clock clock) {
+                                JsonCodec jsonCodec, Clock clock) {
         this.outboxEventRepository = outboxEventRepository;
-        this.payloadCodec = payloadCodec;
+        this.jsonCodec = jsonCodec;
         this.clock = clock;
     }
 
@@ -50,7 +51,7 @@ public class OutboxEventPublisher implements DomainEventPublisher {
                 event.eventType(),
                 event.aggregateId(),
                 event.aggregateVersion(),
-                payloadCodec.write(event.payload()),
+                jsonCodec.write(event.payload()),
                 clock.instant()));
 
         log.info("사건 적재: eventKey={} type={}", event.eventKey(), event.eventType());

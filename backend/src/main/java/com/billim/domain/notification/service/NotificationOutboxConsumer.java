@@ -3,6 +3,7 @@ package com.billim.domain.notification.service;
 import com.billim.domain.notification.entity.Notification;
 import com.billim.domain.notification.entity.OutboxEvent;
 import com.billim.domain.notification.repository.NotificationRepository;
+import com.billim.global.json.JsonCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -23,19 +24,19 @@ public class NotificationOutboxConsumer implements OutboxConsumer {
     private static final Logger log = LoggerFactory.getLogger(NotificationOutboxConsumer.class);
 
     private final NotificationRepository notificationRepository;
-    private final EventPayloadCodec payloadCodec;
+    private final JsonCodec jsonCodec;
     private final NotificationTemplates templates;
 
     public NotificationOutboxConsumer(NotificationRepository notificationRepository,
-                                      EventPayloadCodec payloadCodec, NotificationTemplates templates) {
+                                      JsonCodec jsonCodec, NotificationTemplates templates) {
         this.notificationRepository = notificationRepository;
-        this.payloadCodec = payloadCodec;
+        this.jsonCodec = jsonCodec;
         this.templates = templates;
     }
 
     @Override
     public List<String> consumerKeys(OutboxEvent event) {
-        return payloadCodec.read(event.getPayload()).recipients().stream()
+        return jsonCodec.read(event.getPayload(), EventPayload.class).recipients().stream()
                 .map(recipient -> consumerKey(recipient.memberId()))
                 .distinct()
                 .toList();
@@ -44,7 +45,7 @@ public class NotificationOutboxConsumer implements OutboxConsumer {
     @Override
     public void consume(OutboxEvent event, String consumerKey) {
         long recipientId = memberId(consumerKey);
-        EventPayload payload = payloadCodec.read(event.getPayload());
+        EventPayload payload = jsonCodec.read(event.getPayload(), EventPayload.class);
 
         EventPayload.Recipient recipient = payload.recipients().stream()
                 .filter(candidate -> candidate.memberId() == recipientId)
@@ -58,13 +59,14 @@ public class NotificationOutboxConsumer implements OutboxConsumer {
             return;
         }
 
+        // 수신자가 이동 대상을 따로 지정했으면 그것을 쓴다 (신고자는 신고 결과, 제재 대상은 자기 회원 정보)
         notificationRepository.save(Notification.of(
                 recipientId,
                 event.getId(),
                 event.getEventType(),
                 title,
-                payload.targetType(),
-                payload.targetId()));
+                recipient.targetTypeOr(payload.targetType()),
+                recipient.targetIdOr(payload.targetId())));
 
         log.info("알림 생성: eventId={} recipientId={} type={}",
                 event.getId(), recipientId, event.getEventType());

@@ -248,7 +248,7 @@ class OutboxDispatcherDbTest {
     }
 
     private static EventPayload.Recipient recipient(long memberId, RecipientRole role) {
-        return new EventPayload.Recipient(memberId, role);
+        return EventPayload.Recipient.of(memberId, role);
     }
 
     private static EventPayload payload(EventPayload.Recipient... recipients) {
