@@ -126,6 +126,17 @@ spring:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            # 리버스 프록시(Netlify) 뒤라 {baseUrl} 대신 콜백 주소 명시 — 프록시 Host 처리와 무관한 콜백 복귀
+            redirect-uri: ${KAKAO_REDIRECT_URI}
+
+server:
+  # 프록시(Netlify·ALB)의 X-Forwarded-* 신뢰 — 스킴·호스트 인식
+  forward-headers-strategy: framework
 
 billim:
   auth:
