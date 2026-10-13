@@ -2,6 +2,8 @@ package com.billim.domain.rental.controller;
 
 import com.billim.global.exception.GlobalExceptionHandler;
 import com.billim.domain.rental.service.RentalService;
+import com.billim.domain.rental.service.RentalQueryService;
+import com.billim.domain.rental.dto.*;
 import com.billim.domain.rental.dto.CreateRentalRequest;
 import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -25,11 +27,13 @@ class RentalControllerTest {
     private static final String KEY = "4429a68a-0270-4c19-9c5f-427b08aaac87";
     private MockMvc mvc;
     private RentalService service;
+    private RentalQueryService queries;
 
     @BeforeEach
     void setUp() {
         service = mock(RentalService.class);
-        mvc = MockMvcBuilders.standaloneSetup(new RentalController(service))
+        queries = mock(RentalQueryService.class);
+        mvc = MockMvcBuilders.standaloneSetup(new RentalController(service, queries), new RentalAvailabilityController(queries))
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
@@ -78,8 +82,8 @@ class RentalControllerTest {
     @ValueSource(strings = {"/api/v1/rentals?role=BORROWER", "/api/v1/rentals?role=OWNER",
             "/api/v1/rentals/summary", "/api/v1/rentals/1"})
     @DisplayName("목록·건수·상세 조회 경로 연결")
-    void queriesReturnNotImplemented(String path) throws Exception {
-        mvc.perform(get(path)).andExpect(status().isNotImplemented());
+    void queriesCallServices(String path) throws Exception {
+        mvc.perform(get(path)).andExpect(status().isOk());
     }
 
     @ParameterizedTest
@@ -142,6 +146,19 @@ class RentalControllerTest {
                         .content("""
                                 {"itemId":"9223372036854775808","startDate":"2026-10-10","endDate":"2026-10-11"}
                                 """))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("달력 조회 경로·필수 날짜 검증")
+    void availabilityCallsService() throws Exception {
+        mvc.perform(get("/api/v1/items/1/availability?from=2026-10-01&to=2026-10-31"))
+                .andExpect(status().isOk());
+        verify(queries).getAvailability(eq(1L), eq(java.time.LocalDate.parse("2026-10-01")),
+                eq(java.time.LocalDate.parse("2026-10-31")), isNull(), isNull(), isNull());
+        mvc.perform(get("/api/v1/items/1/availability?from=2026-10-01"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/v1/items/1/availability?from=bad&to=2026-10-31"))
                 .andExpect(status().isBadRequest());
     }
 }

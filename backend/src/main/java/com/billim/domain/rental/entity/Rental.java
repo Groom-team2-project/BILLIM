@@ -42,6 +42,14 @@ public class Rental extends BaseTimeEntity {
         return rental;
     }
 
+    public boolean isParticipant(long memberId) {
+        return ownerId.equals(memberId) || borrowerId.equals(memberId);
+    }
+
+    public boolean isOverdue(Instant now) {
+        return status == RentalStatus.ACTIVE && !dueAt.isAfter(now);
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
