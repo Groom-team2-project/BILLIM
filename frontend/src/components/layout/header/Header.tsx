@@ -1,8 +1,9 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { MoreMenu, type MoreMenuItem } from "@/components/ui/more-menu";
 import { SearchField } from "@/components/ui/search-field";
 import { ThemeMenu } from "@/components/ui/theme-menu";
-import { useUnreadCount } from "@/stores/notifications";
+import { refreshUnreadCount, useUnreadCount } from "@/stores/notifications";
 import { ProfileMenu } from "@/components/layout/header/_components/ProfileMenu";
 import styles from "@/components/layout/header/Header.module.css";
 import { classes } from "@/utils/classes";
@@ -22,7 +23,16 @@ type HeaderProps = {
 /** 상단 헤더 — 워드마크·내비·검색·등록·테마·알림·계정 (§7) */
 export function Header({ sub, title, searchHidden, moreItems = [], onBack }: HeaderProps) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const unreadNotifs = useUnreadCount();
+
+  useEffect(() => {
+    const refresh = () => { void refreshUnreadCount(); };
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, [pathname]);
+
   return (
     <header className={c(`shell-header${sub ? " shell-header--sub" : ""}`)}>
       <div className={c("shell-header-inner")}>
@@ -64,7 +74,7 @@ export function Header({ sub, title, searchHidden, moreItems = [], onBack }: Hea
             물건 등록
           </NavLink>
           <ThemeMenu />
-          <NavLink to="/notifications" className={c("shell-icon-button")} aria-label={`알림 ${unreadNotifs}개`}>
+          <NavLink to="/notifications" className={c("shell-icon-button")} aria-label={`알림, 새 알림 ${unreadNotifs}개`}>
             <BellIcon />
             {unreadNotifs > 0 ? <span className={c("shell-icon-badge")}>{unreadNotifs}</span> : null}
           </NavLink>
