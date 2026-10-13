@@ -79,4 +79,43 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
         @Param("type") ChatMessage.Type type,
         Pageable pageable
     );
+
+    @Query(
+        value = """
+            select room from ChatRoom room
+            where (room.ownerId = :memberId or room.requesterId = :memberId)
+              and exists (
+                  select rental.id from Rental rental
+                      where rental.chatRoomId = room.id
+                        and rental.itemId = room.itemId
+                        and rental.ownerId = room.ownerId
+                        and rental.borrowerId = room.requesterId
+                        and (
+                            (:borrower = true and rental.borrowerId = :memberId)
+                            or (:borrower = false and rental.ownerId = :memberId)
+                        )
+              )
+            order by coalesce(room.lastMessageAt, room.createdAt) desc, room.id desc
+            """,
+        countQuery = """
+            select count(room) from ChatRoom room
+            where (room.ownerId = :memberId or room.requesterId = :memberId)
+              and exists (
+                  select rental.id from Rental rental
+                      where rental.chatRoomId = room.id
+                        and rental.itemId = room.itemId
+                        and rental.ownerId = room.ownerId
+                        and rental.borrowerId = room.requesterId
+                        and (
+                            (:borrower = true and rental.borrowerId = :memberId)
+                            or (:borrower = false and rental.ownerId = :memberId)
+                        )
+              )
+            """
+    )
+    Page<ChatRoom> findParticipatingRentalRooms(
+        @Param("memberId") Long memberId,
+        @Param("borrower") boolean borrower,
+        Pageable pageable
+    );
 }
