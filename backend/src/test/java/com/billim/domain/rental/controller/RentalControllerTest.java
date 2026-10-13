@@ -1,6 +1,10 @@
 package com.billim.domain.rental.controller;
 
 import com.billim.global.exception.GlobalExceptionHandler;
+import com.billim.domain.rental.service.RentalService;
+import com.billim.domain.rental.dto.CreateRentalRequest;
+import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -20,23 +24,42 @@ class RentalControllerTest {
 
     private static final String KEY = "4429a68a-0270-4c19-9c5f-427b08aaac87";
     private MockMvc mvc;
+    private RentalService service;
 
     @BeforeEach
     void setUp() {
-        mvc = MockMvcBuilders.standaloneSetup(new RentalController())
+        service = mock(RentalService.class);
+        mvc = MockMvcBuilders.standaloneSetup(new RentalController(service))
                 .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                 .setControllerAdvice(new GlobalExceptionHandler()).build();
     }
 
     @Test
-    @DisplayName("대여 생성은 서비스 연결 전 성공을 반환하지 않음")
-    void createReturnsNotImplemented() throws Exception {
+    @DisplayName("대여 생성 요청을 서비스에 전달하고 201 반환")
+    void createCallsService() throws Exception {
         mvc.perform(post("/api/v1/rentals").header("Idempotency-Key", KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"itemId":"1","startDate":"2026-10-10","endDate":"2026-10-11"}
                                 """))
-                .andExpect(status().isNotImplemented());
+                .andExpect(status().isCreated());
+        verify(service).createRental(eq(KEY), eq(new CreateRentalRequest("1",
+                java.time.LocalDate.of(2026, 10, 10), java.time.LocalDate.of(2026, 10, 11))), isNull());
+    }
+
+    @Test
+    @DisplayName("필수 저장 기반 미연동 시 503 오류 응답")
+    void createReturnsDependencyUnavailable() throws Exception {
+        when(service.createRental(anyString(), any(), any())).thenThrow(
+                new com.billim.global.exception.BusinessException(
+                        com.billim.global.exception.ErrorCode.DEPENDENCY_UNAVAILABLE));
+        mvc.perform(post("/api/v1/rentals").header("Idempotency-Key", KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"itemId":"1","startDate":"2026-10-10","endDate":"2026-10-11"}
+                                """))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("DEPENDENCY_UNAVAILABLE"));
     }
 
     @ParameterizedTest

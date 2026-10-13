@@ -18,6 +18,15 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class RentalStatusHistory extends BaseTimeEntity {
 
+    public static RentalStatusHistory requested(Rental rental) {
+        RentalStatusHistory history = new RentalStatusHistory();
+        history.rentalId = rental.getId();
+        history.actorId = rental.getBorrowerId();
+        history.toStatus = RentalStatus.REQUESTED;
+        history.rentalVersion = rental.getVersion();
+        return history;
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

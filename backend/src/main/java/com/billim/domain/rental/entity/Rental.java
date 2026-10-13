@@ -24,6 +24,24 @@ import java.time.LocalDate;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Rental extends BaseTimeEntity {
 
+    public static Rental request(Long itemId, Long ownerId, Long borrowerId, Long communityId,
+                                 LocalDate startDate, LocalDate endDate, Instant requestExpiresAt,
+                                 Instant dueAt, String itemTitle, Long placeId, String placeName) {
+        Rental rental = new Rental();
+        rental.itemId = itemId;
+        rental.ownerId = ownerId;
+        rental.borrowerId = borrowerId;
+        rental.communityId = communityId;
+        rental.startDate = startDate;
+        rental.endDate = endDate;
+        rental.requestExpiresAt = requestExpiresAt;
+        rental.dueAt = dueAt;
+        rental.itemTitleSnapshot = itemTitle;
+        rental.placeId = placeId;
+        rental.placeNameSnapshot = placeName;
+        return rental;
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

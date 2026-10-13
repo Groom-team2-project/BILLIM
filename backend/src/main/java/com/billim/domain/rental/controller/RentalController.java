@@ -1,5 +1,6 @@
 package com.billim.domain.rental.controller;
 
+import com.billim.domain.rental.service.RentalService;
 import com.billim.domain.rental.dto.CancelRentalRequest;
 import com.billim.domain.rental.dto.CreateRentalRequest;
 import com.billim.domain.rental.dto.RejectRentalRequest;
@@ -32,6 +33,12 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/rentals")
 public class RentalController {
 
+    private final RentalService rentalService;
+
+    public RentalController(RentalService rentalService) {
+        this.rentalService = rentalService;
+    }
+
     private static final String UUID_PATTERN =
             "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
 
@@ -41,7 +48,8 @@ public class RentalController {
             @RequestHeader("Idempotency-Key") @Pattern(regexp = UUID_PATTERN) String idempotencyKey,
             @Valid @RequestBody CreateRentalRequest request,
             @AuthenticationPrincipal LoginMember member) {
-        throw notImplemented();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(rentalService.createRental(idempotencyKey, request, member));
     }
 
     // 대여 취소
