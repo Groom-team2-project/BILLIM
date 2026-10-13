@@ -9,6 +9,13 @@
   # CI(.github/workflows/ci.yml)와 동일하게 고정
   NODE_VERSION = "22"
 
+# API 프록시 — 백엔드로 전달
+[[redirects]]
+  from = "/api/*"
+  to = "http://52.78.14.19:8080/api/:splat"
+  status = 200
+  force = true
+
 # SPA 라우팅 — /profile 같은 주소로 직접 들어와도 index.html 반환
 [[redirects]]
   from = "/*"

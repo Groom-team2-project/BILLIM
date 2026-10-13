@@ -1,5 +1,6 @@
 package com.billim.domain.rental.controller;
 
+import com.billim.domain.rental.service.RentalService;
 import com.billim.domain.rental.dto.CancelRentalRequest;
 import com.billim.domain.rental.dto.CreateRentalRequest;
 import com.billim.domain.rental.dto.RejectRentalRequest;
@@ -26,11 +27,20 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.server.ResponseStatusException;
+import com.billim.domain.rental.service.RentalQueryService;
 
 @RestController
 @RequestMapping("/api/v1/rentals")
 public class RentalController {
+
+    private final RentalService rentalService;
+
+    private final RentalQueryService queries;
+
+    public RentalController(RentalService rentalService, RentalQueryService queries) {
+        this.rentalService = rentalService;
+        this.queries = queries;
+    }
 
     private static final String UUID_PATTERN =
             "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
@@ -41,7 +51,8 @@ public class RentalController {
             @RequestHeader("Idempotency-Key") @Pattern(regexp = UUID_PATTERN) String idempotencyKey,
             @Valid @RequestBody CreateRentalRequest request,
             @AuthenticationPrincipal LoginMember member) {
-        throw notImplemented();
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(rentalService.createRental(idempotencyKey, request, member));
     }
 
     // 대여 취소
@@ -51,7 +62,7 @@ public class RentalController {
             @RequestHeader("Idempotency-Key") @Pattern(regexp = UUID_PATTERN) String idempotencyKey,
             @Valid @RequestBody CancelRentalRequest request,
             @AuthenticationPrincipal LoginMember member) {
-        throw notImplemented();
+        return ResponseEntity.ok(rentalService.cancelRental(rentalId, idempotencyKey, request, member));
     }
 
     // 대여 승인
@@ -61,7 +72,7 @@ public class RentalController {
             @RequestHeader("Idempotency-Key") @Pattern(regexp = UUID_PATTERN) String idempotencyKey,
             @Valid @RequestBody RentalVersionRequest request,
             @AuthenticationPrincipal LoginMember member) {
-        throw notImplemented();
+        return ResponseEntity.ok(rentalService.approveRental(rentalId, idempotencyKey, request, member));
     }
 
     // 대여 거절
@@ -71,7 +82,7 @@ public class RentalController {
             @RequestHeader("Idempotency-Key") @Pattern(regexp = UUID_PATTERN) String idempotencyKey,
             @Valid @RequestBody RejectRentalRequest request,
             @AuthenticationPrincipal LoginMember member) {
-        throw notImplemented();
+        return ResponseEntity.ok(rentalService.rejectRental(rentalId, idempotencyKey, request, member));
     }
 
     // 대여 중
@@ -81,7 +92,7 @@ public class RentalController {
             @RequestHeader("Idempotency-Key") @Pattern(regexp = UUID_PATTERN) String idempotencyKey,
             @Valid @RequestBody RentalVersionRequest request,
             @AuthenticationPrincipal LoginMember member) {
-        throw notImplemented();
+        return ResponseEntity.ok(rentalService.handoverRental(rentalId, idempotencyKey, request, member));
     }
 
     // 반납 확인
@@ -91,7 +102,7 @@ public class RentalController {
             @RequestHeader("Idempotency-Key") @Pattern(regexp = UUID_PATTERN) String idempotencyKey,
             @Valid @RequestBody RentalVersionRequest request,
             @AuthenticationPrincipal LoginMember member) {
-        throw notImplemented();
+        return ResponseEntity.ok(rentalService.returnRental(rentalId, idempotencyKey, request, member));
     }
 
     // 내 대여 목록 조회
@@ -104,14 +115,14 @@ public class RentalController {
             @RequestParam(defaultValue = "0") @PositiveOrZero int page,
             @RequestParam(defaultValue = "20") @Positive @Max(50) int size,
             @AuthenticationPrincipal LoginMember member) {
-        throw notImplemented();
+        return ResponseEntity.ok(queries.getRentalList(role, status, overdueOnly, itemId, page, size, member));
     }
 
     // 내 대여 상태별 건수 조회
     @GetMapping("/summary")
     public ResponseEntity<RentalCountStatusResponse> getRentalCountStatus(
             @AuthenticationPrincipal LoginMember member) {
-        throw notImplemented();
+        return ResponseEntity.ok(queries.getRentalCountStatus(member));
     }
 
     // 내 거래 상세 상태 조회
@@ -119,11 +130,7 @@ public class RentalController {
     public ResponseEntity<RentalDetailStatusResponse> getRentalDetailStatus(
             @PathVariable @Positive Long rentalId,
             @AuthenticationPrincipal LoginMember member) {
-        throw notImplemented();
+        return ResponseEntity.ok(queries.getRentalDetailStatus(rentalId, member));
     }
 
-    // 서비스 연결 전 실제 처리로 오인할 수 있는 성공 응답 방지
-    private static ResponseStatusException notImplemented() {
-        return new ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "대여 서비스 미구현");
-    }
 }
