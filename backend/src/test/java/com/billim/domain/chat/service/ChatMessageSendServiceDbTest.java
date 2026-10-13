@@ -61,6 +61,14 @@ class ChatMessageSendServiceDbTest {
 
     @BeforeEach
     void setUp() {
+        em.createNativeQuery("""
+                insert into members (
+                    id, display_name, role, status, version, created_at, updated_at
+                ) values
+                    (1, '소유자', 'USER', 'ACTIVE', 0, NOW(6), NOW(6)),
+                    (2, '요청자', 'USER', 'ACTIVE', 0, NOW(6), NOW(6))
+                """).executeUpdate();
+
         Long categoryId = categoryRepository
             .findByActiveTrueOrderBySortOrderAscIdAsc()
             .getFirst()
