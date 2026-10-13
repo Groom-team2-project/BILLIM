@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { api, ApiError, resetCsrf } from "@/api/client";
+import { clearNotifications } from "@/stores/notifications";
+import { clearChatUnreadCount } from "@/stores/chat-unread";
 
 /**
  * 화면 표시용 세션 캐시. 실제 인증은 서버의 BILLIM_SESSION 쿠키가 판정한다.
@@ -37,6 +39,8 @@ function commit(next: Session) {
 
 /** 로그인 직후 서버가 준 역할로 표시 상태를 맞춘다 */
 export function signIn(role: "USER" | "ADMIN") {
+  clearNotifications();
+  clearChatUnreadCount();
   commit({ loggedIn: true, admin: role === "ADMIN" });
 }
 
@@ -53,6 +57,8 @@ export async function logout(): Promise<boolean> {
     if (!(e instanceof ApiError && e.unauthenticated)) return false;
   }
   resetCsrf();
+  clearNotifications();
+  clearChatUnreadCount();
   commit({ loggedIn: false, admin: false });
   return true;
 }
