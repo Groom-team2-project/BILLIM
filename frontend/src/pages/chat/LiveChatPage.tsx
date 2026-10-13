@@ -18,6 +18,7 @@ const PAGE_SIZE = 20;
 export function LiveChatPage() {
   const { chatId } = useParams();
   const navigate = useNavigate();
+  const [desktop, setDesktop] = useState(() => window.matchMedia("(min-width: 760px)").matches);
   const [filter, setFilter] = useState<ChatRoomFilter>("ALL");
   const [rooms, setRooms] = useState<ApiChatRoom[]>([]);
   const [page, setPage] = useState(0);
@@ -25,6 +26,13 @@ export function LiveChatPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
+
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 760px)");
+    const onChange = () => setDesktop(query.matches);
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -52,7 +60,7 @@ export function LiveChatPage() {
     setRooms((previous) => previous.map((room) => room.id === roomId ? { ...room, unreadCount: 0 } : room));
     void refreshChatUnreadCount();
   };
-  const selectedId = chatId ?? rooms[0]?.id;
+  const selectedId = chatId ?? (desktop ? rooms[0]?.id : undefined);
 
   return (
     <div className={c(`chat-page${chatId ? " chat-page--room" : ""}`)}>

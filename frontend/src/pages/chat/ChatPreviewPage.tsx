@@ -15,7 +15,7 @@ const c = classes(styles);
 type ChatFilter = "all" | "borrowed" | "lent" | "unread";
 
 const unreadOf = (role: "borrowed" | "lent") =>
-  CHATS.filter((c) => c.role === role).reduce((sum, c) => sum + c.unread, 0);
+  CHATS.filter((chat) => chat.role === role).reduce((sum, chat) => sum + chat.unread, 0);
 
 export function ChatPreviewPage() {
   const { chatId } = useParams();
@@ -27,8 +27,8 @@ export function ChatPreviewPage() {
   const state = raw === "loading" || raw === "empty" ? raw : raw === "listError" ? "error" : "default";
   const navigate = useNavigate();
 
-  const rows = CHATS.filter((c) =>
-    filter === "all" ? true : filter === "unread" ? c.unread > 0 : c.role === filter,
+  const rows = CHATS.filter((chat) =>
+    filter === "all" ? true : filter === "unread" ? chat.unread > 0 : chat.role === filter,
   );
 
   const list = (
