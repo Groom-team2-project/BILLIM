@@ -89,16 +89,20 @@ export async function refreshNotifications(): Promise<void> {
   const currentCountVersion = ++countVersion;
   update({ loading: true, loadingMore: false, error: null, errorKind: null });
 
+  void getUnreadNotificationCount().then((count) => {
+    if (version === listVersion && currentCountVersion === countVersion) {
+      update({ unreadCount: count.unreadCount });
+    }
+  }).catch(() => {
+    // 목록 요청과 별개로 기존 안 읽은 수를 유지한다.
+  });
+
   try {
-    const [page, count] = await Promise.all([
-      getNotifications(),
-      getUnreadNotificationCount(),
-    ]);
+    const page = await getNotifications();
     if (version !== listVersion) return;
 
     update({
       items: page.items,
-      unreadCount: currentCountVersion === countVersion ? count.unreadCount : state.unreadCount,
       hasMore: page.hasMore,
       nextCursor: page.nextCursor,
       loading: false,

@@ -49,8 +49,9 @@ test("모두 읽음 기준은 관측한 최신 ID이고 이후 새 알림 ID는 
   assert.equal(BigInt("31") > BigInt(observedThroughId(observed)!), true);
 });
 
-test("알림 대상 종류에 따라 존재하는 목록 화면으로 이동한다", () => {
-  assert.equal(notificationTargetPath(notification("1")), "/rentals");
+test("대여 알림은 대상 ID를 보존하고 다른 알림은 해당 화면으로 이동한다", () => {
+  assert.equal(notificationTargetPath(notification("1")), "/rentals?rentalId=7");
+  assert.equal(notificationTargetPath({ ...notification("1"), targetId: "7&state=conflict" }), "/rentals?rentalId=7%26state%3Dconflict");
   assert.equal(notificationTargetPath({ ...notification("2"), targetType: "REPORT" }), "/reports");
   assert.equal(notificationTargetPath({ ...notification("3"), targetType: "MEMBER_SELF" }), "/profile");
 });

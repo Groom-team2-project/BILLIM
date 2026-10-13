@@ -30,7 +30,7 @@ export function notificationTime(createdAt: string): string {
 export function notificationTargetPath(notification: ApiNotification): string {
   switch (notification.targetType) {
     case "RENTAL":
-      return "/rentals";
+      return `/rentals?rentalId=${encodeURIComponent(notification.targetId)}`;
     case "REPORT":
       return "/reports";
     case "MEMBER_SELF":

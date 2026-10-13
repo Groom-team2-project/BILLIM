@@ -34,10 +34,10 @@ export function NotificationsPage() {
     setOpeningId(notification.id);
     try {
       await markOneRead(notification.id);
-      navigate(notificationTargetPath(notification));
     } catch {
       toast("알림을 읽음 처리하지 못했어요. 다시 시도해 주세요.");
     } finally {
+      navigate(notificationTargetPath(notification));
       setOpeningId(null);
     }
   }
