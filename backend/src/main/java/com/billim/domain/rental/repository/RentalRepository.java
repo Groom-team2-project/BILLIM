@@ -1,16 +1,20 @@
 package com.billim.domain.rental.repository;
 
+import com.billim.domain.rental.entity.AppointmentProposal;
 import com.billim.domain.rental.entity.Rental;
 import com.billim.domain.rental.entity.RentalStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface RentalRepository extends JpaRepository<Rental, Long>, JpaSpecificationExecutor<Rental> {
 
@@ -34,12 +38,48 @@ public interface RentalRepository extends JpaRepository<Rental, Long>, JpaSpecif
             """)
     boolean hasPendingRequest(Long itemId, Long borrowerId, LocalDate startDate, LocalDate endDate);
 
+    interface Participants {
+        Long getItemId();
+        Long getOwnerId();
+        Long getBorrowerId();
+    }
+
+    // 회원·물건 잠금 순서 확보용 불변 식별자 조회. 엔티티를 미리 로딩하지 않음.
+    @Query("select r.itemId as itemId, r.ownerId as ownerId, r.borrowerId as borrowerId from Rental r where r.id = :rentalId")
+    Optional<Participants> findParticipants(Long rentalId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from Rental r where r.id = :rentalId")
+    Optional<Rental> findByIdForUpdate(Long rentalId);
+
+    // 물건 잠금 획득 후 최신 커밋 상태를 읽기 위한 잠금 조회.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select r from Rental r where r.itemId = :itemId and r.status in :statuses
+              and r.startDate <= :endDate and r.endDate >= :startDate order by r.id
+            """)
+    List<Rental> findOccupiedForUpdate(Long itemId, Collection<RentalStatus> statuses,
+                                      LocalDate startDate, LocalDate endDate);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    List<Rental> findByItemIdAndStatusOrderById(Long itemId, RentalStatus status);
+
     @Query("""
             select r from Rental r where r.itemId = :itemId and r.status in :statuses
               and r.startDate <= :endDate and r.endDate >= :startDate order by r.startDate, r.endDate
             """)
     List<Rental> findOccupied(Long itemId, Collection<RentalStatus> statuses,
                               LocalDate startDate, LocalDate endDate);
+
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("""
+            select p from AppointmentSlot s join AppointmentProposal p
+              on p.id = s.confirmedProposalId and p.slotId = s.id
+            where s.rentalId = :rentalId
+              and s.kind = com.billim.domain.rental.entity.AppointmentKind.RETURN
+              and p.status = com.billim.domain.rental.entity.AppointmentProposalStatus.CONFIRMED
+            """)
+    Optional<AppointmentProposal> findConfirmedReturnProposal(Long rentalId);
 
     interface StatusCount {
         RentalStatus getStatus();

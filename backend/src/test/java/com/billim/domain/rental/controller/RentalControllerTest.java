@@ -68,14 +68,21 @@ class RentalControllerTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"approve", "handover", "return", "reject", "cancel"})
-    @DisplayName("각 상태 변경 경로 연결 및 서비스 미구현 응답")
-    void commandsReturnNotImplemented(String action) throws Exception {
+    @DisplayName("각 상태 변경 경로의 서비스 전달 및 성공 응답")
+    void commandsCallServices(String action) throws Exception {
         String body = action.equals("reject") || action.equals("cancel")
                 ? "{\"expectedVersion\":0,\"reason\":\"일정 변경\"}"
                 : "{\"expectedVersion\":0}";
         mvc.perform(post("/api/v1/rentals/1/" + action).header("Idempotency-Key", KEY)
                         .contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isNotImplemented());
+                .andExpect(status().isOk());
+        switch (action) {
+            case "approve" -> verify(service).approveRental(eq(1L), eq(KEY), eq(new RentalVersionRequest(0L)), isNull());
+            case "reject" -> verify(service).rejectRental(eq(1L), eq(KEY), eq(new RejectRentalRequest(0L, "일정 변경")), isNull());
+            case "cancel" -> verify(service).cancelRental(eq(1L), eq(KEY), eq(new CancelRentalRequest(0L, "일정 변경")), isNull());
+            case "handover" -> verify(service).handoverRental(eq(1L), eq(KEY), eq(new RentalVersionRequest(0L)), isNull());
+            case "return" -> verify(service).returnRental(eq(1L), eq(KEY), eq(new RentalVersionRequest(0L)), isNull());
+        }
     }
 
     @ParameterizedTest
@@ -147,6 +154,21 @@ class RentalControllerTest {
                                 {"itemId":"9223372036854775808","startDate":"2026-10-10","endDate":"2026-10-11"}
                                 """))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("승인 충돌은 거래 ID, 버전 충돌은 현재 버전 응답")
+    void commandConflictsExposeSpecifiedFields() throws Exception {
+        when(service.approveRental(anyLong(), anyString(), any(), any())).thenThrow(
+                new com.billim.global.exception.RentalDateConflictException(java.util.List.of(12L)));
+        mvc.perform(post("/api/v1/rentals/1/approve").header("Idempotency-Key", KEY)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"expectedVersion\":0}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.conflictingRentalIds[0]").value("12"));
+        doThrow(new com.billim.global.exception.VersionConflictException(2))
+                .when(service).approveRental(anyLong(), anyString(), any(), any());
+        mvc.perform(post("/api/v1/rentals/1/approve").header("Idempotency-Key", KEY)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"expectedVersion\":0}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.currentVersion").value(2));
     }
 
     @Test

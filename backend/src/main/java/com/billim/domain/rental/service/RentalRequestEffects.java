@@ -26,6 +26,16 @@ public class RentalRequestEffects {
         throw unavailable();
     }
 
+    public Optional<RentalDetailStatusResponse> findCommandReplay(long memberId, String key,
+                                                                  RentalCommand command, Instant now) {
+        throw unavailable();
+    }
+
+    public void recordCommandSuccess(long memberId, String key, RentalCommand command,
+                                     Rental rental, RentalDetailStatusResponse response, Instant now) {
+        throw unavailable();
+    }
+
     private BusinessException unavailable() {
         return new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE,
                 "대여 멱등 기록·이벤트 저장 기반 연동 전이라 처리할 수 없습니다.");

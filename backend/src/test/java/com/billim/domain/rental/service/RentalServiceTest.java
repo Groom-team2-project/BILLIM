@@ -56,10 +56,12 @@ class RentalServiceTest {
         policy = mock(RentalRequestPolicy.class);
         effects = mock(RentalRequestEffects.class);
         service = new RentalService(rentals, histories, items, members, policy, effects,
-                Clock.fixed(NOW, ZoneOffset.UTC));
+                Clock.fixed(NOW, ZoneOffset.UTC), mock(RentalQueryService.class));
         Member borrower = member(2L, "요청자");
         when(members.findByIdForUpdate(2L)).thenReturn(Optional.of(borrower));
         when(members.findById(1L)).thenReturn(Optional.of(member(1L, "소유자")));
+        when(members.findByIdForUpdate(1L)).thenReturn(Optional.of(member(1L, "소유자")));
+        when(items.findOwnerId(10L)).thenReturn(Optional.of(1L));
         when(effects.findReplay(anyLong(), anyString(), any(), any())).thenReturn(Optional.empty());
         item = Item.create(1L, 1L, 1L, 1L, "드릴", null,
                 LocalDate.of(2026, 10, 1), LocalDate.of(2026, 12, 31), NOW);
@@ -208,7 +210,8 @@ class RentalServiceTest {
         clearInvocations(rentals, histories, items, policy, effects);
         assertThat(service.createRental(KEY, request(), LOGIN)).isSameAs(response);
         verify(rentals, never()).saveAndFlush(any());
-        verifyNoInteractions(items, histories, policy);
+        verifyNoInteractions(histories, policy);
+        verify(items, never()).findByIdForUpdate(anyLong());
         verify(effects, never()).recordSuccess(anyLong(), anyString(), any(), any(), any(), any());
     }
 
@@ -222,12 +225,13 @@ class RentalServiceTest {
     }
 
     @Test
-    @DisplayName("멱등·이벤트 저장 기반이 없으면 성공 응답 금지")
+    @DisplayName("멱등 저장소 조회 실패 시 성공 응답 금지")
     void failsClosedWithoutPersistence() {
-        service = new RentalService(rentals, histories, items, members, policy,
-                new RentalRequestEffects(), Clock.fixed(NOW, ZoneOffset.UTC));
+        when(effects.findReplay(anyLong(), anyString(), any(), any()))
+                .thenThrow(new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE));
         assertError(() -> service.createRental(KEY, request(), LOGIN), ErrorCode.DEPENDENCY_UNAVAILABLE);
-        verifyNoInteractions(items, rentals, histories);
+        verifyNoInteractions(rentals, histories);
+        verify(items, never()).findByIdForUpdate(anyLong());
     }
 
     private RentalDetailStatusResponse create(String start, String end) {

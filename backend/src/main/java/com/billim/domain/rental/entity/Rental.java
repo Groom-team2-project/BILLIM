@@ -1,6 +1,8 @@
 package com.billim.domain.rental.entity;
 
 import com.billim.global.entity.BaseTimeEntity;
+import com.billim.global.exception.BusinessException;
+import com.billim.global.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -10,6 +12,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 
 // 대여 요청과 거래 원장
 @Entity
@@ -48,6 +51,61 @@ public class Rental extends BaseTimeEntity {
 
     public boolean isOverdue(Instant now) {
         return status == RentalStatus.ACTIVE && !dueAt.isAfter(now);
+    }
+
+    public void approve(Instant now) {
+        requireStatus(RentalStatus.REQUESTED);
+        if (!requestExpiresAt.isAfter(now)) {
+            throw new BusinessException(ErrorCode.INVALID_STATE_TRANSITION);
+        }
+        status = RentalStatus.APPROVED;
+        approvedAt = now;
+    }
+
+    public void reject(String reason) {
+        requireStatus(RentalStatus.REQUESTED);
+        requireReason(reason);
+        status = RentalStatus.REJECTED;
+        this.reason = reason;
+    }
+
+    public void cancel(String reason) {
+        if (status != RentalStatus.REQUESTED && status != RentalStatus.APPROVED) {
+            throw new BusinessException(ErrorCode.INVALID_STATE_TRANSITION);
+        }
+        requireReason(reason);
+        status = RentalStatus.CANCELED;
+        this.reason = reason;
+    }
+
+    public void handover(Instant now) {
+        requireStatus(RentalStatus.APPROVED);
+        LocalDate today = LocalDate.ofInstant(now, ZoneId.of("Asia/Seoul"));
+        if (today.isBefore(startDate) || today.isAfter(endDate)) {
+            throw new BusinessException(ErrorCode.INVALID_STATE_TRANSITION);
+        }
+        status = RentalStatus.ACTIVE;
+        handedOverAt = now;
+    }
+
+    public void returnItem(Instant now, Instant confirmedReturnPromise) {
+        requireStatus(RentalStatus.ACTIVE);
+        status = RentalStatus.RETURNED;
+        returnedAt = now;
+        returnPromiseAt = confirmedReturnPromise;
+        returnPromiseKept = confirmedReturnPromise == null ? null : !now.isAfter(confirmedReturnPromise);
+    }
+
+    private void requireStatus(RentalStatus expected) {
+        if (status != expected) {
+            throw new BusinessException(ErrorCode.INVALID_STATE_TRANSITION);
+        }
+    }
+
+    private void requireReason(String reason) {
+        if (reason == null || reason.isBlank() || reason.length() > 500) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
     }
 
     @Id

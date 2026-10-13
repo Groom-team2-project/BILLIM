@@ -92,11 +92,16 @@ public class RentalQueryService {
         Rental rental = rentals.findById(rentalId)
                 .filter(r -> r.isParticipant(memberId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-        return detail(rental, memberId, clock.instant());
+        return detail(rental, memberId, clock.instant(), false);
     }
 
-    private RentalDetailStatusResponse detail(Rental rental, long memberId, Instant now) {
-        var entries = histories.findByRentalIdOrderByRentalVersionAsc(rental.getId());
+    RentalDetailStatusResponse detail(Rental rental, long memberId, Instant now) {
+        return detail(rental, memberId, now, true);
+    }
+
+    private RentalDetailStatusResponse detail(Rental rental, long memberId, Instant now, boolean command) {
+        var entries = command ? histories.findCurrentHistory(rental.getId())
+                : histories.findByRentalIdOrderByRentalVersionAsc(rental.getId());
         var history = entries.stream()
                 .map(h -> new RentalDetailStatusResponse.History(h.getFromStatus(), h.getToStatus(),
                         h.getActorId() == null ? null : h.getActorId().toString(), h.getReason(),

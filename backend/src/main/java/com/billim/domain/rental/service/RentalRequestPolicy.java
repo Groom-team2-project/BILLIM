@@ -1,6 +1,7 @@
 package com.billim.domain.rental.service;
 
 import com.billim.domain.item.entity.Item;
+import com.billim.domain.rental.entity.Rental;
 import com.billim.domain.item.service.ItemAccessPolicy;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
@@ -32,4 +33,9 @@ public class RentalRequestPolicy {
     public void requireAvailable(Item item) {
         throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE, "물건 대여 상태 연동 전이라 처리할 수 없습니다.");
     }
+    /** 승인 시 양측의 현재 소속·제재·차단 재검사. 기존 거래 정리 명령에는 미적용. */
+    public void requireApprovalAllowed(Item item, Rental rental) {
+        throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE, "대여 승인 권한 연동 전이라 처리할 수 없습니다.");
+    }
+
 }
