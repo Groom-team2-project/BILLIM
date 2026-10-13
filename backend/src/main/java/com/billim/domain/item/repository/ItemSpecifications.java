@@ -6,10 +6,8 @@ import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
 
-/**
- * 물건 검색 조건 조합. 인덱스 시작 후보:
- * (community_id, visibility, created_at, id) · (community_id, visibility, category_id, created_at, id)
- */
+// 물건 검색 조건 조합. 인덱스 시작 후보:
+// (community_id, visibility, created_at, id) · (community_id, visibility, category_id, created_at, id)
 public final class ItemSpecifications {
 
     private ItemSpecifications() {
@@ -19,7 +17,6 @@ public final class ItemSpecifications {
         return (root, q, cb) -> cb.equal(root.get("communityId"), communityId);
     }
 
-    /** 공개 물건만. 숨김·삭제 제외 */
     public static Specification<Item> publicOnly() {
         return (root, q, cb) -> cb.equal(root.get("visibility"), ItemVisibility.PUBLIC);
     }
@@ -32,7 +29,7 @@ public final class ItemSpecifications {
         return placeId == null ? null : (root, q, cb) -> cb.equal(root.get("placeId"), placeId);
     }
 
-    /** 제목 부분 검색. MVP는 LIKE로 시작해 측정한다. %·_·\ 는 이스케이프 */
+    // 제목 부분 검색. MVP는 LIKE로 시작 후 측정. %·_·\ 이스케이프
     public static Specification<Item> titleContains(String keyword) {
         if (keyword == null || keyword.isBlank()) {
             return null;
@@ -41,7 +38,7 @@ public final class ItemSpecifications {
         return (root, q, cb) -> cb.like(root.<String>get("title"), pattern, '\\');
     }
 
-    /** 대여 가능 기간이 선택 기간 전체를 포함 */
+    // 대여 가능 기간이 선택 기간 전체를 포함
     public static Specification<Item> availableCovers(LocalDate start, LocalDate end) {
         if (start == null || end == null) {
             return null;
@@ -51,7 +48,7 @@ public final class ItemSpecifications {
                 cb.greaterThanOrEqualTo(root.<LocalDate>get("availableEndDate"), end));
     }
 
-    /** null 조건은 건너뛰고 AND로 묶는다. (Spring Data JPA 4의 and(null) 비허용 대응) */
+    // null 조건 제외 후 AND 결합 (Spring Data JPA 4의 and(null) 비허용 대응)
     @SafeVarargs
     public static Specification<Item> allOf(Specification<Item> first, Specification<Item>... rest) {
         Specification<Item> spec = first;

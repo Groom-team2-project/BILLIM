@@ -12,7 +12,7 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 
-/** 물건 사진과 표시 순서. sort_order 0이 대표 사진. */
+// sort_order 0이 대표 사진
 @Entity
 @Table(name = "item_images")
 public class ItemImage extends TimestampedEntity {

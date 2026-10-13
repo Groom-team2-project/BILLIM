@@ -23,7 +23,7 @@ import java.time.ZoneOffset;
 import java.util.UUID;
 import java.util.function.IntConsumer;
 
-/** 사진 업로드·읽기·미연결 삭제 (API 명세 B_014~B_016) */
+// 사진 업로드·읽기·미연결 삭제 (API 명세 B_014~B_016)
 @Service
 public class MediaService {
 
@@ -52,7 +52,7 @@ public class MediaService {
         this.clock = clock;
     }
 
-    /** 검사·재인코딩 → 파일 원자 저장 → 메타데이터 기록. 트랜잭션이 커밋되지 않으면 방금 쓴 파일을 지운다. */
+    /** 검사·재인코딩 → 파일 원자 저장 → 메타데이터 기록. 커밋 실패 시 방금 쓴 파일 삭제 */
     @Transactional
     public MediaFileResponse upload(long memberId, byte[] data, String declaredMime) {
         Instant now = clock.instant();
@@ -125,7 +125,7 @@ public class MediaService {
         });
     }
 
-    /** 트랜잭션이 없으면(단위 테스트 등) 즉시 커밋된 것으로 보고 실행한다. */
+    // 트랜잭션이 없으면(단위 테스트 등) 커밋된 것으로 간주해 즉시 실행
     private static void afterCompletion(IntConsumer action) {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {

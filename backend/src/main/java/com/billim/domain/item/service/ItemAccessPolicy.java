@@ -8,23 +8,17 @@ import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
-/**
- * 물건 조회 권한 판정.
- * 동네 소속·차단 판정은 해당 도메인(E)이 아직 없어 연동하지 않았다. 아래 TODO 지점에서 교체한다.
- */
+// 물건 조회 권한 판정. 동네 소속·차단 판정은 동네 도메인(E) 연동 전이라 미적용, 아래 TODO 지점에서 교체
 @Component
 public class ItemAccessPolicy {
 
-    /**
-     * 로그인 회원의 유효한 활성 동네 ID.
-     * TODO(E): 동네 인증 도메인의 회원 소속 조회로 교체한다. 소속이 없으면 Optional.empty().
-     *          연동 전에는 값을 지어내지 않고 503 DEPENDENCY_UNAVAILABLE로 처리한다.
-     */
+    // 로그인 회원의 유효한 활성 동네 ID
+    // TODO(E): 동네 인증 도메인의 회원 소속 조회로 교체한다. 소속이 없으면 Optional.empty().
+    //          연동 전에는 값을 지어내지 않고 503 DEPENDENCY_UNAVAILABLE로 처리한다.
     public Optional<Long> findActiveCommunityId(long memberId) {
         throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE, "동네 인증 연동 전이라 처리할 수 없습니다.");
     }
 
-    /** 유효한 소속이 없으면 403 COMMUNITY_VERIFICATION_REQUIRED */
     public long requireActiveCommunityId(long memberId) {
         return findActiveCommunityId(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMUNITY_VERIFICATION_REQUIRED));
