@@ -1,5 +1,6 @@
 package com.billim.domain.chat.service;
 
+import com.billim.domain.chat.dto.MessageResponse;
 import com.billim.domain.chat.entity.ChatMessage;
 import com.billim.domain.chat.entity.ChatParticipant;
 import com.billim.domain.chat.entity.ChatRoom;
@@ -60,7 +61,13 @@ public class ChatRoomBaseService {
         List<ChatMessage> lastest = messageRepository
             .findByRoomIdOrderBySequenceDesc(roomId, PageRequest.of(0, 1));
 
-        String body = lastest.isEmpty() ? null : lastest.getFirst().getBody();
+        String body = null;
+        if (!lastest.isEmpty()) {
+            ChatMessage latest = lastest.getFirst();
+            body = latest.getType() == ChatMessage.Type.SYSTEM
+                ? MessageResponse.from(latest).system().label()
+                : latest.getBody();
+        }
         String preview = body == null
             ? null
             : body.substring(0, Math.min(body.length(), 200));

@@ -1,5 +1,10 @@
 package com.billim.domain.notification.service;
 
+import com.billim.domain.chat.entity.ChatMessage;
+import com.billim.domain.chat.entity.ChatRoom;
+import com.billim.domain.chat.repository.ChatMessageRepository;
+import com.billim.domain.item.entity.Item;
+import com.billim.domain.item.repository.CategoryRepository;
 import com.billim.domain.member.entity.Member;
 import com.billim.domain.member.repository.MemberRepository;
 import com.billim.domain.notification.entity.EventType;
@@ -8,6 +13,7 @@ import com.billim.domain.notification.entity.OutboxEvent;
 import com.billim.domain.notification.entity.OutboxStatus;
 import com.billim.domain.notification.repository.NotificationRepository;
 import com.billim.domain.notification.repository.OutboxEventRepository;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +31,7 @@ import org.testcontainers.mysql.MySQLContainer;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,9 +69,12 @@ class OutboxDispatcherDbTest {
     @Autowired OutboxEventStore store;
     @Autowired OutboxEventRepository outboxEventRepository;
     @Autowired NotificationRepository notificationRepository;
+    @Autowired ChatMessageRepository chatMessageRepository;
+    @Autowired CategoryRepository categoryRepository;
     @Autowired MemberRepository memberRepository;
     @Autowired TransactionTemplate transactionTemplate;
     @Autowired JdbcTemplate jdbc;
+    @Autowired EntityManager em;
 
     private long owner;
     private long borrower;
@@ -85,8 +95,106 @@ class OutboxDispatcherDbTest {
     private void clean() {
         jdbc.update("DELETE FROM notifications");
         jdbc.update("DELETE FROM event_deliveries");
+        jdbc.update("DELETE FROM messages");
         jdbc.update("DELETE FROM outbox_events");
+        jdbc.update("DELETE FROM appointment_slots");
+        jdbc.update("DELETE FROM rentals");
+        jdbc.update("DELETE FROM chat_participants");
+        jdbc.update("DELETE FROM chat_rooms");
+        jdbc.update("DELETE FROM items");
         jdbc.update("DELETE FROM members");
+    }
+
+    @Test
+    @DisplayName("연결된 거래 사건은 알림과 채팅 시스템 메시지를 한 번씩 만든다")
+    void dispatchCreatesSystemMessageOnceForLinkedRental() {
+        LinkedRental linked = createLinkedRental();
+        publishInTransaction(DomainEvent.of(EventType.RENTAL_APPROVED, linked.rentalId(), 2L,
+            EventPayload.forRental(linked.rentalId(),
+                List.of(recipient(borrower, RecipientRole.BORROWER)),
+                EventPayload.Display.of("정우", "전동드릴"))));
+
+        assertThat(dispatcher.dispatchBatch()).isEqualTo(1);
+        assertThat(notificationRepository.findAll()).hasSize(1);
+        List<ChatMessage> messages = chatMessageRepository.findAll();
+        assertThat(messages).hasSize(1);
+        assertThat(messages.getFirst().getRoomId()).isEqualTo(linked.roomId());
+        assertThat(messages.getFirst().getRentalId()).isEqualTo(linked.rentalId());
+        assertThat(messages.getFirst().getType()).isEqualTo(ChatMessage.Type.SYSTEM);
+        assertThat(messages.getFirst().getEventId()).isEqualTo(onlyEvent().getId());
+
+        // 완료 표지만 유실돼 사건을 다시 점유해도 소비 단위는 다시 생성하지 않는다.
+        jdbc.update("UPDATE outbox_events SET status = 'PENDING', lease_until = NULL, processed_at = NULL");
+        assertThat(dispatcher.dispatchBatch()).isEqualTo(1);
+        assertThat(chatMessageRepository.findAll()).hasSize(1);
+        assertThat(notificationRepository.findAll()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("약속 슬롯 사건도 연결된 거래의 채팅방에 기록한다")
+    void appointmentEventCreatesSystemMessageInLinkedRoom() {
+        LinkedRental linked = createLinkedRental();
+        Long slotId = transactionTemplate.execute(status -> {
+            em.createNativeQuery("""
+                insert into appointment_slots (
+                    rental_id, kind, created_at, updated_at
+                ) values (:rentalId, 'PICKUP', NOW(6), NOW(6))
+                """)
+                .setParameter("rentalId", linked.rentalId())
+                .executeUpdate();
+            return ((Number) em.createNativeQuery("select last_insert_id()")
+                .getSingleResult()).longValue();
+        });
+        publishInTransaction(DomainEvent.of(EventType.APPOINTMENT_PROPOSED, slotId, 1L,
+            EventPayload.forRental(linked.rentalId(), List.of(),
+                EventPayload.Display.ofAppointment("정우", "전동드릴", "정문",
+                    Instant.parse("2026-10-14T01:00:00Z")))));
+
+        assertThat(dispatcher.dispatchBatch()).isEqualTo(1);
+        assertThat(notificationRepository.findAll()).isEmpty();
+        List<ChatMessage> messages = chatMessageRepository.findAll();
+        assertThat(messages).hasSize(1);
+        assertThat(messages.getFirst().getRoomId()).isEqualTo(linked.roomId());
+        assertThat(messages.getFirst().getRentalId()).isEqualTo(linked.rentalId());
+        assertThat(messages.getFirst().getSystemPayload()).contains("APPOINTMENT_PROPOSED");
+    }
+
+    private LinkedRental createLinkedRental() {
+        return transactionTemplate.execute(status -> {
+            Long categoryId = categoryRepository.findByActiveTrueOrderBySortOrderAscIdAsc()
+                .getFirst().getId();
+            Instant now = Instant.parse("2026-10-13T00:00:00Z");
+            Item item = Item.create(owner, 100L, categoryId, 10L, "전동드릴", null,
+                LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31), now);
+            em.persist(item);
+            em.flush();
+            ChatRoom room = ChatRoom.open(item.getId(), owner, borrower, now);
+            em.persist(room);
+            em.flush();
+            em.createNativeQuery("""
+                insert into rentals (
+                    item_id, owner_id, borrower_id, community_id, chat_room_id,
+                    start_date, end_date, status, request_expires_at, due_at,
+                    item_title_snapshot, place_name_snapshot, place_id,
+                    created_at, updated_at
+                ) values (
+                    :itemId, :ownerId, :borrowerId, 100, :roomId,
+                    '2026-10-14', '2026-10-15', 'APPROVED', NOW(6), NOW(6),
+                    '전동드릴', '정문', 10, NOW(6), NOW(6)
+                )
+                """)
+                .setParameter("itemId", item.getId())
+                .setParameter("ownerId", owner)
+                .setParameter("borrowerId", borrower)
+                .setParameter("roomId", room.getId())
+                .executeUpdate();
+            Long rentalId = ((Number) em.createNativeQuery("select last_insert_id()")
+                .getSingleResult()).longValue();
+            return new LinkedRental(room.getId(), rentalId);
+        });
+    }
+
+    private record LinkedRental(Long roomId, Long rentalId) {
     }
 
     @Test

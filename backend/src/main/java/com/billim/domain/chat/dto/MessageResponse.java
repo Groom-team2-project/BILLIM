@@ -1,6 +1,7 @@
 package com.billim.domain.chat.dto;
 
 import com.billim.domain.chat.entity.ChatMessage;
+import com.billim.global.json.JsonCodec;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
@@ -20,6 +21,8 @@ public record MessageResponse(
     SystemPayloadResponse system,
     Instant createdAt
 ) {
+    private static final JsonCodec JSON_CODEC = new JsonCodec();
+
     public static MessageResponse from(ChatMessage message) {
         return new MessageResponse(
             String.valueOf(message.getId()),
@@ -29,11 +32,13 @@ public record MessageResponse(
             nullableId(message.getSenderId()),
             message.getBody(),
             nullableId(message.getRentalId()),
-            null,
+            nullableId(message.getAppointmentProposalId()),
             message.getClientMessageId() == null
                 ? null
                 : UUID.fromString(message.getClientMessageId()),
-            null,
+            message.getSystemPayload() == null
+                ? null
+                : JSON_CODEC.read(message.getSystemPayload(), SystemPayloadResponse.class),
             message.getCreatedAt()
         );
     }
