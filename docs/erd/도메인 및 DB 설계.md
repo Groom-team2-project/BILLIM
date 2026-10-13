@@ -1,7 +1,7 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.2\
-> 수정일 : 2026.10.11
+> 버전 : v0.1.3\
+> 수정일 : 2026.10.13
 
 ## 1. 공통 규칙
 
@@ -618,6 +618,8 @@ erDiagram
 
 #### idempotency_records — POST 명령의 안전한 재전송 · P0 (공통 / A 기반)
 
+- V9 마이그레이션 적용. 대여 요청·승인·거절·취소·전달·반납에 성공 응답 저장 연결. 만료 기록은 동일 키 재사용 시 제거 후 신규 처리.
+
 | 컬럼 | 타입 | NULL | 규칙·의미 | 참조 |
 | --- | --- | --- | --- | --- |
 | id | bigint | N | PK · AUTO_INCREMENT | — |
@@ -627,7 +629,7 @@ erDiagram
 | request_hash | char(64) | N | 검증된 canonical 요청의 SHA-256 | — |
 | http_status | int | N | 완료한 성공 응답 코드 | — |
 | response_body | json | N | 성공 응답 스냅샷. 세션 비밀값/좌표 제외 | — |
-| expires_at | datetime(6) | N | 생성 후 24시간 제안 | — |
+| expires_at | datetime(6) | N | 생성 후 24시간 | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
