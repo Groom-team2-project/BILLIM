@@ -1186,7 +1186,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | distanceMeters | integer(int32) | Y | 최소 0 |
 | distanceBasis | string | Y | 값: COMMUNITY_CENTER |
 | version | integer(int64) | Y | 최소 0 |
-| allowedActions | string[] | Y | — |
+| allowedActions | string[] | Y | 값: EDIT, CHANGE_VISIBILITY, DELETE. 소유자에게만 세 값을 내려주고 타인은 빈 배열 |
 | createdAt | string(date-time) | Y | — |
 ### DateRange
 | 필드 | 타입 | 필수 | 제약·의미 |

@@ -29,4 +29,9 @@ public interface OauthLoginAttemptRepository extends JpaRepository<OauthLoginAtt
               and a.consumedAt is null and a.expiresAt > :now
             """)
     int consumeOnce(String stateHash, Long sessionId, Instant now);
+
+    /** 만료된 시도 삭제. state TTL이 세션보다 훨씬 짧아 세션보다 먼저 정리된다 */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from OauthLoginAttempt a where a.expiresAt < :threshold")
+    int deleteExpiredBefore(Instant threshold);
 }

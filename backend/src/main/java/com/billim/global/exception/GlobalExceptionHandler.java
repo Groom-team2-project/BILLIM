@@ -1,8 +1,10 @@
 package com.billim.global.exception;
 
+import com.billim.global.observability.RequestIdFilter;
 import com.billim.global.response.ErrorResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -14,7 +16,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -37,6 +38,16 @@ public class GlobalExceptionHandler {
         log.warn("버전 충돌: currentVersion={} (requestId={})", e.getCurrentVersion(), requestId);
         return ResponseEntity.status(code.getStatus())
                 .body(ErrorResponse.versionConflict(code, e.getMessage(), requestId, e.getCurrentVersion()));
+    }
+
+    // 커밋 시점에 드러나는 동시 수정. expectedVersion 선검사를 통과한 뒤에도 발생 가능
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLock(OptimisticLockingFailureException e) {
+        ErrorCode code = ErrorCode.VERSION_CONFLICT;
+        String requestId = newRequestId();
+        log.warn("동시 수정 충돌 (requestId={})", requestId);
+        return ResponseEntity.status(code.getStatus())
+                .body(ErrorResponse.of(code, code.getMessage(), requestId));
     }
 
     // 본문 파싱 실패·선언하지 않은 요청 필드(명세 0.1)
@@ -100,8 +111,8 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(code, code.getMessage(), newRequestId()));
     }
 
-    // 요청 추적용 ID. 관측 구성 시 필터 + MDC 방식으로 대체
+    // 요청 추적용 ID. RequestIdFilter가 MDC에 심은 값을 그대로 쓴다 (응답 헤더 X-Request-Id와 동일)
     private String newRequestId() {
-        return UUID.randomUUID().toString();
+        return RequestIdFilter.current();
     }
 }

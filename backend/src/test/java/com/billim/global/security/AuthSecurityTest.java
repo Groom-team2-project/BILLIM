@@ -96,6 +96,17 @@ class AuthSecurityTest {
                 .andExpect(jsonPath("$.code").value("CSRF_INVALID"));
     }
 
+    /** 거부될 변경 요청이 세션 행을 남기면 비로그인 POST만으로 DB를 부풀릴 수 있음 */
+    @Test
+    @DisplayName("세션 없는 변경 요청은 거부만 하고 세션을 만들지 않는다")
+    void rejectedPostDoesNotCreateSession() throws Exception {
+        String setCookie = mockMvc.perform(post("/api/v1/items"))
+                .andExpect(status().isForbidden())
+                .andReturn().getResponse().getHeader(HttpHeaders.SET_COOKIE);
+
+        assertThat(setCookie).isNull();
+    }
+
     @Test
     @DisplayName("CSRF 토큰 요청이 세션 쿠키를 발급한다")
     void issuesSessionCookie() throws Exception {
