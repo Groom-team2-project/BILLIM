@@ -174,3 +174,19 @@ test("장소 채우기 결과가 목록 카드에 이름으로 표시된다", ()
   assert.equal(toCardItem(fillPlace(summary, places)).place, "정문 경비실 옆 벤치");
   assert.equal(toCardItem(summary).place, UNKNOWN_PLACE, "목록이 없으면 대체 문구");
 });
+
+test("카카오맵 마커: 같은 공용 장소의 물건을 묶고 실제 좌표를 그대로 쓴다", async () => {
+  const { toPlaceMarkers } = await import("../src/utils/itemView.ts");
+  const at = (id: string, name: string, lat?: number, lng?: number) => ({ place: { id, name, latitude: lat, longitude: lng } });
+  const markers = toPlaceMarkers([
+    at("1", "정문", 37.4976, 127.0272),
+    at("1", "정문", 37.4976, 127.0272),
+    at("2", "놀이터", 37.4973, 127.0283),
+    at("3", "좌표 없음"),
+  ]);
+  assert.deepEqual(markers, [
+    { id: "1", label: "정문", lat: 37.4976, lng: 127.0272, n: 2 },
+    { id: "2", label: "놀이터", lat: 37.4973, lng: 127.0283, n: 1 },
+  ]);
+  assert.deepEqual(toPlaceMarkers([]), []);
+});
