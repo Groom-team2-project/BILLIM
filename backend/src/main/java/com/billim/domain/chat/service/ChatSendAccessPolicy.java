@@ -1,12 +1,17 @@
 package com.billim.domain.chat.service;
 
 import com.billim.domain.chat.entity.ChatRoom;
+import com.billim.domain.chat.repository.ChatRoomRentalReadRepository;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class ChatSendAccessPolicy {
+
+    private final ChatRoomRentalReadRepository rentalReadRepository;
 
     public void requireCanSend(
         ChatRoom room,
@@ -17,12 +22,13 @@ public class ChatSendAccessPolicy {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
 
-        // TODO:
-        // rental 도메인 구현 이후 수정해야함.
-        // 수정 전까지는 임의의 rentalId 저장은 차단함.
-        // 이후 차단 & 제재 & 거래 검증 연결.
-
-        if (rentalId != null) {
+        if (rentalId != null && !rentalReadRepository.existsLinked(
+            rentalId,
+            room.getId(),
+            room.getItemId(),
+            room.getOwnerId(),
+            room.getRequesterId()
+        )) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
     }

@@ -168,4 +168,63 @@ class ChatMessageSendServiceDbTest {
             assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND)
         );
     }
+
+    @Test
+    @DisplayName("방에 연결된 거래 메시지는 허용하고 물건이 다른 거래는 거부한다")
+    void acceptsOnlyRentalLinkedToRoomItem() {
+        Long itemId = roomRepository.findById(roomId).orElseThrow().getItemId();
+        Long categoryId = categoryRepository
+            .findByActiveTrueOrderBySortOrderAscIdAsc()
+            .getFirst()
+            .getId();
+        Item otherItem = Item.create(
+            OWNER_ID, 100L, categoryId, 10L, "다른 물건", null,
+            LocalDate.of(2026, 10, 1),
+            LocalDate.of(2026, 10, 31),
+            NOW
+        );
+        em.persist(otherItem);
+        em.flush();
+
+        Long linkedRentalId = createRental(itemId, REQUESTER_ID);
+        Long otherRentalId = createRental(otherItem.getId(), REQUESTER_ID);
+
+        ChatMessage saved = sendService.send(
+            roomId,
+            REQUESTER_ID,
+            new SendMessageRequest(UUID.randomUUID(), "거래 관련 메시지", linkedRentalId.toString())
+        );
+
+        assertThat(saved.getRentalId()).isEqualTo(linkedRentalId);
+        assertThatThrownBy(() -> sendService.send(
+            roomId,
+            REQUESTER_ID,
+            new SendMessageRequest(UUID.randomUUID(), "다른 거래 메시지", otherRentalId.toString())
+        )).isInstanceOfSatisfying(BusinessException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND)
+        );
+        assertThat(messageRepository.count()).isEqualTo(1L);
+    }
+
+    private Long createRental(Long itemId, Long borrowerId) {
+        em.createNativeQuery("""
+                insert into rentals (
+                    item_id, owner_id, borrower_id, community_id, chat_room_id,
+                    start_date, end_date, status, request_expires_at, due_at,
+                    item_title_snapshot, place_name_snapshot, place_id,
+                    created_at, updated_at
+                ) values (
+                    :itemId, :ownerId, :borrowerId, 100, :roomId,
+                    '2026-10-10', '2026-10-11', 'REQUESTED', NOW(6), NOW(6),
+                    '전동드릴', '정문', 10, NOW(6), NOW(6)
+                )
+                """)
+            .setParameter("itemId", itemId)
+            .setParameter("ownerId", OWNER_ID)
+            .setParameter("borrowerId", borrowerId)
+            .setParameter("roomId", roomId)
+            .executeUpdate();
+        return ((Number) em.createNativeQuery("select last_insert_id()")
+            .getSingleResult()).longValue();
+    }
 }
