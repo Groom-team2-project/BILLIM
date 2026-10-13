@@ -141,6 +141,21 @@ export function toSearchQuery(f: SearchForm, toIso: (d: Date) => string) {
 export type PinSource = { place: { id: string; name?: string; latitude?: number; longitude?: number } };
 export type MapPin = { id: string; label: string; x: number; y: number; n: number };
 
+/** 카카오맵 마커 — 공용 장소 좌표에 장소별 물건 수 */
+export type PlaceMarker = { id: string; label: string; lat: number; lng: number; n: number };
+
+/** 같은 공용 장소의 물건을 묶어 마커로 만든다. 좌표가 없는 장소는 제외한다 */
+export function toPlaceMarkers(items: PinSource[]): PlaceMarker[] {
+  const byPlace = new Map<string, PlaceMarker>();
+  for (const { place } of items) {
+    if (place.latitude === undefined || place.longitude === undefined) continue;
+    const cur = byPlace.get(place.id);
+    if (cur) cur.n += 1;
+    else byPlace.set(place.id, { id: place.id, label: place.name ?? UNKNOWN_PLACE, lat: place.latitude, lng: place.longitude, n: 1 });
+  }
+  return [...byPlace.values()];
+}
+
 export function toMapPins(items: PinSource[]): MapPin[] {
   const byPlace = new Map<string, { label: string; lat: number; lng: number; n: number }>();
   for (const { place } of items) {

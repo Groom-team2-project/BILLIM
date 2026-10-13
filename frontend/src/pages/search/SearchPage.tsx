@@ -8,13 +8,13 @@ import { SearchField } from "@/components/ui/search-field";
 import { Segmented } from "@/components/ui/segmented";
 import { Alert } from "@/components/ui/alert";
 import { ItemCard } from "@/components/custom/items/ItemCard";
-import { MapView } from "@/components/custom/items/MapView";
+import { KakaoMapView } from "@/components/custom/items/KakaoMapView";
 import { ApiError } from "@/api/client";
 import { type ApiItemSummary, searchItems } from "@/api/items";
 import { useCategories } from "@/hooks/useCategories";
 import { useActiveCommunity } from "@/stores/community";
 import { categoryIcon, toIsoDate } from "@/utils/registerForm";
-import { fillPlace, formatMonthDay, toCardItem, toMapPins, toSearchQuery } from "@/utils/itemView";
+import { fillPlace, formatMonthDay, toCardItem, toMapPins, toPlaceMarkers, toSearchQuery } from "@/utils/itemView";
 import { useCommunityPlaces } from "@/hooks/useCommunityPlaces";
 import styles from "@/pages/search/SearchPage.module.css";
 import overlayStyles from "@/components/overlay/overlay.module.css";
@@ -103,6 +103,7 @@ export function SearchPage() {
   // 물건 응답에 없는 장소 이름·좌표는 동네 공용 장소 목록으로 채운다
   const items = (result?.state === "ok" && !loading ? result.items : []).map((i) => fillPlace(i, places));
   const pins = toMapPins(items);
+  const markers = toPlaceMarkers(items);
   const pin = pins.find((p) => p.id === pinId) ?? pins[0];
   const pinItems = pin ? items.filter((i) => i.place.id === pin.id) : [];
 
@@ -200,7 +201,7 @@ export function SearchPage() {
 
           {view === "map" ? (
             <div className={c("search-map")}>
-              <MapView selected={pin?.id} height={380} onSelect={setPinId} pins={pins} />
+              <KakaoMapView markers={markers} fallbackPins={pins} selected={pin?.id} height={380} onSelect={setPinId} />
               <div className={c("search-map-place")}>
                 {pin ? (
                   <div className={c("t-caption search-muted search-map-place-head")}>
