@@ -8,7 +8,7 @@ import com.billim.domain.rental.repository.RentalRepository;
 import com.billim.domain.rental.repository.RentalStatusHistoryRepository;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
-import com.billim.domain.item.dto.MemberSummaryResponse;
+import com.billim.domain.member.dto.MemberSummaryResponse;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.service.IdParser;
 import com.billim.domain.member.entity.Member;
@@ -144,8 +144,8 @@ public class RentalService {
                                                        Member owner, Member borrower, LocalDate today) {
         var summary = new RentalSummaryResponse(String.valueOf(rental.getId()),
                 String.valueOf(rental.getItemId()), rental.getItemTitleSnapshot(),
-                new MemberSummaryResponse(String.valueOf(owner.getId()), owner.getDisplayName(), owner.getCreatedAt()),
-                new MemberSummaryResponse(String.valueOf(borrower.getId()), borrower.getDisplayName(), borrower.getCreatedAt()),
+                MemberSummaryResponse.from(owner),
+                MemberSummaryResponse.from(borrower),
                 rental.getStartDate(), rental.getEndDate(), rental.getStatus(), false,
                 Math.toIntExact(ChronoUnit.DAYS.between(today, rental.getStartDate())),
                 rental.getPlaceNameSnapshot(), rental.getVersion(), List.of("CANCEL"), rental.getCreatedAt());
