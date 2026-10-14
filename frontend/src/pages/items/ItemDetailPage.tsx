@@ -12,6 +12,7 @@ import { md } from "@/utils/date";
 import { PhotoSlider } from "@/components/custom/items/PhotoSlider";
 import { OwnerCard } from "@/components/custom/profile/OwnerCard";
 import { ApiError } from "@/api/client";
+import { openChatRoom } from "@/api/chat";
 import { type ApiItemDetail, changeItemVisibility, getItem } from "@/api/items";
 import styles from "@/pages/items/ItemDetailPage.module.css";
 import { classes } from "@/utils/classes";
@@ -47,6 +48,7 @@ export function ItemDetailPage() {
   const [retry, setRetry] = useState(0);
   const [range, setRange] = useState<DayRange | null>(null);
   const [busy, setBusy] = useState(false);
+  const [chatBusy, setChatBusy] = useState(false);
   const [today] = useState(() => new Date());
   // 불러온 상세는 공유 저장소에 둔다 (헤더 더보기 메뉴가 같은 값을 쓴다)
   const current = useCurrentItem(itemId);
@@ -126,6 +128,18 @@ export function ItemDetailPage() {
 
   const onRequest = () => navigate(`/items/${item.id}/request`);
   const onEdit = () => navigate(`/register?itemId=${item.id}`);
+  const onChat = async () => {
+    if (chatBusy) return;
+    setChatBusy(true);
+    try {
+      const room = await openChatRoom(item.id);
+      navigate(`/chat/${room.id}`, { state: { chatName: room.otherMember.displayName } });
+    } catch (error) {
+      toast(error instanceof ApiError ? error.message : "채팅방을 열지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      setChatBusy(false);
+    }
+  };
 
   const applyVisibility = async (next: "PUBLIC" | "HIDDEN") => {
     setBusy(true);
@@ -225,7 +239,7 @@ export function ItemDetailPage() {
                   )}
                   <Meta icon="pin">{place}</Meta>
                   <Button size="lg" block disabled={!selected} onClick={onRequest}>대여 요청</Button>
-                  <Button variant="secondary" block icon="chat" onClick={() => navigate("/chat/c1")}>
+                  <Button variant="secondary" block icon="chat" disabled={chatBusy} onClick={() => void onChat()}>
                     {owner} 님에게 채팅으로 물어보기
                   </Button>
                   <span className={c("t-caption detail-muted")}>
@@ -270,7 +284,8 @@ export function ItemDetailPage() {
               type="button"
               className={c("detail-chat-button")}
               aria-label={`${owner} 님과 채팅`}
-              onClick={() => navigate("/chat/c1")}
+              disabled={chatBusy}
+              onClick={() => void onChat()}
             >
               <Icon name="chat" size={22} />
             </button>

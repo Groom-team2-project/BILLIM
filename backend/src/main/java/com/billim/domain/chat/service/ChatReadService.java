@@ -23,7 +23,7 @@ public class ChatReadService {
 
     private final ChatParticipantRepository participantRepository;
     private final ChatRoomRepository roomRepository;
-    private final ChatMessageRepository chatMessageRepository;
+    private final ChatMessageRepository messageRepository;
 
     @Transactional
     public ReadPositionResponse updateReadPosition(
@@ -64,7 +64,7 @@ public class ChatReadService {
             throw new BusinessException(ErrorCode.UNAUTHENTICATED);
         }
 
-        long count = chatMessageRepository.countUnreadMessages(
+        long count = messageRepository.countUnreadMessages(
             memberId,
             ChatMessage.Type.TEXT
         );
