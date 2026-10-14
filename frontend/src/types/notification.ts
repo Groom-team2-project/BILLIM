@@ -9,3 +9,24 @@ export type Notification = {
   unread: boolean;
   to: string;
 };
+
+/** D_048~D_051 알림 API 응답 */
+export type ApiNotification = {
+  id: string;
+  type: string;
+  title: string;
+  targetType: "RENTAL" | "REPORT" | "MEMBER_SELF";
+  targetId: string;
+  readAt?: string;
+  createdAt: string;
+};
+
+export type ApiNotificationPage = {
+  items: ApiNotification[];
+  hasMore: boolean;
+  nextCursor?: string;
+};
+
+export type ApiNotificationUnreadCount = {
+  unreadCount: number;
+};

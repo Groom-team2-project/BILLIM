@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.Objects;
@@ -42,6 +44,16 @@ public class ChatMessage {
     @Column(name = "rental_id")
     private Long rentalId;
 
+    @Column(name = "appointment_proposal_id")
+    private Long appointmentProposalId;
+
+    @Column(name = "event_id")
+    private Long eventId;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "system_payload", columnDefinition = "json")
+    private String systemPayload;
+
     @Column(name = "client_message_id", length = 36, columnDefinition = "char(36)")
     private String clientMessageId;
 
@@ -77,6 +89,39 @@ public class ChatMessage {
         message.body = body;
         message.rentalId = rentalId;
         message.clientMessageId = clientMessageId.toString();
+        message.createdAt = now;
+        message.updatedAt = now;
+        return message;
+    }
+
+    public static ChatMessage system(
+        Long roomId,
+        long sequence,
+        Long rentalId,
+        Long appointmentProposalId,
+        Long eventId,
+        String systemPayload,
+        Instant now
+    ) {
+        Objects.requireNonNull(now);
+
+        if (roomId == null || roomId < 1
+            || sequence < 1
+            || rentalId == null || rentalId < 1
+            || eventId == null || eventId < 1
+            || appointmentProposalId != null && appointmentProposalId < 1
+            || systemPayload == null || systemPayload.isBlank()) {
+            throw new IllegalArgumentException("시스템 메시지 형식이 올바르지 않습니다.");
+        }
+
+        ChatMessage message = new ChatMessage();
+        message.roomId = roomId;
+        message.sequence = sequence;
+        message.type = Type.SYSTEM;
+        message.rentalId = rentalId;
+        message.appointmentProposalId = appointmentProposalId;
+        message.eventId = eventId;
+        message.systemPayload = systemPayload;
         message.createdAt = now;
         message.updatedAt = now;
         return message;

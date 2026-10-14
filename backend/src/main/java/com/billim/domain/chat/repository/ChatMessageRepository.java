@@ -17,6 +17,8 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
             String clientMessageId
     );
 
+    Optional<ChatMessage> findByRoomIdAndEventId(Long roomId, Long eventId);
+
     List<ChatMessage> findByRoomIdOrderBySequenceDesc(Long roomId, Pageable pageable);
 
     List<ChatMessage> findByRoomIdAndSequenceGreaterThanOrderBySequenceAsc(
@@ -41,6 +43,21 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
           and message.type = :type
         """)
     long countUnreadMessages(
+        @Param("memberId") Long memberId,
+        @Param("type") ChatMessage.Type type
+    );
+
+    @Query("""
+        select  count(message)
+        from    ChatMessage message
+        where   message.roomId = :roomId
+          and   message.sequence > :lastReadSequence
+          and   message.senderId <> :memberId
+          and   message.type = :type
+    """)
+    long countUnreadMessagesInRoom(
+        @Param("roomId") Long roomId,
+        @Param("lastReadSequence") long lastReadSequence,
         @Param("memberId") Long memberId,
         @Param("type") ChatMessage.Type type
     );

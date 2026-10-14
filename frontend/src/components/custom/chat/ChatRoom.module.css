@@ -77,3 +77,17 @@
   display: flex;
   gap: 6px;
 }
+
+.chat-message-group { display: flex; flex-direction: column; gap: 10px; }
+
+.chat-rental-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  color: var(--ink-muted);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.chat-rental-picker select { color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-2); }
