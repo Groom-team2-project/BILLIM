@@ -14,6 +14,7 @@ import { refreshChatUnreadCount } from "@/stores/chat-unread";
 import type { ApiChatMessage, ApiChatMessagePage, ApiChatRoom } from "@/types/chat-api";
 import { chatBlockedMessage, chatTimeLabel, isMoneyRequest } from "@/utils/chat-view";
 import { mergeChatMessages } from "@/utils/chat-state";
+import { chatSocketUrl, parseChatSocketMessage } from "@/utils/chat-realtime";
 import { classes } from "@/utils/classes";
 import styles from "@/components/custom/chat/ChatRoom.module.css";
 
@@ -43,6 +44,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(() => new Set());
   const lastReadRef = useRef(0);
   const highestSequence = messages.at(-1)?.sequence ?? 0;
+  const lastFetchedSequenceRef = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -51,6 +53,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
       setRoom(detail);
       setSelectedRentalId(detail.access.allowedRentalIds[0] ?? detail.rentals[0]?.id);
       setMessages(mergeChatMessages([], page.items));
+      lastFetchedSequenceRef.current = Math.max(0, ...page.items.map((item) => item.sequence));
       setOtherLastRead(page.otherLastReadSequence);
       setOlder(page.hasMore);
       setError(false);
@@ -66,18 +69,23 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     if (loading || error) return;
     let active = true;
     let busy = false;
+    let socket: WebSocket | null = null;
+    let reconnectTimer: number | undefined;
     const poll = async () => {
       if (busy || !active || document.hidden) return;
       busy = true;
       try {
-        let cursor = highestSequence;
+        let cursor = lastFetchedSequenceRef.current;
         let page: ApiChatMessagePage;
         do {
           page = await getChatMessages(roomId, { afterSequence: cursor });
           if (!active) return;
           setMessages((previous) => mergeChatMessages(previous, page.items));
           setOtherLastRead(page.otherLastReadSequence);
-          cursor = page.nextAfterSequence ?? page.items.at(-1)?.sequence ?? cursor;
+          const nextCursor = page.nextAfterSequence ?? page.items.at(-1)?.sequence ?? cursor;
+          if (nextCursor <= cursor) break;
+          cursor = nextCursor;
+          lastFetchedSequenceRef.current = cursor;
         } while (page.hasMore && page.items.length > 0);
       } catch {
         // 연결 복구 뒤 같은 커서에서 다시 조회한다.
@@ -85,6 +93,27 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
         busy = false;
       }
     };
+    const connect = () => {
+      if (!active) return;
+      try {
+        const current = new WebSocket(chatSocketUrl(roomId, window.location.href));
+        socket = current;
+        current.onopen = () => { void poll(); };
+        current.onmessage = (event) => {
+          const message = parseChatSocketMessage(event.data, roomId);
+          if (message && active) {
+            setMessages((previous) => mergeChatMessages(previous, [message]));
+          }
+        };
+        current.onerror = () => current.close();
+        current.onclose = () => {
+          if (active) reconnectTimer = window.setTimeout(connect, 3000);
+        };
+      } catch {
+        reconnectTimer = window.setTimeout(connect, 3000);
+      }
+    };
+    connect();
     const timer = window.setInterval(() => { void poll(); }, 3000);
     const onFocus = () => { void poll(); };
     window.addEventListener("focus", onFocus);
@@ -92,10 +121,12 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     return () => {
       active = false;
       window.clearInterval(timer);
+      window.clearTimeout(reconnectTimer);
+      socket?.close();
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, [roomId, highestSequence, loading, error]);
+  }, [roomId, loading, error]);
 
   useEffect(() => {
     if (!room || highestSequence <= lastReadRef.current || document.hidden) return;
