@@ -42,6 +42,7 @@ public class ChatRoomAccessService {
         boolean sessionValid = authSessionRepository.findById(authSessionId)
             .filter(session -> session.isUsableAt(Instant.now(clock)))
             .filter(AuthSession::isLoggedIn)
+            .filter(session -> session.getMember().isActive())
             .filter(session -> session.getMember().getId().equals(memberId))
             .isPresent();
 

@@ -53,6 +53,17 @@ class ChatRoomAccessServiceTest {
     }
 
     @Test
+    @DisplayName("탈퇴한 회원의 세션은 메시지를 받을 수 없다")
+    void withdrawnMemberCannotReceive() {
+        AuthSession authSession = loggedInSession(2L, true);
+        when(authSession.getMember().isActive()).thenReturn(false);
+        when(authSessionRepository.findById(55L)).thenReturn(Optional.of(authSession));
+
+        assertFalse(accessService.canReceive(901L, 2L, 55L));
+        verify(roomRepository, never()).findById(any());
+    }
+
+    @Test
     @DisplayName("세션 ID가 없으면 DB 조회 없이 메시지를 거부한다")
     void missingSessionIdCannotReceive() {
         assertFalse(accessService.canReceive(901L, 2L, null));
@@ -66,6 +77,7 @@ class ChatRoomAccessServiceTest {
         when(authSession.isUsableAt(Instant.now(clock))).thenReturn(usable);
         when(authSession.isLoggedIn()).thenReturn(true);
         when(authSession.getMember()).thenReturn(member);
+        when(member.isActive()).thenReturn(true);
         when(member.getId()).thenReturn(memberId);
         return authSession;
     }
