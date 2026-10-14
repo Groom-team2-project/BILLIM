@@ -16,12 +16,11 @@ import org.hibernate.type.SqlTypes;
 import java.time.Duration;
 import java.time.Instant;
 
-/** 영속 볼륨 이미지 메타데이터. storage_key는 API에 노출하지 않는다. */
+// 영속 볼륨 이미지 메타데이터. storage_key는 API 비노출
 @Entity
 @Table(name = "media_files")
 public class MediaFile extends TimestampedEntity {
 
-    /** 미연결 TEMP 업로드 만료 시간 */
     public static final Duration TEMP_TTL = Duration.ofHours(24);
 
     @Id
@@ -78,7 +77,6 @@ public class MediaFile extends TimestampedEntity {
         return m;
     }
 
-    /** 요청 회원의 만료되지 않은 TEMP 사진인지 */
     public boolean isAttachableBy(long memberId, Instant now) {
         return status == MediaStatus.TEMP
                 && uploaderId.equals(memberId)
@@ -102,7 +100,7 @@ public class MediaFile extends TimestampedEntity {
         markDeleted(now);
     }
 
-    /** 물건에서 제거된 사진 정리 표시. 파일은 정리 작업이 지운다. */
+    /** 물건에서 제거된 사진의 정리 표시. 파일 삭제는 정리 작업 담당 */
     public void markDeleted(Instant now) {
         if (status == MediaStatus.DELETED) {
             return;

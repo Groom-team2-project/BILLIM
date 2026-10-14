@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** 물건 등록·수정·삭제·공개 변경·검색·상세 유스케이스 */
 @Service
 public class ItemService {
 
@@ -264,8 +263,8 @@ public class ItemService {
     }
 
     /**
-     * 요청 사진을 잠그고 검증한 뒤 연결한다. 이미 이 물건에 연결된 사진(ownedMediaIds)은 그대로 두고,
-     * 그 외에는 요청 회원의 만료되지 않은 TEMP여야 한다. 아니면 MEDIA_NOT_ATTACHABLE
+     * 요청 사진 잠금·검증 후 연결.
+     * 이미 이 물건에 연결된 사진(ownedMediaIds)은 유지, 그 외는 요청 회원의 만료 전 TEMP만 허용. 아니면 MEDIA_NOT_ATTACHABLE
      */
     private void attachMedia(long memberId, List<Long> ids, Set<Long> ownedMediaIds, Instant now) {
         Map<Long, MediaFile> found = new HashMap<>();

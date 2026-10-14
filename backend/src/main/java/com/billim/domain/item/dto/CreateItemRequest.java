@@ -7,7 +7,6 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 물건 등록 요청 (API 명세 CreateItem) */
 public record CreateItemRequest(
         @NotBlank @Size(max = 100) String title,
         @Size(max = 3000) String description,
