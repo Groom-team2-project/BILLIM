@@ -101,6 +101,7 @@ export function NotificationsPage() {
                 className={c(`notif-item${unread ? " notif-item--unread" : ""}`)}
                 aria-disabled={openingId !== null}
                 onClick={(event) => {
+                  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
                   event.preventDefault();
                   void openNotification(notification);
                 }}
