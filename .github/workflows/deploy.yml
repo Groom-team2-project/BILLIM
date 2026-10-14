@@ -57,20 +57,26 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          REMOTE=$(cat <<EOF
-          set -Eeuo pipefail
-          aws s3 cp s3://${{ vars.DEPLOY_BUCKET }}/${S3_KEY} /home/ubuntu/BILLIM/backend/app.jar.new --region ${{ vars.AWS_REGION }}
-          sudo chown ubuntu:ubuntu /home/ubuntu/BILLIM/backend/app.jar.new
-          mv /home/ubuntu/BILLIM/backend/app.jar.new /home/ubuntu/BILLIM/backend/app.jar
-          sudo systemctl restart billim
-          EOF
-          )
+          # 명령을 줄별 배열로 전달 — heredoc 개행 깨짐·sh(dash) pipefail 미지원 회피
+          jq -n \
+            --arg b "${{ vars.DEPLOY_BUCKET }}" \
+            --arg k "${S3_KEY}" \
+            --arg r "${{ vars.AWS_REGION }}" \
+            '{commands: [
+              "set -eu",
+              "export PATH=$PATH:/snap/bin",
+              "command -v aws >/dev/null || snap install aws-cli --classic",
+              ("aws s3 cp s3://" + $b + "/" + $k + " /home/ubuntu/BILLIM/backend/app.jar.new --region " + $r),
+              "chown ubuntu:ubuntu /home/ubuntu/BILLIM/backend/app.jar.new",
+              "mv /home/ubuntu/BILLIM/backend/app.jar.new /home/ubuntu/BILLIM/backend/app.jar",
+              "systemctl restart billim"
+            ]}' > ssm-params.json
 
           CMD_ID=$(aws ssm send-command \
             --instance-ids "${{ vars.EC2_INSTANCE_ID }}" \
             --document-name "AWS-RunShellScript" \
             --comment "deploy ${GITHUB_SHA::7}" \
-            --parameters commands="$(jq -Rsn --arg c "$REMOTE" '[$c]')" \
+            --parameters file://ssm-params.json \
             --query "Command.CommandId" --output text)
 
           echo "SSM Command: $CMD_ID"
