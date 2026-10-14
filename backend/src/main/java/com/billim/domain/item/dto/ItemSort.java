@@ -3,11 +3,11 @@ package com.billim.domain.item.dto;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 
-/** 검색 정렬. LATEST=createdAt DESC,id DESC / NEAREST=distance ASC,id DESC */
+// LATEST: createdAt DESC, id DESC / NEAREST: 거리 ASC, id DESC
 public enum ItemSort {
     LATEST, NEAREST;
 
-    /** null은 기본값 LATEST. 그 외 지원하지 않는 값은 400 */
+    // null은 기본값 LATEST, 그 외 미지원 값은 400
     public static ItemSort parse(String raw) {
         if (raw == null) {
             return LATEST;

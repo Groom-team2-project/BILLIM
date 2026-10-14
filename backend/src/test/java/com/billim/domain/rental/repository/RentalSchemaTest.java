@@ -39,6 +39,7 @@ class RentalSchemaTest {
         }
     }
 
+    @Autowired RentalRepository rentals;
     @Autowired DataSource dataSource;
     @Autowired EntityManager em;
     private JdbcTemplate jdbc;
@@ -132,6 +133,39 @@ class RentalSchemaTest {
                 """)).isInstanceOf(DataAccessException.class).hasRootCauseInstanceOf(SQLException.class);
         assertThatThrownBy(() -> jdbc.update("UPDATE appointment_slots SET kind = 'UNKNOWN' WHERE id = 9001"))
                 .isInstanceOf(DataAccessException.class).hasRootCauseInstanceOf(SQLException.class);
+    }
+
+    @Test
+    @DisplayName("대기 요청은 같은 회원만 중복이며 점유 기간에는 포함하지 않음")
+    void pendingOverlapOnlyBlocksSameBorrower() {
+        var start = java.time.LocalDate.of(2026, 10, 11);
+        var end = java.time.LocalDate.of(2026, 10, 12);
+        assertThat(rentals.hasPendingRequest(9001L, 9002L, start, end)).isTrue();
+        assertThat(rentals.hasPendingRequest(9001L, 9003L, start, end)).isFalse();
+        assertThat(rentals.hasOccupiedDates(9001L, java.util.List.of(
+                RentalStatus.APPROVED, RentalStatus.ACTIVE, RentalStatus.RETURNED), start, end)).isFalse();
+    }
+
+    @Test
+    @DisplayName("반납 완료도 종료일을 포함해 점유하고 다음 날부터 겹치지 않음")
+    void returnedRentalRetainsInclusiveOccupancy() {
+        jdbc.update("UPDATE rentals SET status = 'RETURNED' WHERE id = 9001");
+        var statuses = java.util.List.of(RentalStatus.APPROVED, RentalStatus.ACTIVE, RentalStatus.RETURNED);
+        var last = java.time.LocalDate.of(2026, 10, 11);
+        assertThat(rentals.hasOccupiedDates(9001L, statuses, last, last.plusDays(1))).isTrue();
+        assertThat(rentals.hasOccupiedDates(9001L, statuses, last.plusDays(1), last.plusDays(2))).isFalse();
+    }
+
+    @Test
+    @DisplayName("기한 도달 시 ACTIVE만 연체로 판정")
+    void overdueRequiresActiveAndDueTime() {
+        Instant due = Instant.parse("2026-10-11T15:00:00Z");
+        jdbc.update("UPDATE rentals SET status = 'ACTIVE' WHERE id = 9001");
+        assertThat(rentals.existsByItemIdAndStatusAndDueAtLessThanEqual(9001L, RentalStatus.ACTIVE,
+                due.minusSeconds(1))).isFalse();
+        assertThat(rentals.existsByItemIdAndStatusAndDueAtLessThanEqual(9001L, RentalStatus.ACTIVE, due)).isTrue();
+        jdbc.update("UPDATE rentals SET status = 'RETURNED' WHERE id = 9001");
+        assertThat(rentals.existsByItemIdAndStatusAndDueAtLessThanEqual(9001L, RentalStatus.ACTIVE, due)).isFalse();
     }
 
     private void createSlot() {

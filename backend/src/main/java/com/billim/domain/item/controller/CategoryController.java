@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** B_013 공통 카테고리 목록 */
 @RestController
 @RequestMapping("/api/v1/categories")
 public class CategoryController {
@@ -18,9 +17,10 @@ public class CategoryController {
         this.categoryService = categoryService;
     }
 
+    /** B_013 카테고리 목록. 로그인 회원만, 활성 카테고리를 sortOrder 순 */
     @GetMapping
     public CategoryListResponse list(Authentication authentication) {
-        AuthenticatedMember.id(authentication);   // 로그인 회원만
+        AuthenticatedMember.id(authentication);
         return categoryService.list();
     }
 }

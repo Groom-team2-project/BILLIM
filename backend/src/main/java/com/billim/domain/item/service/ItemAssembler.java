@@ -23,13 +23,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-/**
- * Entity → 응답 DTO 변환. 목록은 카테고리·썸네일을 배치 조회해 항목별 쿼리를 만들지 않는다.
- *
- * 소유자 표시 정보는 회원 도메인(MemberService.getSummaries)에서 한 번에 조회한다.
- * 아직 연동하지 않은 정보는 값을 지어내지 않고 생략한다.
- * TODO(E): place 이름·좌표·안내, distanceMeters · TODO(C): pendingRequestCount
- */
+// Entity → 응답 DTO 변환. 목록의 카테고리·썸네일·소유자는 배치 조회(항목별 쿼리 방지)
+// 미연동 정보는 값을 지어내지 않고 생략
+// TODO(E): place 이름·좌표·안내, distanceMeters · TODO(C): pendingRequestCount
 @Component
 public class ItemAssembler {
 
@@ -66,7 +62,7 @@ public class ItemAssembler {
                 null, null, item.getVersion(), actions, item.getCreatedAt());
     }
 
-    /** 목록 항목 변환. 입력 순서를 유지한다. */
+    // 입력 순서 유지
     public List<ItemSummaryResponse> summaries(List<Item> items) {
         if (items.isEmpty()) {
             return List.of();
@@ -101,7 +97,7 @@ public class ItemAssembler {
         }).toList();
     }
 
-    /** 참조 대상(카테고리·소유 회원)이 사라진 데이터 정합성 오류 */
+    // 참조 대상(카테고리·소유 회원)이 사라진 데이터 정합성 오류
     private BusinessException missingRef() {
         return new BusinessException(ErrorCode.INTERNAL_ERROR);
     }

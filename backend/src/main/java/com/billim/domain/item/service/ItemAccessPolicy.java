@@ -34,7 +34,6 @@ public class ItemAccessPolicy {
                 .map(Member::getActiveCommunityId);
     }
 
-    /** 유효한 소속이 없으면 403 COMMUNITY_VERIFICATION_REQUIRED */
     public long requireActiveCommunityId(long memberId) {
         return findActiveCommunityId(memberId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMUNITY_VERIFICATION_REQUIRED));

@@ -2,7 +2,7 @@ package com.billim.domain.item.dto;
 
 import java.time.LocalDate;
 
-/** 검색 조건. 값 검증은 ItemService.search에서 한다. */
+// 값 검증은 ItemService.search 담당
 public record ItemSearchCondition(
         String keyword,
         Long categoryId,

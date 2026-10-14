@@ -21,9 +21,9 @@ import java.util.Iterator;
 import java.util.Locale;
 
 /**
- * 업로드 이미지 검사·재인코딩. 파일명·확장자는 보지 않고
- * 매직 바이트 → 선언 MIME 일치 → 실제 디코딩 순으로 확인한다.
- * 재인코딩으로 EXIF 등 메타데이터를 제거한다. (API 명세 B_014)
+ * 업로드 이미지 검사·재인코딩 (API 명세 B_014).
+ * 파일명·확장자 대신 매직 바이트 → 선언 MIME 일치 → 실제 디코딩 순으로 확인.
+ * 재인코딩으로 EXIF 등 메타데이터 제거.
  */
 @Component
 public class ImageInspector {
@@ -52,10 +52,7 @@ public class ImageInspector {
         }
     }
 
-    /**
-     * @param declaredMime 요청에 선언된 Content-Type
-     * @throws BusinessException FILE_TOO_LARGE(413) · UNSUPPORTED_IMAGE(415) · INVALID_IMAGE(422) · INVALID_REQUEST(빈 파일)
-     */
+    // 실패: FILE_TOO_LARGE(413) · UNSUPPORTED_IMAGE(415) · INVALID_IMAGE(422) · INVALID_REQUEST(빈 파일)
     public Result inspect(byte[] data, String declaredMime) {
         if (data == null || data.length == 0) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "빈 파일은 올릴 수 없습니다.");
@@ -82,7 +79,7 @@ public class ImageInspector {
         return m.equals("image/jpg") ? "image/jpeg" : m;
     }
 
-    /** 매직 바이트로 형식 판별. GIF·TXT 등은 null */
+    // 매직 바이트로 형식 판별. GIF·TXT 등은 null
     private static Format detect(byte[] d) {
         if (d.length >= 3 && (d[0] & 0xFF) == 0xFF && (d[1] & 0xFF) == 0xD8 && (d[2] & 0xFF) == 0xFF) {
             return Format.JPEG;
@@ -110,7 +107,7 @@ public class ImageInspector {
         return true;
     }
 
-    /** 헤더 크기로 픽셀 한도를 먼저 확인한 뒤 전체 디코딩. 실패하면 INVALID_IMAGE */
+    // 헤더 크기로 픽셀 한도 선확인 후 전체 디코딩. 실패 시 INVALID_IMAGE
     private static BufferedImage decode(byte[] data, Format format) {
         Iterator<ImageReader> readers = ImageIO.getImageReadersByFormatName(format.readerName);
         if (!readers.hasNext()) {
@@ -139,10 +136,8 @@ public class ImageInspector {
         }
     }
 
-    /**
-     * 메타데이터 제거를 위해 다시 인코딩한다.
-     * JPEG→JPEG, PNG→PNG. WebP는 쓰기 인코더가 없어 알파가 없으면 JPEG, 있으면 PNG로 저장한다.
-     */
+    // 메타데이터 제거용 재인코딩. JPEG→JPEG, PNG→PNG.
+    // WebP는 쓰기 인코더가 없어 알파가 없으면 JPEG, 있으면 PNG로 저장
     private static Result reencode(BufferedImage image, Format source) {
         boolean alpha = image.getColorModel().hasAlpha();
         Format target = switch (source) {

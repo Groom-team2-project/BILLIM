@@ -25,7 +25,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/** 대여 물건과 대여 가능 기간. owner·community는 생성 후 변경하지 않는다. */
 @Entity
 @Table(name = "items")
 public class Item extends TimestampedEntity {
@@ -81,7 +80,7 @@ public class Item extends TimestampedEntity {
     protected Item() {
     }
 
-    /** 초기 상태는 PUBLIC. 사진은 {@link #replaceImages}로 연결한다. */
+    // 초기 상태 PUBLIC. 사진 연결은 replaceImages
     public static Item create(long ownerId, long communityId, long categoryId, long placeId,
                               String title, String description,
                               LocalDate availableStartDate, LocalDate availableEndDate, Instant now) {
@@ -94,7 +93,7 @@ public class Item extends TimestampedEntity {
         return item;
     }
 
-    /** 소유자·커뮤니티는 바꾸지 않는다. 삭제된 물건은 수정할 수 없다. */
+    /** 소유자·커뮤니티 변경 불가. 삭제된 물건은 수정 불가 */
     public void update(long categoryId, long placeId, String title, String description,
                        LocalDate availableStartDate, LocalDate availableEndDate, Instant now) {
         requireNotDeleted();
@@ -102,7 +101,7 @@ public class Item extends TimestampedEntity {
         touch(now);
     }
 
-    /** PUBLIC ↔ HIDDEN. 삭제된 물건은 변경할 수 없다. */
+    /** PUBLIC ↔ HIDDEN 전환. 삭제된 물건은 변경 불가 */
     public void changeVisibility(ItemVisibility target, Instant now) {
         requireNotDeleted();
         if (target != ItemVisibility.PUBLIC && target != ItemVisibility.HIDDEN) {
@@ -115,7 +114,7 @@ public class Item extends TimestampedEntity {
         touch(now);
     }
 
-    /** 논리 삭제. 행과 사진은 물리 삭제하지 않는다. */
+    /** 논리 삭제. 행과 사진의 물리 삭제 없음 */
     public void delete(Instant now) {
         requireNotDeleted();
         this.visibility = ItemVisibility.DELETED;
@@ -124,9 +123,8 @@ public class Item extends TimestampedEntity {
     }
 
     /**
-     * 사진 전체를 주어진 순서로 다시 구성한다. 첫 번째가 대표 사진(sort_order 0).
-     * unique (item_id, sort_order) 때문에 이미 저장된 사진을 바꿀 때는
-     * 호출 전에 {@link #clearImages()} 후 flush가 필요하다.
+     * 주어진 순서로 사진 전체 재구성. 첫 번째가 대표 사진(sort_order 0).
+     * unique (item_id, sort_order) 제약 때문에 저장된 사진 교체 시 호출 전 {@link #clearImages()} 후 flush 필요.
      */
     public void replaceImages(List<Long> orderedMediaIds, Instant now) {
         requireNotDeleted();
@@ -144,7 +142,7 @@ public class Item extends TimestampedEntity {
         images.clear();
     }
 
-    /** 1~5개, null·중복 금지 */
+    // 1~5개, null·중복 금지
     public static void validateImageIds(List<Long> mediaIds) {
         if (mediaIds == null || mediaIds.isEmpty() || mediaIds.size() > MAX_IMAGES) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "사진은 1장 이상 5장 이하로 등록해 주세요.");

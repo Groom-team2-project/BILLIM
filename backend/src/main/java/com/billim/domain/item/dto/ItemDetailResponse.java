@@ -7,7 +7,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 물건 상세 (API 명세 ItemDetail) */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ItemDetailResponse(
         String id,

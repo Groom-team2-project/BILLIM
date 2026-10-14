@@ -2,7 +2,7 @@ package com.billim.domain.rental.dto;
 
 import com.billim.domain.rental.entity.RentalStatus;
 
-import com.billim.domain.item.dto.MemberSummaryResponse;
+import com.billim.domain.member.dto.MemberSummaryResponse;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;

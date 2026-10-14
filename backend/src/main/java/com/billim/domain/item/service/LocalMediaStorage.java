@@ -10,7 +10,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.UUID;
 
 /**
- * 로컬 볼륨 저장소. 키는 서버가 만든 상대 경로이며 루트 밖으로 나가는 경로는 거부한다.
+ * 로컬 볼륨 저장소. 키는 서버가 만든 상대 경로, 루트 밖 경로는 거부.
  * 임시 파일에 쓴 뒤 rename으로 원자적 반영.
  */
 @Component

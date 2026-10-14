@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
 
-/** 사진 업로드 응답 (API 명세 MediaFile). storage_key는 노출하지 않는다. */
+// storage_key는 응답 비노출
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record MediaFileResponse(
         String id,

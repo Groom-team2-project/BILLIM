@@ -31,6 +31,15 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(code, e.getMessage(), requestId));
     }
 
+    @ExceptionHandler(RentalDateConflictException.class)
+    public ResponseEntity<ErrorResponse> handleRentalDateConflict(RentalDateConflictException e) {
+        String requestId = newRequestId();
+        log.warn("대여 기간 충돌 (requestId={})", requestId);
+        return ResponseEntity.status(e.getErrorCode().getStatus())
+                .body(new ErrorResponse(e.getErrorCode().name(), e.getMessage(), requestId,
+                        null, null, e.getConflictingRentalIds()));
+    }
+
     @ExceptionHandler(VersionConflictException.class)
     public ResponseEntity<ErrorResponse> handleVersionConflict(VersionConflictException e) {
         ErrorCode code = e.getErrorCode();

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.time.Instant;
 
-/** 물건 목록 항목 (API 명세 ItemSummary) */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record ItemSummaryResponse(
         String id,
