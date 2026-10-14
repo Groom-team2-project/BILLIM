@@ -3,7 +3,7 @@ package com.billim.domain.item.service;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 
-/** API의 십진 문자열 ID → long. 양수 signed BIGINT 범위만 허용 (API 명세 0.1) */
+// API의 십진 문자열 ID → long. 양수 signed BIGINT 범위만 허용 (API 명세 0.1)
 public final class IdParser {
 
     private IdParser() {

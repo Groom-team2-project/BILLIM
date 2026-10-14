@@ -23,7 +23,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 
-/** B_014 업로드 · B_015 읽기 · B_016 미연결 삭제 */
 @RestController
 @RequestMapping("/api/v1/media")
 public class MediaController {
@@ -34,6 +33,7 @@ public class MediaController {
         this.mediaService = mediaService;
     }
 
+    /** B_014 사진 업로드. Idempotency-Key 필수. JPEG·PNG·WebP, 10MiB 이하. TEMP로 저장, 24시간 후 만료 */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
     public MediaFileResponse upload(@RequestHeader("Idempotency-Key") String idempotencyKey,
@@ -48,6 +48,7 @@ public class MediaController {
         }
     }
 
+    /** B_015 사진 읽기. TEMP는 업로더만, 연결된 사진은 물건 조회 권한이 있는 회원만. 그 외 404 */
     @GetMapping("/{mediaId}/content")
     public ResponseEntity<byte[]> content(@PathVariable String mediaId, Authentication authentication) {
         long memberId = AuthenticatedMember.id(authentication);
@@ -59,6 +60,7 @@ public class MediaController {
                 .body(c.bytes());
     }
 
+    /** B_016 미연결 사진 삭제. 본인 TEMP만, 물건에 연결된 사진은 409 MEDIA_IN_USE */
     @DeleteMapping("/{mediaId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String mediaId, Authentication authentication) {
