@@ -6,6 +6,7 @@ import com.billim.domain.chat.repository.ChatRoomRepository;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.repository.CategoryRepository;
 import com.billim.domain.item.service.ItemAccessPolicy;
+import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import jakarta.persistence.EntityManager;
@@ -53,6 +54,7 @@ class ChatRoomOpenServiceDbTest {
     @Autowired ChatParticipantRepository participantRepository;
     @Autowired ChatRoomOpenService openService;
     @MockitoBean ItemAccessPolicy accessPolicy;
+    @MockitoBean SanctionService sanctionService;
 
     private Long itemId;
 
@@ -104,5 +106,33 @@ class ChatRoomOpenServiceDbTest {
 
         assertThat(roomRepository.count()).isZero();
         assertThat(participantRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("제재된 요청자는 새 문의 방을 만들 수 없다")
+    void restrictedRequesterCannotCreateRoom() {
+        when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(true);
+        when(sanctionService.isRestricted(REQUESTER_ID)).thenReturn(true);
+
+        assertThatThrownBy(() -> openService.open(itemId, REQUESTER_ID))
+            .isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MEMBER_RESTRICTED));
+        assertThat(roomRepository.count()).isZero();
+        assertThat(participantRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("문의 방이 이미 있어도 제재된 요청자는 열기 요청으로 재사용할 수 없다")
+    void restrictedRequesterCannotReopenRoom() {
+        when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(true);
+        ChatRoom existing = openService.open(itemId, REQUESTER_ID);
+        when(sanctionService.isRestricted(REQUESTER_ID)).thenReturn(true);
+
+        assertThatThrownBy(() -> openService.open(itemId, REQUESTER_ID))
+            .isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MEMBER_RESTRICTED));
+        assertThat(roomRepository.count()).isEqualTo(1);
+        assertThat(participantRepository.findByRoomIdAndMemberId(
+            existing.getId(), REQUESTER_ID)).isPresent();
     }
 }

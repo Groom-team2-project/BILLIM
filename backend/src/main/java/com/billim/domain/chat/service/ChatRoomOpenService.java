@@ -7,6 +7,7 @@ import com.billim.domain.chat.repository.ChatRoomRepository;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.service.ItemAccessPolicy;
+import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,7 @@ public class ChatRoomOpenService {
 
     private final ItemRepository itemRepository;
     private final ItemAccessPolicy itemAccessPolicy;
+    private final SanctionService sanctionService;
     private final ChatRoomRepository roomRepository;
     private final ChatParticipantRepository participantRepository;
 
@@ -40,6 +42,9 @@ public class ChatRoomOpenService {
         }
         if (!itemAccessPolicy.canView(item, requesterId)) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        if (sanctionService.isRestricted(requesterId)) {
+            throw new BusinessException(ErrorCode.MEMBER_RESTRICTED);
         }
 
         return roomRepository.findByItemIdAndRequesterId(itemId, requesterId)

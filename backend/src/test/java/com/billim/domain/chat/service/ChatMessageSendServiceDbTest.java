@@ -7,7 +7,10 @@ import com.billim.domain.chat.entity.ChatRoom;
 import com.billim.domain.chat.repository.ChatMessageRepository;
 import com.billim.domain.chat.repository.ChatRoomRepository;
 import com.billim.domain.item.entity.Item;
+import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.item.repository.CategoryRepository;
+import com.billim.domain.item.service.ItemAccessPolicy;
+import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import jakarta.persistence.EntityManager;
@@ -20,6 +23,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -34,7 +38,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @Import({
     ChatMessageSendServiceDbTest.MySql.class,
     ChatMessageSendService.class,
-    ChatSendAccessPolicy.class
+    ChatSendAccessPolicy.class,
+    ItemAccessPolicy.class
 })
 class ChatMessageSendServiceDbTest {
 
@@ -56,6 +61,7 @@ class ChatMessageSendServiceDbTest {
     @Autowired ChatMessageRepository messageRepository;
     @Autowired ChatRoomRepository roomRepository;
     @Autowired ChatMessageSendService sendService;
+    @MockitoBean SanctionService sanctionService;
 
     private Long roomId;
 
@@ -63,10 +69,11 @@ class ChatMessageSendServiceDbTest {
     void setUp() {
         em.createNativeQuery("""
                 insert into members (
-                    id, display_name, role, status, version, created_at, updated_at
+                    id, display_name, role, status, active_community_id,
+                    version, created_at, updated_at
                 ) values
-                    (1, '소유자', 'USER', 'ACTIVE', 0, NOW(6), NOW(6)),
-                    (2, '요청자', 'USER', 'ACTIVE', 0, NOW(6), NOW(6))
+                    (1, '소유자', 'USER', 'ACTIVE', 100, 0, NOW(6), NOW(6)),
+                    (2, '요청자', 'USER', 'ACTIVE', 100, 0, NOW(6), NOW(6))
                 """).executeUpdate();
 
         Long categoryId = categoryRepository
@@ -175,6 +182,43 @@ class ChatMessageSendServiceDbTest {
         )).isInstanceOfSatisfying(BusinessException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND)
         );
+    }
+
+    @Test
+    @DisplayName("활성 동네가 달라진 참여자의 메시지는 저장하지 않는다")
+    void rejectsMessageAfterCommunityChange() {
+        em.createNativeQuery("update members set active_community_id = 999 where id = :memberId")
+            .setParameter("memberId", REQUESTER_ID)
+            .executeUpdate();
+        em.clear();
+
+        assertThatThrownBy(() -> sendService.send(
+            roomId,
+            REQUESTER_ID,
+            new SendMessageRequest(UUID.randomUUID(), "다른 동네에서 보낸 메시지", null)
+        )).isInstanceOfSatisfying(BusinessException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ErrorCode.COMMUNITY_VERIFICATION_REQUIRED)
+        );
+        assertThat(messageRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("비공개 물건의 채팅방에서는 메시지를 저장하지 않는다")
+    void rejectsMessageForHiddenItem() {
+        Long itemId = roomRepository.findById(roomId).orElseThrow().getItemId();
+        Item item = em.find(Item.class, itemId);
+        item.changeVisibility(ItemVisibility.HIDDEN, NOW);
+        em.flush();
+
+        assertThatThrownBy(() -> sendService.send(
+            roomId,
+            REQUESTER_ID,
+            new SendMessageRequest(UUID.randomUUID(), "비공개 물건 메시지", null)
+        )).isInstanceOfSatisfying(BusinessException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.FORBIDDEN)
+        );
+        assertThat(messageRepository.count()).isZero();
     }
 
     @Test
