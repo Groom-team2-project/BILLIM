@@ -41,4 +41,25 @@ public class MemberRowLock {
         }
         return member;
     }
+
+    /**
+     * 두 회원 행을 ID 오름차순으로 잠근다. 서로를 동시에 차단할 때 교착이 생기지 않게
+     * 잠금 순서를 고정한다. (API 명세 E_053 — "양측 회원 행 ID순 잠금")
+     *
+     * @return 요청한 순서대로의 [첫 번째, 두 번째] 회원. 잠금 순서와는 무관하다
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Member[] lockBoth(long memberId, long otherMemberId) {
+        if (memberId == otherMemberId) {
+            Member only = lock(memberId);
+            return new Member[]{only, only};
+        }
+
+        Member lower = lock(Math.min(memberId, otherMemberId));
+        Member higher = lock(Math.max(memberId, otherMemberId));
+
+        return memberId < otherMemberId
+                ? new Member[]{lower, higher}
+                : new Member[]{higher, lower};
+    }
 }

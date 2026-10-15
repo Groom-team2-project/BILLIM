@@ -17,13 +17,12 @@ public record MyProfileResponse(
         long version
 ) {
 
-    public static MyProfileResponse from(Member member) {
+    public static MyProfileResponse from(Member member, boolean isRestricted) {
         return new MyProfileResponse(
                 MemberSummaryResponse.from(member),
                 member.getRole().name(),
                 member.getStatus().name(),
-                // TODO: sanctions 연동 시 제재 판정으로 교체
-                false,
+                isRestricted,
                 member.getActiveCommunityId() == null,
                 member.getVersion());
     }
