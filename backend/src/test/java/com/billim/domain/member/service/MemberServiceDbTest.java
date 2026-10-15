@@ -1,8 +1,10 @@
 package com.billim.domain.member.service;
 
 import com.billim.domain.member.dto.MemberSummaryResponse;
+import com.billim.domain.member.dto.MyProfileResponse;
 import com.billim.domain.member.entity.Member;
 import com.billim.domain.member.repository.MemberRepository;
+import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.config.JpaAuditingConfig;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
@@ -18,6 +20,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -26,6 +29,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
 
 /** 표시 이름 수정의 권한·버전 규칙. Docker 필요 */
 @DataJpaTest
@@ -44,6 +48,9 @@ class MemberServiceDbTest {
     @Autowired MemberService memberService;
     @Autowired MemberRepository memberRepository;
     @Autowired EntityManager em;
+
+    /** 제재 판정은 safety의 ReportFlowDbTest가 검증. 여기서는 프로필 반영만 확인 */
+    @MockitoBean SanctionService sanctionService;
 
     @Test
     @DisplayName("표시 이름을 바꾸면 version이 올라간다")
@@ -64,12 +71,12 @@ class MemberServiceDbTest {
     void allowsConsecutiveUpdates() {
         Member member = memberRepository.save(Member.register("홍길동"));
 
-        Member first = memberService.changeDisplayName(member.getId(), member.getVersion(), "김철수");
+        MyProfileResponse first = memberService.changeDisplayName(member.getId(), member.getVersion(), "김철수");
         em.flush();
-        Member second = memberService.changeDisplayName(member.getId(), first.getVersion(), "이영희");
+        MyProfileResponse second = memberService.changeDisplayName(member.getId(), first.version(), "이영희");
         em.flush();
 
-        assertThat(second.getDisplayName()).isEqualTo("이영희");
+        assertThat(second.member().displayName()).isEqualTo("이영희");
     }
 
     @Test
@@ -100,6 +107,18 @@ class MemberServiceDbTest {
         assertThatThrownBy(() -> memberService.changeDisplayName(member.getId(), member.getVersion(), "김철수"))
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FORBIDDEN));
+    }
+
+    @Test
+    @DisplayName("제재 중인 회원은 프로필의 isRestricted가 참이다")
+    void reflectsRestrictedState() {
+        Member restricted = memberRepository.save(Member.register("홍길동"));
+        Member normal = memberRepository.save(Member.register("김철수"));
+        em.flush();
+        when(sanctionService.isRestricted(restricted.getId())).thenReturn(true);
+
+        assertThat(memberService.getMyProfile(restricted.getId()).isRestricted()).isTrue();
+        assertThat(memberService.getMyProfile(normal.getId()).isRestricted()).isFalse();
     }
 
     @Test
