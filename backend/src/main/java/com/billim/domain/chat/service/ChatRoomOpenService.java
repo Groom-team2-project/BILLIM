@@ -4,9 +4,11 @@ import com.billim.domain.chat.entity.ChatParticipant;
 import com.billim.domain.chat.entity.ChatRoom;
 import com.billim.domain.chat.repository.ChatParticipantRepository;
 import com.billim.domain.chat.repository.ChatRoomRepository;
+import com.billim.domain.community.service.CommunityMembershipQuery;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.service.ItemAccessPolicy;
+import com.billim.domain.safety.service.BlockQuery;
 import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
@@ -23,6 +25,8 @@ public class ChatRoomOpenService {
 
     private final ItemRepository itemRepository;
     private final ItemAccessPolicy itemAccessPolicy;
+    private final CommunityMembershipQuery membershipQuery;
+    private final BlockQuery blockQuery;
     private final SanctionService sanctionService;
     private final ChatRoomRepository roomRepository;
     private final ChatParticipantRepository participantRepository;
@@ -42,6 +46,14 @@ public class ChatRoomOpenService {
         }
         if (!itemAccessPolicy.canView(item, requesterId)) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        if (membershipQuery.findActiveCommunityId(requesterId)
+            .filter(communityId -> communityId.equals(item.getCommunityId()))
+            .isEmpty()) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        if (blockQuery.isBlockedBetween(requesterId, item.getOwnerId())) {
+            throw new BusinessException(ErrorCode.BLOCKED_RELATION);
         }
         if (sanctionService.isRestricted(requesterId)) {
             throw new BusinessException(ErrorCode.MEMBER_RESTRICTED);

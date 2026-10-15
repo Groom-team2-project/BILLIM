@@ -5,12 +5,13 @@ import com.billim.domain.chat.dto.ChatRoomPageResponse;
 import com.billim.domain.chat.dto.ChatRoomResponse;
 import com.billim.domain.chat.entity.ChatRoom;
 import com.billim.domain.chat.repository.ChatRoomRepository;
+import com.billim.domain.community.service.CommunityMembershipQuery;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.item.repository.ItemRepository;
-import com.billim.domain.item.service.ItemAccessPolicy;
 import com.billim.domain.rental.dto.RentalSummaryResponse;
 import com.billim.domain.rental.entity.Rental;
+import com.billim.domain.safety.service.BlockQuery;
 import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
@@ -31,7 +32,8 @@ public class ChatRoomViewService {
     private final ChatRoomAccessPolicy accessPolicy;
     private final ChatRoomRepository roomRepository;
     private final ItemRepository itemRepository;
-    private final ItemAccessPolicy itemAccessPolicy;
+    private final CommunityMembershipQuery membershipQuery;
+    private final BlockQuery blockQuery;
     private final SanctionService sanctionService;
 
     @Transactional
@@ -94,7 +96,7 @@ public class ChatRoomViewService {
             .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
         Long activeCommunityId =
-            itemAccessPolicy.findActiveCommunityId(memberId).orElse(null);
+            membershipQuery.findActiveCommunityId(memberId).orElse(null);
         if (!item.getCommunityId().equals(activeCommunityId)) {
             return ChatRoomAccessPolicy.Restriction.COMMUNITY_CHANGED;
         }
@@ -107,10 +109,13 @@ public class ChatRoomViewService {
             return ChatRoomAccessPolicy.Restriction.RESTRICTED;
         }
 
-        // TODO: 유효 소속, 양방향 차단 판정 연동 후 제거
-        throw new BusinessException(
-            ErrorCode.DEPENDENCY_UNAVAILABLE,
-            "채팅 권한 연동 전이라 처리할 수 없습니다."
-        );
+        Long otherMemberId = room.getOwnerId().equals(memberId)
+            ? room.getRequesterId()
+            : room.getOwnerId();
+        if (blockQuery.isBlockedBetween(memberId, otherMemberId)) {
+            return ChatRoomAccessPolicy.Restriction.BLOCKED;
+        }
+
+        return ChatRoomAccessPolicy.Restriction.NONE;
     }
 }
