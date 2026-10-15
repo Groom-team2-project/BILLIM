@@ -9,6 +9,7 @@ import com.billim.global.exception.ErrorCode;
 import com.billim.global.security.LoginMember;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/chat/rooms")
+@ConditionalOnProperty(name = "billim.chat.rooms.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class ChatRoomController {
 
