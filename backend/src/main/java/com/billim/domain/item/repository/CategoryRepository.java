@@ -7,6 +7,5 @@ import java.util.List;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
-    /** active 분류를 sortOrder, id 순으로 */
     List<Category> findByActiveTrueOrderBySortOrderAscIdAsc();
 }

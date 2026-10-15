@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Fallback;
 
 import java.time.Clock;
 
-/** 시각 의존 로직(만료·KST 오늘)을 테스트에서 고정할 수 있게 Clock을 주입한다. */
+// 시각 의존 로직(만료·KST 오늘)의 테스트 고정을 위한 Clock 주입
 @Configuration
 class ItemClockConfig {
 

@@ -1,4 +1,11 @@
 import { api } from "@/api/client";
+
+export type ReportReasonCode = "MONEY_REQUEST" | "ITEM_MISMATCH" | "NO_SHOW" | "ABUSE" | "FRAUD" | "OTHER";
+
+export function reportMessage(messageId: string, reasonCode: ReportReasonCode, detail?: string): Promise<unknown> {
+  return api<unknown>("/reports", {
+    method: "POST",
+    json: { targetType: "MESSAGE", targetId: messageId, reasonCode, detail },
 import type { ApiMemberSummary } from "@/api/members";
 
 /** 신고·제재 API (E_055~E_062). 필드명은 API 명세서 그대로 */

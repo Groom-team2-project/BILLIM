@@ -5,10 +5,7 @@ import com.billim.global.exception.ErrorCode;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 
-/**
- * 로그인 회원 ID 추출. Spring Security의 Authentication만 사용한다.
- * 계약: 인증 주체(LoginMember)의 getName()이 members.id를 돌려준다 (global/security/LoginMember 참고).
- */
+/** 인증 주체는 members.id를 담는다 (LoginMember 계약) */
 final class AuthenticatedMember {
 
     private AuthenticatedMember() {

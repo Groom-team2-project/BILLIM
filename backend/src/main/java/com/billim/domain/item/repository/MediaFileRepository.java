@@ -13,7 +13,7 @@ import java.util.Optional;
 
 public interface MediaFileRepository extends JpaRepository<MediaFile, Long> {
 
-    /** 물건 연결 시 같은 사진의 동시 연결을 막기 위해 행 잠금 */
+    // 같은 사진의 동시 연결 방지를 위한 행 잠금
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select m from MediaFile m where m.id in :ids")
     List<MediaFile> findAllByIdForUpdate(@Param("ids") Collection<Long> ids);

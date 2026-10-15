@@ -21,6 +21,17 @@
   cursor: pointer;
 }
 
+.notif-read-all:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.notif-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-4);
+}
+
 .notif-item {
   display: flex;
   align-items: flex-start;

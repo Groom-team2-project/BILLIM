@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** 물건 등록·수정·삭제·공개 변경·검색·상세 유스케이스 */
 @Service
 public class ItemService {
 
@@ -69,7 +68,7 @@ public class ItemService {
     @Transactional
     public ItemDetailResponse create(long memberId, CreateItemRequest req) {
         Instant now = clock.instant();
-        long communityId = accessPolicy.requireActiveCommunityId(memberId);   // TODO(E): 동네 연동 전에는 503
+        long communityId = accessPolicy.requireActiveCommunityId(memberId);   // 선택한 동네가 없으면 403
         List<Long> imageIds = parseImageIds(req.imageIds());
         Category category = requireCategory(IdParser.parse(req.categoryId()));
         // TODO(E): 거래 장소가 존재하고, 활성이며, 이 동네의 공용 장소인지 검증한다. 연동 전에는 ID 형식만 확인한다.
@@ -94,7 +93,7 @@ public class ItemService {
     public ItemDetailResponse get(long memberId, long itemId) {
         Item item = itemRepository.findById(itemId).orElseThrow(ItemService::notFound);
         if (!item.isOwnedBy(memberId)) {
-            accessPolicy.requireActiveCommunityId(memberId);   // TODO(E): 동네 연동 전 타인 물건 조회는 503
+            accessPolicy.requireActiveCommunityId(memberId);   // 타인 물건은 동네 소속이 필요 (없으면 403)
         }
         if (!accessPolicy.canView(item, memberId)) {
             throw notFound();
@@ -179,7 +178,7 @@ public class ItemService {
             // TODO(E): 동네 중심과 장소 좌표가 연동되면 거리순 정렬을 구현한다. 연동 전에는 다른 정렬로 바꿔 응답하지 않는다.
             throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE, "거리순 정렬은 동네 연동 후 사용할 수 있습니다.");
         }
-        long communityId = accessPolicy.requireActiveCommunityId(memberId);   // TODO(E): 동네 연동 전에는 503
+        long communityId = accessPolicy.requireActiveCommunityId(memberId);   // 선택한 동네가 없으면 403
 
         // TODO(E): 차단 관계(내가 차단했거나 나를 차단한 회원)의 물건을 제외한다.
         // TODO(C): 선택 기간에 승인·진행 중인 대여가 있는 물건을 제외하고 availableForRange를 채운다.
@@ -264,8 +263,8 @@ public class ItemService {
     }
 
     /**
-     * 요청 사진을 잠그고 검증한 뒤 연결한다. 이미 이 물건에 연결된 사진(ownedMediaIds)은 그대로 두고,
-     * 그 외에는 요청 회원의 만료되지 않은 TEMP여야 한다. 아니면 MEDIA_NOT_ATTACHABLE
+     * 요청 사진 잠금·검증 후 연결.
+     * 이미 이 물건에 연결된 사진(ownedMediaIds)은 유지, 그 외는 요청 회원의 만료 전 TEMP만 허용. 아니면 MEDIA_NOT_ATTACHABLE
      */
     private void attachMedia(long memberId, List<Long> ids, Set<Long> ownedMediaIds, Instant now) {
         Map<Long, MediaFile> found = new HashMap<>();

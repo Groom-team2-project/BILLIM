@@ -7,7 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/** 등록·검색·운영 통계가 함께 쓰는 단일 카테고리. 기준 데이터라 읽기 전용으로 쓴다. */
+// 등록·검색·운영 통계 공용 기준 데이터. 읽기 전용
 @Entity
 @Table(name = "categories")
 public class Category extends TimestampedEntity {

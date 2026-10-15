@@ -2,11 +2,14 @@ package com.billim.domain.item.service;
 
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
+import com.billim.domain.member.entity.Member;
+import com.billim.domain.member.repository.MemberRepository;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -16,13 +19,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /**
- * 상세·사진 조회 권한 (API 명세 B_020). 동네 소속 판정은 동네 도메인(E) 연동 전이라 비어 있다.
- * 연동 전 동작(503)을 그대로 검증하고, 소속이 있다고 가정한 경로는 spy로 소속 조회만 대체해 확인한다.
+ * 상세·사진 조회 권한 (API 명세 B_020).
+ * 활성 동네는 회원이 선택한 동네(members.active_community_id)를 읽고, 조회 권한 경로는 spy로 소속 조회만 대체해 확인한다.
  */
 class ItemAccessPolicyTest {
 
@@ -31,11 +36,20 @@ class ItemAccessPolicyTest {
     private static final long VIEWER = 2L;
     private static final long COMMUNITY = 100L;
 
+    MemberRepository memberRepository;
     ItemAccessPolicy policy;
 
     @BeforeEach
     void setUp() {
-        policy = spy(new ItemAccessPolicy());
+        memberRepository = mock(MemberRepository.class);
+        policy = spy(new ItemAccessPolicy(memberRepository));
+    }
+
+    /** 활성 동네를 가진 회원 (status는 가입 시 ACTIVE) */
+    private static Member member(Long activeCommunityId) {
+        Member m = Member.register("이웃회원");
+        ReflectionTestUtils.setField(m, "activeCommunityId", activeCommunityId);
+        return m;
     }
 
     private Item item() {
@@ -49,11 +63,29 @@ class ItemAccessPolicyTest {
     }
 
     @Test
-    @DisplayName("동네 연동 전에는 활성 동네를 지어내지 않고 503 DEPENDENCY_UNAVAILABLE이다")
-    void activeCommunityIsUnavailableUntilCommunityDomainIsLinked() {
-        assertThatThrownBy(() -> new ItemAccessPolicy().findActiveCommunityId(VIEWER))
-                .isInstanceOfSatisfying(BusinessException.class,
-                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.DEPENDENCY_UNAVAILABLE));
+    @DisplayName("활성 동네는 회원이 선택한 동네(members.active_community_id)다")
+    void activeCommunityComesFromMembersTable() {
+        when(memberRepository.findById(VIEWER)).thenReturn(Optional.of(member(COMMUNITY)));
+        assertThat(new ItemAccessPolicy(memberRepository).findActiveCommunityId(VIEWER)).contains(COMMUNITY);
+    }
+
+    @Test
+    @DisplayName("선택한 동네가 없거나 회원이 없으면 활성 동네가 없다")
+    void noSelectedCommunityOrMissingMemberMeansNoCommunity() {
+        when(memberRepository.findById(VIEWER)).thenReturn(Optional.of(member(null)));
+        assertThat(new ItemAccessPolicy(memberRepository).findActiveCommunityId(VIEWER)).isEmpty();
+
+        when(memberRepository.findById(VIEWER)).thenReturn(Optional.empty());
+        assertThat(new ItemAccessPolicy(memberRepository).findActiveCommunityId(VIEWER)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("탈퇴 등 활동 중이 아닌 회원은 활성 동네가 없다")
+    void inactiveMemberHasNoCommunity() {
+        Member withdrawn = member(COMMUNITY);
+        ReflectionTestUtils.setField(withdrawn, "status", com.billim.domain.member.entity.MemberStatus.WITHDRAWN);
+        when(memberRepository.findById(VIEWER)).thenReturn(Optional.of(withdrawn));
+        assertThat(new ItemAccessPolicy(memberRepository).findActiveCommunityId(VIEWER)).isEmpty();
     }
 
     @Test
@@ -110,10 +142,9 @@ class ItemAccessPolicyTest {
     }
 
     @Test
-    @DisplayName("동네 연동 전에는 타인의 공개 물건 조회가 503이다")
-    void viewingOthersPublicItemIsUnavailableUntilCommunityIsLinked() {
-        assertThatThrownBy(() -> new ItemAccessPolicy().canView(item(), VIEWER))
-                .isInstanceOfSatisfying(BusinessException.class,
-                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.DEPENDENCY_UNAVAILABLE));
+    @DisplayName("같은 동네를 선택한 회원은 타인의 공개 물건을 볼 수 있다 (회원 테이블 기준)")
+    void viewerInSameCommunityByMembersTableCanSee() {
+        when(memberRepository.findById(VIEWER)).thenReturn(Optional.of(member(COMMUNITY)));
+        assertThat(new ItemAccessPolicy(memberRepository).canView(item(), VIEWER)).isTrue();
     }
 }
