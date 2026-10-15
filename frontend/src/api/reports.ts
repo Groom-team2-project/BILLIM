@@ -1,11 +1,4 @@
 import { api } from "@/api/client";
-
-export type ReportReasonCode = "MONEY_REQUEST" | "ITEM_MISMATCH" | "NO_SHOW" | "ABUSE" | "FRAUD" | "OTHER";
-
-export function reportMessage(messageId: string, reasonCode: ReportReasonCode, detail?: string): Promise<unknown> {
-  return api<unknown>("/reports", {
-    method: "POST",
-    json: { targetType: "MESSAGE", targetId: messageId, reasonCode, detail },
 import type { ApiMemberSummary } from "@/api/members";
 
 /** 신고·제재 API (E_055~E_062). 필드명은 API 명세서 그대로 */
@@ -89,6 +82,15 @@ export function createReport(body: {
   detail?: string;
 }): Promise<ApiReport> {
   return api<ApiReport>("/reports", { method: "POST", json: body });
+}
+
+/** 채팅 메시지 신고 (E_055의 MESSAGE 대상). 채팅 화면에서 쓴다 */
+export function reportMessage(
+  messageId: string,
+  reasonCode: ReportReasonCode,
+  detail?: string,
+): Promise<ApiReport> {
+  return createReport({ targetType: "MESSAGE", targetId: messageId, reasonCode, detail });
 }
 
 /** E_056 내 신고 목록 */
