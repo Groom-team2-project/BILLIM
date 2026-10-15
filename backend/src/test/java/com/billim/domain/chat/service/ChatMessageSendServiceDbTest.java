@@ -146,6 +146,25 @@ class ChatMessageSendServiceDbTest {
     }
 
     @Test
+    @DisplayName("메시지 저장 뒤 물건이 비공개로 바뀌어도 같은 메시지 재시도는 기존 결과를 반환한다")
+    void retryAfterItemHiddenReturnsExistingMessage() {
+        UUID clientMessageId = UUID.randomUUID();
+        SendMessageRequest request = new SendMessageRequest(clientMessageId, "이미 보낸 메시지", null);
+        ChatMessage first = sendService.send(roomId, REQUESTER_ID, request);
+
+        Long itemId = roomRepository.findById(roomId).orElseThrow().getItemId();
+        Item item = em.find(Item.class, itemId);
+        item.changeVisibility(ItemVisibility.HIDDEN, NOW);
+        em.flush();
+
+        ChatMessage retried = sendService.send(roomId, REQUESTER_ID, request);
+
+        assertThat(retried.getId()).isEqualTo(first.getId());
+        assertThat(retried.getSequence()).isEqualTo(first.getSequence());
+        assertThat(messageRepository.count()).isEqualTo(1L);
+    }
+
+    @Test
     @DisplayName("같은 메시지 키를 다른 내용으로 재사용하면 거부한다")
     void rejectsReusedKeyWithDifferentContent() {
         UUID clientMessageId = UUID.randomUUID();

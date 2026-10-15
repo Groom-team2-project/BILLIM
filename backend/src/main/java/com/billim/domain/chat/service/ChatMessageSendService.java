@@ -39,7 +39,9 @@ public class ChatMessageSendService {
         ChatRoom room = roomRepository.findLockedById(roomId)
             .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        accessPolicy.requireCanSend(room, senderId, rentalId);
+        if (!room.isParticipant(senderId)) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
 
         ChatMessage existing = messageRepository
             .findByRoomIdAndSenderIdAndClientMessageId(
@@ -56,6 +58,8 @@ public class ChatMessageSendService {
 
             return existing;
         }
+
+        accessPolicy.requireCanSend(room, senderId, rentalId);
 
         Instant now = Instant.now();
 
