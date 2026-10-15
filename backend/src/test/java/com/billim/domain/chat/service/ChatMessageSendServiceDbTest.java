@@ -6,10 +6,11 @@ import com.billim.domain.chat.entity.ChatParticipant;
 import com.billim.domain.chat.entity.ChatRoom;
 import com.billim.domain.chat.repository.ChatMessageRepository;
 import com.billim.domain.chat.repository.ChatRoomRepository;
+import com.billim.domain.community.service.CommunityMembershipQuery;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.item.repository.CategoryRepository;
-import com.billim.domain.item.service.ItemAccessPolicy;
+import com.billim.domain.safety.service.BlockQuery;
 import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
@@ -29,17 +30,18 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
 
 @DataJpaTest
 @Import({
     ChatMessageSendServiceDbTest.MySql.class,
     ChatMessageSendService.class,
-    ChatSendAccessPolicy.class,
-    ItemAccessPolicy.class
+    ChatSendAccessPolicy.class
 })
 class ChatMessageSendServiceDbTest {
 
@@ -61,6 +63,8 @@ class ChatMessageSendServiceDbTest {
     @Autowired ChatMessageRepository messageRepository;
     @Autowired ChatRoomRepository roomRepository;
     @Autowired ChatMessageSendService sendService;
+    @MockitoBean CommunityMembershipQuery membershipQuery;
+    @MockitoBean BlockQuery blockQuery;
     @MockitoBean SanctionService sanctionService;
 
     private Long roomId;
@@ -98,6 +102,8 @@ class ChatMessageSendServiceDbTest {
         em.persist(ChatParticipant.join(roomId, OWNER_ID, NOW));
         em.persist(ChatParticipant.join(roomId, REQUESTER_ID, NOW));
         em.flush();
+        when(membershipQuery.findActiveCommunityId(REQUESTER_ID))
+            .thenReturn(Optional.of(100L));
     }
 
     @Test
@@ -206,10 +212,8 @@ class ChatMessageSendServiceDbTest {
     @Test
     @DisplayName("활성 동네가 달라진 참여자의 메시지는 저장하지 않는다")
     void rejectsMessageAfterCommunityChange() {
-        em.createNativeQuery("update members set active_community_id = 999 where id = :memberId")
-            .setParameter("memberId", REQUESTER_ID)
-            .executeUpdate();
-        em.clear();
+        when(membershipQuery.findActiveCommunityId(REQUESTER_ID))
+            .thenReturn(Optional.of(999L));
 
         assertThatThrownBy(() -> sendService.send(
             roomId,

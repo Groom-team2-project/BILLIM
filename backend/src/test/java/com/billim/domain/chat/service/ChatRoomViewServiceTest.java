@@ -2,13 +2,12 @@ package com.billim.domain.chat.service;
 
 import com.billim.domain.chat.entity.ChatRoom;
 import com.billim.domain.chat.repository.ChatRoomRepository;
+import com.billim.domain.community.service.CommunityMembershipQuery;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.item.repository.ItemRepository;
-import com.billim.domain.item.service.ItemAccessPolicy;
+import com.billim.domain.safety.service.BlockQuery;
 import com.billim.domain.safety.service.SanctionService;
-import com.billim.global.exception.BusinessException;
-import com.billim.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -18,7 +17,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -35,19 +33,20 @@ class ChatRoomViewServiceTest {
     private final ChatRoomLinkedRentalService linkedRentalService = mock(ChatRoomLinkedRentalService.class);
     private final ChatRoomRepository roomRepository = mock(ChatRoomRepository.class);
     private final ItemRepository itemRepository = mock(ItemRepository.class);
-    private final ItemAccessPolicy itemAccessPolicy = mock(ItemAccessPolicy.class);
+    private final CommunityMembershipQuery membershipQuery = mock(CommunityMembershipQuery.class);
+    private final BlockQuery blockQuery = mock(BlockQuery.class);
     private final SanctionService sanctionService = mock(SanctionService.class);
     private final ChatRoomViewService viewService = new ChatRoomViewService(
         openService, baseService, listBaseService, linkedRentalService,
         new ChatRoomAccessPolicy(linkedRentalService),
-        roomRepository, itemRepository, itemAccessPolicy, sanctionService
+        roomRepository, itemRepository, membershipQuery, blockQuery, sanctionService
     );
 
     @Test
     @DisplayName("활성 동네가 바뀐 참여자는 기존 방을 조회해도 메시지를 보낼 수 없다")
     void changedCommunityCannotSend() {
         givenRoom();
-        when(itemAccessPolicy.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.of(999L));
+        when(membershipQuery.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.of(999L));
         when(linkedRentalService.getAllowedRentalIds(ROOM_ID, MEMBER_ID)).thenReturn(List.of());
 
         var response = viewService.get(ROOM_ID, MEMBER_ID);
@@ -61,7 +60,7 @@ class ChatRoomViewServiceTest {
     @DisplayName("활성 동네가 없어도 채팅 전송을 허용하지 않는다")
     void missingCommunityCannotSend() {
         givenRoom();
-        when(itemAccessPolicy.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.empty());
+        when(membershipQuery.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.empty());
         when(linkedRentalService.getAllowedRentalIds(ROOM_ID, MEMBER_ID)).thenReturn(List.of());
 
         var response = viewService.get(ROOM_ID, MEMBER_ID);
@@ -71,15 +70,30 @@ class ChatRoomViewServiceTest {
     }
 
     @Test
-    @DisplayName("같은 동네여도 남은 접근 정책 연동 전에는 일반 전송을 허용하지 않는다")
-    void sameCommunityStillWaitsForRemainingPolicies() {
+    @DisplayName("유효한 동네 소속이고 차단이 없으면 일반 메시지를 보낼 수 있다")
+    void validCommunityWithoutBlockCanSend() {
         givenRoom();
-        when(itemAccessPolicy.findActiveCommunityId(MEMBER_ID))
+        when(membershipQuery.findActiveCommunityId(MEMBER_ID))
             .thenReturn(Optional.of(COMMUNITY_ID));
 
-        assertThatThrownBy(() -> viewService.get(ROOM_ID, MEMBER_ID))
-            .isInstanceOfSatisfying(BusinessException.class, exception ->
-                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.DEPENDENCY_UNAVAILABLE));
+        var response = viewService.get(ROOM_ID, MEMBER_ID);
+
+        assertThat(response.access().canSend()).isTrue();
+        assertThat(response.access().reason()).isEqualTo("NORMAL");
+    }
+
+    @Test
+    @DisplayName("양방향 중 한쪽이라도 차단하면 일반 메시지 전송을 막는다")
+    void blockedMembersCannotSendOrdinaryMessage() {
+        givenRoom();
+        when(membershipQuery.findActiveCommunityId(MEMBER_ID))
+            .thenReturn(Optional.of(COMMUNITY_ID));
+        when(blockQuery.isBlockedBetween(MEMBER_ID, 1L)).thenReturn(true);
+
+        var response = viewService.get(ROOM_ID, MEMBER_ID);
+
+        assertThat(response.access().canSend()).isFalse();
+        assertThat(response.access().reason()).isEqualTo("BLOCKED");
     }
 
     @Test
@@ -89,7 +103,7 @@ class ChatRoomViewServiceTest {
         Item item = item();
         item.changeVisibility(ItemVisibility.HIDDEN, Instant.parse("2026-10-14T00:00:00Z"));
         when(itemRepository.findById(ITEM_ID)).thenReturn(Optional.of(item));
-        when(itemAccessPolicy.findActiveCommunityId(MEMBER_ID))
+        when(membershipQuery.findActiveCommunityId(MEMBER_ID))
             .thenReturn(Optional.of(COMMUNITY_ID));
 
         var response = viewService.get(ROOM_ID, MEMBER_ID);
@@ -102,7 +116,7 @@ class ChatRoomViewServiceTest {
     @DisplayName("제재된 참여자는 진행 거래가 없으면 메시지를 보낼 수 없다")
     void restrictedMemberCannotSendWithoutRental() {
         givenRoom();
-        when(itemAccessPolicy.findActiveCommunityId(MEMBER_ID))
+        when(membershipQuery.findActiveCommunityId(MEMBER_ID))
             .thenReturn(Optional.of(COMMUNITY_ID));
         when(sanctionService.isRestricted(MEMBER_ID)).thenReturn(true);
 
