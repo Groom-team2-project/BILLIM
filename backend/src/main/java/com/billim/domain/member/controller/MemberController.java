@@ -23,14 +23,14 @@ public class MemberController {
     /** 유효 로그인만 필요. 미인증·제재 상태도 자신의 온보딩·제한 상태 조회 가능 */
     @GetMapping("/me")
     public MyProfileResponse getMyProfile(@AuthenticationPrincipal LoginMember loginMember) {
-        return MyProfileResponse.from(memberService.getMyProfile(loginMember.memberId()));
+        return memberService.getMyProfile(loginMember.memberId());
     }
 
     /** 표시 이름 수정. 응답의 version은 증가한 값이라 다음 수정에 그대로 사용 */
     @PatchMapping("/me")
     public MyProfileResponse updateMyProfile(@AuthenticationPrincipal LoginMember loginMember,
                                              @Valid @RequestBody UpdateProfileRequest request) {
-        return MyProfileResponse.from(memberService.changeDisplayName(
-                loginMember.memberId(), request.expectedVersion(), request.displayName()));
+        return memberService.changeDisplayName(
+                loginMember.memberId(), request.expectedVersion(), request.displayName());
     }
 }
