@@ -26,7 +26,7 @@ class AppointmentServiceTest {
     private final MemberRepository members = mock(MemberRepository.class);
     private static final Instant NOW = Instant.parse("2026-10-15T00:00:00Z");
     private final AppointmentService service = new AppointmentService(slots, proposals, rentals, members,
-            Clock.fixed(NOW, ZoneOffset.UTC));
+            Clock.fixed(NOW, ZoneOffset.UTC), mock(com.billim.domain.community.repository.CommunityPlaceRepository.class));
     private final LoginMember login = new LoginMember(2L, MemberRole.USER);
 
     @BeforeEach

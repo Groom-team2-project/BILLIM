@@ -1,5 +1,6 @@
 package com.billim.domain.rental.service;
 
+import com.billim.domain.community.repository.CommunityPlaceRepository;
 import com.billim.domain.item.dto.PlaceResponse;
 import com.billim.domain.member.entity.MemberStatus;
 import com.billim.domain.member.repository.MemberRepository;
@@ -21,7 +22,6 @@ import com.billim.global.security.LoginMember;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.time.Clock;
@@ -39,6 +39,7 @@ public class AppointmentService {
     private final RentalRepository rentalRepository;
     private final MemberRepository memberRepository;
     private final Clock clock;
+    private final CommunityPlaceRepository places;
 
     public AppointmentSlotsResponse getAppointments(Long rentalId, LoginMember member) {
         //로그인 사용자 확인
@@ -131,6 +132,7 @@ public class AppointmentService {
         if (proposal == null) {
             return null;
         }
+        var place = places.findByIdAndCommunityId(proposal.getPlaceId(), rental.getCommunityId()).orElse(null);
         return new RentalDetailStatusResponse.AppointmentProposal(
             proposal.getId().toString(),
             proposal.getSlotId().toString(),
@@ -141,10 +143,9 @@ public class AppointmentService {
                 proposal.getPlaceId().toString(),
                 rental.getCommunityId().toString(),
                 proposal.getPlaceNameSnapshot(),
-                // 공용 장소 도메인 미구현으로 좌표·안내 생략
-                null,
-                null,
-                null
+                place == null ? null : place.getLatitude(),
+                place == null ? null : place.getLongitude(),
+                place == null ? null : place.getGuide()
             ),
             proposal.getStatus().name(),
             proposal.getAcceptedBy() == null

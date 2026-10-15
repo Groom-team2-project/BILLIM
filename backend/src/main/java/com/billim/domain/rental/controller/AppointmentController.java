@@ -5,6 +5,12 @@ import com.billim.domain.rental.service.AppointmentService;
 import com.billim.global.security.LoginMember;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import com.billim.domain.rental.dto.AppointmentSlotResponse;
+import com.billim.domain.rental.dto.ProposeAppointmentRequest;
+import com.billim.domain.rental.dto.AppointmentVersionRequest;
+import com.billim.domain.rental.entity.AppointmentKind;
+import com.billim.domain.rental.service.AppointmentCommandService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AppointmentController {
     private final AppointmentService appointmentService;
+
+    private final AppointmentCommandService commands;
 
     //조회
     @GetMapping("/rentals/{rentalId}/appointments")
@@ -26,23 +34,28 @@ public class AppointmentController {
         );
     }
 
-    /* 제안·수락·철회 구현 전 임시 보관
-    //제안
     @PostMapping("/rentals/{rentalId}/appointments/{kind}/proposals")
-    public ResponseEntity<AppointmentSlotResponse> proposalAppointment(
-        @Valid @RequestBody ProposeAppointmentRequest request
-    )
+    public ResponseEntity<AppointmentSlotResponse> propose(
+            @PathVariable @Positive Long rentalId,
+            @PathVariable AppointmentKind kind,
+            @Valid @RequestBody ProposeAppointmentRequest request,
+            @AuthenticationPrincipal LoginMember member) {
+        return ResponseEntity.status(201).body(commands.propose(rentalId, kind, request, member));
+    }
 
-    //수락
     @PostMapping("/appointments/{proposalId}/accept")
-    public ResponseEntity<AppointmentSlotResponse> acceptAppointment(
-        @Valid @RequestBody AppointmentVersionRequest request
-    )
+    public ResponseEntity<AppointmentSlotResponse> accept(
+            @PathVariable @Positive Long proposalId,
+            @Valid @RequestBody AppointmentVersionRequest request,
+            @AuthenticationPrincipal LoginMember member) {
+        return ResponseEntity.ok(commands.accept(proposalId, request, member));
+    }
 
-    //철회
     @PostMapping("/appointments/{proposalId}/withdraw")
-    public ResponseEntity<AppointmentSlotResponse> withdrawAppointment(
-        @Valid @RequestBody AppointmentVersionRequest request
-    )
-    */
+    public ResponseEntity<AppointmentSlotResponse> withdraw(
+            @PathVariable @Positive Long proposalId,
+            @Valid @RequestBody AppointmentVersionRequest request,
+            @AuthenticationPrincipal LoginMember member) {
+        return ResponseEntity.ok(commands.withdraw(proposalId, request, member));
+    }
 }

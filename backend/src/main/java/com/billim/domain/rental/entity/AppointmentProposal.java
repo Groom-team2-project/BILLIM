@@ -19,6 +19,27 @@ import java.time.Instant;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AppointmentProposal extends BaseTimeEntity {
 
+    public static AppointmentProposal propose(long slotId, long proposerId, long placeId,
+                                               Instant scheduledAt, String placeName) {
+        AppointmentProposal proposal = new AppointmentProposal();
+        proposal.slotId = slotId;
+        proposal.proposerId = proposerId;
+        proposal.placeId = placeId;
+        proposal.scheduledAt = scheduledAt;
+        proposal.placeNameSnapshot = placeName;
+        return proposal;
+    }
+
+    public void supersede() { status = AppointmentProposalStatus.SUPERSEDED; }
+
+    public void confirm(long memberId, Instant now) {
+        status = AppointmentProposalStatus.CONFIRMED;
+        acceptedBy = memberId;
+        acceptedAt = now;
+    }
+
+    public void withdraw() { status = AppointmentProposalStatus.WITHDRAWN; }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

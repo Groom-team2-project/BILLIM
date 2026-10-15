@@ -1,5 +1,6 @@
 package com.billim.domain.rental.repository;
 
+import org.springframework.data.jpa.repository.Modifying;
 import com.billim.domain.rental.entity.AppointmentProposal;
 import com.billim.domain.rental.entity.Rental;
 import com.billim.domain.rental.entity.RentalStatus;
@@ -9,7 +10,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
-
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Collection;
@@ -17,6 +17,32 @@ import java.util.List;
 import java.util.Optional;
 
 public interface RentalRepository extends JpaRepository<Rental, Long>, JpaSpecificationExecutor<Rental> {
+
+    // 물건 잠금 이후 최신 채팅방을 조회하는 대여 생성용 읽기 경계
+    @Lock(LockModeType.PESSIMISTIC_READ)
+    @Query("select room from ChatRoom room where room.itemId = :itemId and room.requesterId = :requesterId")
+    Optional<com.billim.domain.chat.entity.ChatRoom> findChatRoomForRentalLink(Long itemId, Long requesterId);
+
+
+    @Modifying
+    @Query("""
+            update Rental r set r.chatRoomId = :roomId
+            where r.itemId = :itemId and r.ownerId = :ownerId and r.borrowerId = :borrowerId
+              and r.chatRoomId is null
+            """)
+    int linkChatRoom(long itemId, long ownerId, long borrowerId, long roomId);
+
+    @Query("""
+            select (count(r) > 0) from Rental r
+            where (r.ownerId = :first and r.borrowerId = :second)
+               or (r.ownerId = :second and r.borrowerId = :first)
+            """)
+    boolean hasTraded(long first, long second);
+
+    long countByBorrowerIdAndStatus(Long memberId, RentalStatus status);
+    long countByOwnerIdAndStatus(Long memberId, RentalStatus status);
+    long countByBorrowerIdAndStatusAndReturnPromiseKeptTrue(Long memberId, RentalStatus status);
+    long countByBorrowerIdAndStatusAndReturnPromiseKeptIsNotNull(Long memberId, RentalStatus status);
 
     boolean existsByItemIdAndStatus(Long itemId, RentalStatus status);
 

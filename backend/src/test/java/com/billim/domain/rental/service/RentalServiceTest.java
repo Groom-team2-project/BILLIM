@@ -56,7 +56,7 @@ class RentalServiceTest {
         policy = mock(RentalRequestPolicy.class);
         effects = mock(RentalRequestEffects.class);
         service = new RentalService(rentals, histories, items, members, policy, effects,
-                Clock.fixed(NOW, ZoneOffset.UTC), mock(RentalQueryService.class));
+                Clock.fixed(NOW, ZoneOffset.UTC), mock(RentalQueryService.class), mock(com.billim.domain.rental.repository.AppointmentSlotRepository.class));
         Member borrower = member(2L, "요청자");
         when(members.findByIdForUpdate(2L)).thenReturn(Optional.of(borrower));
         when(members.findById(1L)).thenReturn(Optional.of(member(1L, "소유자")));

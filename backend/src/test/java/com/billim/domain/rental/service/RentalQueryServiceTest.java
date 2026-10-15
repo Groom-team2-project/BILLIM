@@ -32,14 +32,17 @@ class RentalQueryServiceTest {
     private RentalRequestPolicy policy;
     private RentalQueryService service;
 
+    private final AppointmentService appointments = mock(AppointmentService.class);
+
     @BeforeEach
     void setUp() {
+        when(appointments.getAppointments(anyLong(), any())).thenReturn(new com.billim.domain.rental.dto.AppointmentSlotsResponse(java.util.List.of()));
         rentals = mock(RentalRepository.class);
         histories = mock(RentalStatusHistoryRepository.class);
         members = mock(MemberRepository.class);
         items = mock(ItemRepository.class);
         policy = mock(RentalRequestPolicy.class);
-        service = new RentalQueryService(rentals, histories, members, items, policy, Clock.fixed(NOW, ZoneOffset.UTC));
+        service = new RentalQueryService(rentals, histories, members, items, policy, Clock.fixed(NOW, ZoneOffset.UTC), appointments);
         for (long id = 1; id <= 3; id++) {
             Member member = Member.register("회원" + id);
             ReflectionTestUtils.setField(member, "id", id);
@@ -47,6 +50,16 @@ class RentalQueryServiceTest {
         }
         Item item = Item.create(1L, 1L, 1L, 1L, "수정한 제목", null, TODAY, TODAY.plusDays(60), NOW);
         when(items.findById(10L)).thenReturn(Optional.of(item));
+    }
+
+    @Test
+    @DisplayName("채팅 내부 요약은 참여자만 조회하고 무관한 회원은 404")
+    void internalSummaryChecksParticipant() {
+        Rental rental = rental(TODAY, TODAY.plusDays(2));
+        when(rentals.findById(100L)).thenReturn(Optional.of(rental));
+        assertThat(service.getRentalSummary(100L, 2L).id()).isEqualTo("100");
+        error(() -> service.getRentalSummary(100L, 3L), ErrorCode.RESOURCE_NOT_FOUND);
+        error(() -> service.getRentalSummary(100L, null), ErrorCode.UNAUTHENTICATED);
     }
 
     @Test
