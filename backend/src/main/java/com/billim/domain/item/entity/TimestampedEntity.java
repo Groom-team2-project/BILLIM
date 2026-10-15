@@ -5,9 +5,7 @@ import jakarta.persistence.MappedSuperclass;
 
 import java.time.Instant;
 
-/**
- * created_at·updated_at 공통 컬럼. 애플리케이션이 UTC로 채운다. (ERD 1장)
- */
+// created_at·updated_at 공통 컬럼. 애플리케이션이 UTC로 기록 (ERD 1장)
 @MappedSuperclass
 public abstract class TimestampedEntity {
 

@@ -18,6 +18,13 @@
   border-radius: var(--radius-md);
 }
 
+.context-bar-placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+}
+
 .context-bar-body {
   flex: 1;
   min-width: 0;

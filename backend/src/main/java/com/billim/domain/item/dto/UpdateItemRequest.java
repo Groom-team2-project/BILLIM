@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import java.util.List;
 
-/** 물건 정보·사진 전체 수정 요청 (API 명세 UpdateItem). description 생략은 제거 */
+// description 생략 시 설명 제거
 public record UpdateItemRequest(
         @NotBlank @Size(max = 100) String title,
         @Size(max = 3000) String description,

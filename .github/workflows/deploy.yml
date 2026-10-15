@@ -1,0 +1,100 @@
+name: Deploy Backend
+
+# develop·main push 시 자동 배포. jar를 S3에 올리고 SSM으로 EC2가 받아 교체·재시작
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      S3_KEY: app/app.jar
+
+    steps:
+      - name: 체크아웃
+        uses: actions/checkout@v4
+
+      - name: JDK 21 설정
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: jar 빌드
+        working-directory: backend
+        run: |
+          chmod +x gradlew
+          ./gradlew clean bootJar
+          echo "JAR_PATH=$(ls build/libs/*.jar | grep -v plain | head -n1)" >> "$GITHUB_ENV"
+
+      - name: AWS 인증 (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: gha-deploy-${{ github.run_id }}
+
+      - name: S3 업로드
+        run: aws s3 cp "backend/${JAR_PATH}" "s3://${{ vars.DEPLOY_BUCKET }}/${S3_KEY}"
+
+      - name: EC2 배포 (SSM)
+        run: |
+          set -Eeuo pipefail
+
+          # 명령을 줄별 배열로 전달 — heredoc 개행 깨짐·sh(dash) pipefail 미지원 회피
+          jq -n \
+            --arg b "${{ vars.DEPLOY_BUCKET }}" \
+            --arg k "${S3_KEY}" \
+            --arg r "${{ vars.AWS_REGION }}" \
+            '{commands: [
+              "set -eu",
+              "export PATH=$PATH:/snap/bin",
+              "command -v aws >/dev/null || snap install aws-cli --classic",
+              ("aws s3 cp s3://" + $b + "/" + $k + " /home/ubuntu/BILLIM/backend/app.jar.new --region " + $r),
+              "chown ubuntu:ubuntu /home/ubuntu/BILLIM/backend/app.jar.new",
+              "mv /home/ubuntu/BILLIM/backend/app.jar.new /home/ubuntu/BILLIM/backend/app.jar",
+              "systemctl restart billim"
+            ]}' > ssm-params.json
+
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "${{ vars.EC2_INSTANCE_ID }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "deploy ${GITHUB_SHA::7}" \
+            --parameters file://ssm-params.json \
+            --query "Command.CommandId" --output text)
+
+          echo "SSM Command: $CMD_ID"
+
+          for i in $(seq 1 40); do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$CMD_ID" --instance-id "${{ vars.EC2_INSTANCE_ID }}" \
+              --query "Status" --output text 2>/dev/null || echo Pending)
+            echo "[$i] $STATUS"
+            case "$STATUS" in
+              Success) echo "✅ 배포 성공"; exit 0 ;;
+              Failed|Cancelled|TimedOut)
+                echo "❌ 배포 실패 — 서버 로그:"
+                aws ssm get-command-invocation --command-id "$CMD_ID" \
+                  --instance-id "${{ vars.EC2_INSTANCE_ID }}" \
+                  --query "StandardErrorContent" --output text
+                exit 1 ;;
+            esac
+            sleep 6
+          done
+          echo "⏱️ 타임아웃"; exit 1

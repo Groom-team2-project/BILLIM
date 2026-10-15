@@ -33,9 +33,14 @@ final class SafetyRequests {
      */
     static long adminId(LoginMember member) {
         long memberId = memberId(member);
-        if (member.role() != MemberRole.ADMIN) {
+        if (!isAdmin(member)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
         return memberId;
+    }
+
+    /** 관리자는 소속과 무관하게 조회할 수 있는 경로가 있다 (공지 목록·상세) */
+    static boolean isAdmin(LoginMember member) {
+        return member != null && member.role() == MemberRole.ADMIN;
     }
 }

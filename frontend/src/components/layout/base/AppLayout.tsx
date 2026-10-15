@@ -39,11 +39,15 @@ const OWN_HEADER = [
 /** 앱 공통 셸 — 헤더·본문·푸터·하단 탭 조립 (DESIGN_SYSTEM.md §7) */
 export function AppLayout() {
   const { loggedIn } = useSession();
-  const { pathname } = useLocation();
+  const { pathname, search, state } = useLocation();
   const navigate = useNavigate();
   const { confirm, report, toast } = useUi();
   const chatRoomMatch = pathname.match(/^\/chat\/(.+)$/);
-  const chatName = chatRoomMatch ? CHATS.find((ch) => ch.id === chatRoomMatch[1])?.name : undefined;
+  const previewChat = new URLSearchParams(search).has("state");
+  const chatName = chatRoomMatch
+    ? previewChat ? CHATS.find((ch) => ch.id === chatRoomMatch[1])?.name
+      : typeof state?.chatName === "string" ? state.chatName : "채팅"
+    : undefined;
   const hasOwnHeader = OWN_HEADER.some((re) => re.test(pathname));
   const title = chatName ?? PAGE_TITLES[pathname];
   /* 하위 화면(§7): 모바일 헤더는 뒤로+제목+더보기, 하단 탭 없음 */
@@ -95,7 +99,7 @@ export function AppLayout() {
             onSelect: () => doReport(moreItem.owner.displayName ?? UNKNOWN_OWNER),
           },
         ]
-    : chatRoomMatch && chatName
+    : chatRoomMatch && chatName && previewChat
       ? [
           { label: "이웃 프로필", onSelect: () => navigate(`/neighbors/${chatName}`) },
           { label: "신고하기", danger: true, onSelect: () => doReport(chatName) },
