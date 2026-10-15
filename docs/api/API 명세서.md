@@ -1287,7 +1287,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | version | integer(int64) | Y | 최소 0 |
 | confirmedProposal | AppointmentProposal | N | — |
 | pendingProposal | AppointmentProposal | N | — |
-| allowedActions | string[] | Y | — |
+| allowedActions | string[] | Y | PROPOSE(제안·변경), ACCEPT(상대 제안 수락), WITHDRAW(내 대기 제안 철회). PICKUP은 APPROVED, RETURN은 APPROVED/ACTIVE에서 미래 시각 선택 가능한 날짜에 PROPOSE. ACCEPT는 같은 조건에 미래이며 슬롯 날짜와 일치하는 상대 대기 제안이 있을 때. WITHDRAW는 내 PROPOSED 제안이 있을 때. 서버의 실행 시 재검사는 별도 수행 |
 ### AppointmentSlots
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
