@@ -9,7 +9,8 @@ import { DDay } from "@/components/ui/d-day";
 import { Photo } from "@/components/custom/items/ItemCard";
 import { MOCK_ITEMS } from "@/data/items";
 import { fmtDate } from "@/utils/date";
-import type { Rental } from "@/data/rentals";
+import type { Rental } from "@/types/rental";
+import type { RentalAction } from "@/api/rentals";
 import { Steps } from "@/components/custom/rentals/Steps";
 import styles from "@/components/custom/rentals/RentalCard.module.css";
 import badgeStyles from "@/components/custom/rentals/StatusBadge.module.css";
@@ -22,13 +23,17 @@ type RentalCardProps = {
   /** owner = 빌려주는 사람(소유자) 관점, borrower = 빌리는 사람 관점 */
   role: "owner" | "borrower";
   conflict?: ReactNode;
+  busy?: boolean;
+  onAction?: (action: RentalAction, reason?: string) => void;
 };
 
 /** 대여 카드 — 역할·상태별 행동 버튼과 안내 (DESIGN_SYSTEM.md §5-1) */
-export function RentalCard({ rental: r, role, conflict }: RentalCardProps) {
+export function RentalCard({ rental: r, role, conflict, busy, onAction }: RentalCardProps) {
   const { confirm, reason, toast } = useUi();
   const navigate = useNavigate();
-  const item = MOCK_ITEMS.find((i) => i.title === r.title);
+  const item = r.itemId ? { id: r.itemId } : MOCK_ITEMS.find((i) => i.title === r.title);
+  const can = (action: string) => !busy && (!r.allowedActions || r.allowedActions.includes(action));
+  const chat = () => navigate(r.chatRoomId ? `/chat/${encodeURIComponent(r.chatRoomId)}` : "/chat");
   const isOwner = role === "owner";
   const who = (isOwner ? r.borrower : r.owner) ?? "";
 
@@ -39,6 +44,7 @@ export function RentalCard({ rental: r, role, conflict }: RentalCardProps) {
       body: "승인하면 채팅에서 전달 약속을 잡아요.",
       confirm: "승인",
       onConfirm: () => {
+        if (onAction) { onAction("approve"); return; }
         toast("요청을 승인했어요");
         navigate("/chat");
       },
@@ -48,25 +54,43 @@ export function RentalCard({ rental: r, role, conflict }: RentalCardProps) {
       title: "물건을 전달했나요?",
       body: "전달을 확인하면 대여가 시작돼요.",
       confirm: "전달 확인",
-      onConfirm: () => toast("전달을 확인했어요"),
+      onConfirm: () => onAction ? onAction("handover") : toast("전달을 확인했어요"),
     });
   const onReturn = () =>
     confirm({
       title: "물건을 돌려받았나요?",
       body: "반납을 확인하면 대여가 완료되고, 두 사람의 신뢰 지표(거래 완료·반납 약속)에 반영돼요.",
       confirm: "반납 확인",
-      onConfirm: () => toast("반납을 확인했어요 · 신뢰 지표에 반영돼요"),
+      onConfirm: () => onAction ? onAction("return") : toast("반납을 확인했어요 · 신뢰 지표에 반영돼요"),
     });
   const onReject = () =>
     reason({
       title: "대여 요청을 거절할까요?",
       body: "거절 사유를 남기면 이웃에게 함께 전달돼요.",
-      placeholder: "거절 사유 (선택) · 예: 그 주말엔 제가 쓸 예정이에요",
+      placeholder: onAction ? "거절 사유 (필수, 최대 500자)" : "거절 사유 (선택) · 예: 그 주말엔 제가 쓸 예정이에요",
+      required: Boolean(onAction),
       confirm: "거절",
       danger: true,
-      onConfirm: () => toast("요청을 거절했어요"),
+      onConfirm: (value) => {
+        if (onAction && value.trim().length > 500) { toast("사유는 500자까지 입력해 주세요."); return; }
+        if (onAction) onAction("reject", value.trim());
+        else toast("요청을 거절했어요");
+      },
     });
-  const onCancel = () =>
+  const onCancel = () => {
+    if (onAction) {
+      reason({
+        title: "대여 요청을 취소할까요?",
+        body: "취소하면 이웃에게 취소 알림이 가요.",
+        placeholder: "취소 사유 (필수, 최대 500자)",
+        required: true, confirm: "요청 취소", danger: true,
+        onConfirm: (value) => {
+          if (value.trim().length > 500) { toast("사유는 500자까지 입력해 주세요."); return; }
+          onAction("cancel", value.trim());
+        },
+      });
+      return;
+    }
     confirm({
       title: "대여 요청을 취소할까요?",
       body: "취소하면 이웃에게 취소 알림이 가요.",
@@ -74,6 +98,7 @@ export function RentalCard({ rental: r, role, conflict }: RentalCardProps) {
       danger: true,
       onConfirm: () => toast("요청을 취소했어요"),
     });
+  };
 
   let actions: ReactNode = null;
   let note: string | null = null;
@@ -81,33 +106,33 @@ export function RentalCard({ rental: r, role, conflict }: RentalCardProps) {
     if (r.status === "requested") {
       actions = (
         <>
-          <Button variant="secondary" onClick={onReject}>거절</Button>
-          <Button onClick={onApprove}>승인</Button>
+          <Button variant="secondary" disabled={!can("REJECT")} onClick={onReject}>거절</Button>
+          <Button disabled={!can("APPROVE")} onClick={onApprove}>승인</Button>
         </>
       );
     }
     if (r.status === "approved") {
-      actions = <Button icon="check" onClick={onHandOver}>전달 확인</Button>;
+      actions = <Button icon="check" disabled={!can("HANDOVER")} onClick={onHandOver}>전달 확인</Button>;
       note = `${fmtDate(r.start)}에 ${r.place}에서 ${who} 님에게 건네고 눌러 주세요.`;
     }
     if (r.status === "active") {
-      actions = <Button variant="secondary" icon="check" onClick={onReturn}>반납 확인</Button>;
+      actions = <Button variant="secondary" icon="check" disabled={!can("RETURN")} onClick={onReturn}>반납 확인</Button>;
       note = "물건을 돌려받은 뒤에 눌러 주세요. 자동으로 반납 처리되지 않아요.";
     }
     if (r.status === "overdue") {
-      actions = <Button icon="check" onClick={onReturn}>반납 확인</Button>;
+      actions = <Button icon="check" disabled={!can("RETURN")} onClick={onReturn}>반납 확인</Button>;
       note = "반납 전까지 이 물건의 새 승인·전달이 잠시 막혀요.";
     }
   } else {
     if (r.status === "requested") {
-      actions = <Button variant="secondary" onClick={onCancel}>요청 취소</Button>;
+      actions = <Button variant="secondary" disabled={!can("CANCEL")} onClick={onCancel}>요청 취소</Button>;
       note = `${who} 님이 승인하면 알림으로 알려드려요. 승인 시점에 날짜를 다시 확인해요.`;
     }
     if (r.status === "approved") {
       actions = (
         <>
-          <Button variant="ghost" onClick={onCancel}>요청 취소</Button>
-          <Button variant="secondary" icon="pin" onClick={() => navigate("/chat")}>장소 보기</Button>
+          <Button variant="ghost" disabled={!can("CANCEL")} onClick={onCancel}>요청 취소</Button>
+          <Button variant="secondary" icon="pin" onClick={chat}>장소 보기</Button>
         </>
       );
       note = `${fmtDate(r.start)}에 ${r.place}에서 받아요. 전달은 ${who} 님이 확인해요.`;
@@ -131,7 +156,7 @@ export function RentalCard({ rental: r, role, conflict }: RentalCardProps) {
     <article className={c("rental-card")} aria-label={`${r.title}, ${r.status}`}>
       {/* 물건 상세로 이동 — 소유자면 내 물건 상태로 */}
       <Link
-        to={item ? `/items/${item.id}${isOwner ? "?state=own" : ""}` : "/search"}
+        to={item ? `/items/${item.id}${isOwner && !r.itemId ? "?state=own" : ""}` : "/search"}
         className={c("rental-top")}
         aria-label={`${r.title} 상세 보기`}
       >
@@ -152,7 +177,7 @@ export function RentalCard({ rental: r, role, conflict }: RentalCardProps) {
         <Icon name="calendar" size={18} />
         <span className={c("rental-fact-line")}>
           <DateRange start={r.start} end={r.end} icon={false} />
-          {r.dday ? <DDay late={r.status === "overdue"}>{r.dday}</DDay> : null}
+          {r.dday ? <DDay late={r.status === "overdue"}>{isOwner ? r.dday.replace(/^받기/, "전달") : r.dday}</DDay> : null}
         </span>
         <Icon name="pin" size={18} />
         <span className={c("rental-fact-strong")}>{r.place}</span>

@@ -11,5 +11,6 @@ export const STATUS_UI: Record<RentalStatusView, { label: string; icon: string }
   returned: { label: "반납 완료", icon: "returned" },
   overdue: { label: "연체", icon: "alert" },
   rejected: { label: "거절", icon: "x" },
+  expired: { label: "요청 만료", icon: "dash" },
   canceled: { label: "취소", icon: "dash" },
 };
