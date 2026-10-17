@@ -6,6 +6,10 @@ import com.billim.domain.community.service.CommunityMembershipQuery;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.item.repository.ItemRepository;
+import com.billim.domain.rental.dto.RentalSummaryResponse;
+import com.billim.domain.rental.entity.Rental;
+import com.billim.domain.rental.entity.RentalStatus;
+import com.billim.domain.rental.service.RentalQueryService;
 import com.billim.domain.safety.service.BlockQuery;
 import com.billim.domain.safety.service.SanctionService;
 import org.junit.jupiter.api.DisplayName;
@@ -31,13 +35,14 @@ class ChatRoomViewServiceTest {
     private final ChatRoomBaseService baseService = mock(ChatRoomBaseService.class);
     private final ChatRoomListBaseService listBaseService = mock(ChatRoomListBaseService.class);
     private final ChatRoomLinkedRentalService linkedRentalService = mock(ChatRoomLinkedRentalService.class);
+    private final RentalQueryService rentalQueryService = mock(RentalQueryService.class);
     private final ChatRoomRepository roomRepository = mock(ChatRoomRepository.class);
     private final ItemRepository itemRepository = mock(ItemRepository.class);
     private final CommunityMembershipQuery membershipQuery = mock(CommunityMembershipQuery.class);
     private final BlockQuery blockQuery = mock(BlockQuery.class);
     private final SanctionService sanctionService = mock(SanctionService.class);
     private final ChatRoomViewService viewService = new ChatRoomViewService(
-        openService, baseService, listBaseService, linkedRentalService,
+        openService, baseService, listBaseService, linkedRentalService, rentalQueryService,
         new ChatRoomAccessPolicy(linkedRentalService),
         roomRepository, itemRepository, membershipQuery, blockQuery, sanctionService
     );
@@ -124,6 +129,29 @@ class ChatRoomViewServiceTest {
 
         assertThat(response.access().canSend()).isFalse();
         assertThat(response.access().reason()).isEqualTo("RESTRICTED");
+    }
+
+    @Test
+    @DisplayName("연결 거래는 대여 서비스의 참여자 검증을 거친 요약으로 반환한다")
+    void linkedRentalsUseRentalSummaryQuery() {
+        givenRoom();
+        Rental rental = mock(Rental.class);
+        when(rental.getId()).thenReturn(501L);
+        when(linkedRentalService.get(ROOM_ID, MEMBER_ID)).thenReturn(List.of(rental));
+        when(membershipQuery.findActiveCommunityId(MEMBER_ID))
+            .thenReturn(Optional.of(COMMUNITY_ID));
+        RentalSummaryResponse summary = new RentalSummaryResponse(
+            "501", String.valueOf(ITEM_ID), "전동드릴", null, null,
+            LocalDate.of(2026, 10, 20), LocalDate.of(2026, 10, 21),
+            RentalStatus.REQUESTED, false, 1, "정문", 0L,
+            List.of("CANCEL"), Instant.parse("2026-10-14T00:00:00Z")
+        );
+        when(rentalQueryService.getRentalSummary(501L, MEMBER_ID))
+            .thenReturn(summary);
+
+        var response = viewService.get(ROOM_ID, MEMBER_ID);
+
+        assertThat(response.rentals()).containsExactly(summary);
     }
 
     private void givenRoom() {

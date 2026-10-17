@@ -167,4 +167,51 @@ class ChatRoomOpenServiceDbTest {
                 assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.BLOCKED_RELATION));
         assertThat(roomRepository.count()).isZero();
     }
+
+    @Test
+    @DisplayName("방을 나중에 열면 같은 물건과 당사자의 기존 거래만 연결한다")
+    void openingRoomLinksOnlyMatchingExistingRentals() {
+        em.createNativeQuery("""
+            insert into members (id, display_name, created_at, updated_at)
+            values (1, '소유자', now(6), now(6)),
+                   (2, '요청자', now(6), now(6)),
+                   (3, '다른 요청자', now(6), now(6))
+            """).executeUpdate();
+        insertRental(9101L, REQUESTER_ID);
+        insertRental(9102L, 3L);
+        when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(true);
+
+        Long roomId = openService.open(itemId, REQUESTER_ID).getId();
+        openService.open(itemId, REQUESTER_ID);
+
+        Number linkedRoomId = (Number) em.createNativeQuery(
+            "select chat_room_id from rentals where id = 9101"
+        ).getSingleResult();
+        assertThat(linkedRoomId.longValue()).isEqualTo(roomId);
+        assertThat(em.createNativeQuery(
+            "select chat_room_id from rentals where id = 9102"
+        ).getSingleResult()).isNull();
+        assertThat(roomRepository.count()).isEqualTo(1);
+    }
+
+    private void insertRental(Long rentalId, Long borrowerId) {
+        em.createNativeQuery("""
+            insert into rentals (
+                id, item_id, owner_id, borrower_id, community_id,
+                start_date, end_date, status, request_expires_at, due_at,
+                item_title_snapshot, place_name_snapshot, place_id,
+                created_at, updated_at
+            ) values (
+                :rentalId, :itemId, :ownerId, :borrowerId, 100,
+                '2026-10-20', '2026-10-21', 'REQUESTED',
+                '2026-10-19 15:00:00', '2026-10-21 15:00:00',
+                '전동드릴', '정문', 10, now(6), now(6)
+            )
+            """)
+            .setParameter("rentalId", rentalId)
+            .setParameter("itemId", itemId)
+            .setParameter("ownerId", OWNER_ID)
+            .setParameter("borrowerId", borrowerId)
+            .executeUpdate();
+    }
 }
