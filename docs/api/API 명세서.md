@@ -1,6 +1,6 @@
 # API 명세서
 
-> 버전 : v0.1.6\
+> 버전 : v0.1.7\
 > 수정일 : 2026.10.17
 
 ## 0. 공통 규약
@@ -1382,6 +1382,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | --- | --- | --- | --- |
 | id | string | Y | ID 문자열 |
 | itemId | string | Y | ID 문자열 |
+| communityId | string | Y | 방의 물건이 등록된 동네 ID. 비공개 물건·동네 변경 후에도 기존 거래 약속 장소 조회에 사용 |
 | itemTitle | string | Y | 최대 길이 100 |
 | otherMember | MemberSummary | Y | — |
 | unreadCount | integer(int32) | Y | 최소 0 |
