@@ -127,3 +127,15 @@
   padding: var(--space-4);
   margin: 0;
 }
+
+/* 목록 불러오기 실패 시 다시 시도 */
+.profile-retry {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
