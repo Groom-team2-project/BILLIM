@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getChatMessages, getChatRoom, sendChatMessage, updateChatReadPosition } from "@/api/chat";
+import { acceptAppointment, getAppointments, proposeAppointment, withdrawAppointment } from "@/api/appointments";
+import { getCommunityPlaces, type ApiCommunityPlace } from "@/api/communities";
 import { newIdempotencyKey } from "@/api/client";
 import { reportMessage, type ReportReasonCode } from "@/api/reports";
 import { useUi } from "@/components/overlay/UiContext";
@@ -10,8 +12,13 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/state";
 import { Bubble, DateDivider, SystemMessage } from "@/components/custom/chat/Bubble";
 import { Composer } from "@/components/custom/chat/Composer";
 import { ContextBar } from "@/components/custom/chat/ContextBar";
+import { AppointmentCard } from "@/components/custom/chat/AppointmentCard";
+import { AppointmentSheet } from "@/components/custom/chat/AppointmentSheet";
 import { refreshChatUnreadCount } from "@/stores/chat-unread";
 import type { ApiChatMessage, ApiChatMessagePage, ApiChatRoom } from "@/types/chat-api";
+import type { ApiAppointmentSlot, AppointmentKind } from "@/types/appointment-api";
+import { ApiError } from "@/api/client";
+import { appointmentView } from "@/utils/appointment-view";
 import { chatBlockedMessage, chatTimeLabel, isMoneyRequest } from "@/utils/chat-view";
 import { mergeChatMessages } from "@/utils/chat-state";
 import { chatSocketUrl, parseChatSocketMessage } from "@/utils/chat-realtime";
@@ -42,6 +49,13 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
   const [retry, setRetry] = useState(0);
   const [foregroundEpoch, setForegroundEpoch] = useState(0);
   const [selectedRentalId, setSelectedRentalId] = useState<string>();
+  const [slots, setSlots] = useState<ApiAppointmentSlot[]>([]);
+  const [appointmentLoading, setAppointmentLoading] = useState(false);
+  const [appointmentError, setAppointmentError] = useState(false);
+  const [appointmentRevision, setAppointmentRevision] = useState(0);
+  const [appointmentBusy, setAppointmentBusy] = useState(false);
+  const [places, setPlaces] = useState<ApiCommunityPlace[]>([]);
+  const [sheetKind, setSheetKind] = useState<"give" | "back">();
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(() => new Set());
   const lastReadRef = useRef(0);
   const highestSequence = messages.at(-1)?.sequence ?? 0;
@@ -63,6 +77,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
       if (!active) return;
       setRoom(detail);
       setSelectedRentalId(detail.access.allowedRentalIds[0] ?? detail.rentals[0]?.id);
+      setAppointmentLoading(true);
       receiveMessages(page.items);
       lastFetchedSequenceRef.current = Math.max(0, ...page.items.map((item) => item.sequence));
       setOtherLastRead(page.otherLastReadSequence);
@@ -75,6 +90,26 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     });
     return () => { active = false; };
   }, [roomId, retry, receiveMessages]);
+
+  useEffect(() => {
+    if (!selectedRentalId) return;
+    let active = true;
+    getAppointments(selectedRentalId).then((items) => {
+      if (active) { setSlots(items); setAppointmentError(false); }
+    }).catch(() => {
+      if (active) setAppointmentError(true);
+    }).finally(() => {
+      if (active) setAppointmentLoading(false);
+    });
+    return () => { active = false; };
+  }, [selectedRentalId, appointmentRevision]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (!document.hidden && selectedRentalId) setAppointmentRevision((value) => value + 1);
+    }, 30000);
+    return () => window.clearInterval(timer);
+  }, [selectedRentalId]);
 
   useEffect(() => {
     if (loading || error) return;
@@ -92,6 +127,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
           page = await getChatMessages(roomId, { afterSequence: cursor });
           if (!active) return;
           receiveMessages(page.items);
+          if (page.items.some((item) => item.type === "SYSTEM")) setAppointmentRevision((value) => value + 1);
           setOtherLastRead(page.otherLastReadSequence);
           const nextCursor = page.nextAfterSequence ?? page.items.at(-1)?.sequence ?? cursor;
           if (nextCursor <= cursor) break;
@@ -114,6 +150,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
           const message = parseChatSocketMessage(event.data, roomId);
           if (message && active) {
             receiveMessages([message]);
+            if (message.type === "SYSTEM") setAppointmentRevision((value) => value + 1);
           }
         };
         current.onerror = () => current.close();
@@ -192,6 +229,70 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     void send(entry);
   };
 
+  const openAppointmentSheet = async (kind: "give" | "back") => {
+    const slot = slots.find((entry) => entry.rentalId === selectedRentalId && entry.kind === (kind === "give" ? "PICKUP" : "RETURN"));
+    if (!room || !slot?.allowedActions.includes("PROPOSE")) return;
+    setAppointmentBusy(true);
+    try {
+      const options = await getCommunityPlaces(room.communityId);
+      if (options.length === 0) {
+        toast("선택할 수 있는 공용 장소가 없어요.");
+        return;
+      }
+      setPlaces(options);
+      setSheetKind(kind);
+    } catch {
+      toast("거래 장소를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setAppointmentBusy(false);
+    }
+  };
+
+  const appointmentFailed = (error: unknown) => {
+    if (error instanceof ApiError && error.status === 409) {
+      setAppointmentRevision((value) => value + 1);
+      toast("약속이 변경됐어요. 다시 확인해 주세요.");
+    } else {
+      toast(error instanceof ApiError ? error.message : "약속을 처리하지 못했어요. 다시 시도해 주세요.");
+    }
+  };
+
+  const updateAppointment = async (slot: ApiAppointmentSlot, action: "ACCEPT" | "WITHDRAW") => {
+    const proposal = slot.pendingProposal;
+    if (!proposal || !slot.allowedActions.includes(action) || appointmentBusy) return;
+    setAppointmentBusy(true);
+    try {
+      const updated = action === "ACCEPT"
+        ? await acceptAppointment(proposal.id, slot.version)
+        : await withdrawAppointment(proposal.id, slot.version);
+      setSlots((previous) => previous.map((entry) => entry.id === updated.id ? updated : entry));
+      setAppointmentRevision((value) => value + 1);
+      toast(action === "ACCEPT" ? "약속을 수락했어요." : "제안을 철회했어요.");
+    } catch (error) {
+      appointmentFailed(error);
+    } finally {
+      setAppointmentBusy(false);
+    }
+  };
+
+  const submitAppointment = async (kind: "give" | "back", scheduledAt: string, placeId: string) => {
+    const slotKind: AppointmentKind = kind === "give" ? "PICKUP" : "RETURN";
+    const slot = slots.find((entry) => entry.rentalId === selectedRentalId && entry.kind === slotKind);
+    if (!selectedRentalId || !slot?.allowedActions.includes("PROPOSE")) return false;
+    try {
+      const updated = await proposeAppointment(selectedRentalId, slotKind, {
+        expectedVersion: slot.version, scheduledAt, placeId,
+      });
+      setSlots((previous) => previous.map((entry) => entry.id === updated.id ? updated : entry));
+      setAppointmentRevision((value) => value + 1);
+      toast("약속을 보냈어요.");
+      return true;
+    } catch (error) {
+      appointmentFailed(error);
+      return false;
+    }
+  };
+
   const openReport = (messageId: string, name: string) => report({
     name,
     onConfirm: (reason) => {
@@ -212,6 +313,9 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
 
   const other = room.otherMember.displayName;
   const allowedRentals = room.rentals.filter((rental) => room.access.allowedRentalIds.includes(rental.id));
+  const selectedRental = room.rentals.find((entry) => entry.id === selectedRentalId);
+  const visibleSlots = slots.filter((slot) => slot.rentalId === selectedRentalId);
+  const proposalKinds = visibleSlots.filter((slot) => slot.allowedActions.includes("PROPOSE"));
 
   return (
     <section className={c("chat-room")} aria-label={`${other} 님과의 채팅`}>
@@ -219,9 +323,14 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
         <Avatar name={other} size={36} />
         <div className={c("chat-room-head-body")}><div className={c("t-label")}>{other}</div></div>
       </div>
-      <ContextBar room={room} selectedRentalId={selectedRentalId} />
+      <ContextBar room={room} selectedRentalId={selectedRentalId} action={proposalKinds.length > 0 ?
+        <Button size="sm" variant="secondary" icon="clock" disabled={appointmentBusy}
+          onClick={() => void openAppointmentSheet(proposalKinds[0].kind === "PICKUP" ? "give" : "back")}>약속 잡기</Button> : null} />
       {allowedRentals.length > 1 ? <label className={c("chat-rental-picker")}>
-        대여 건 <select value={selectedRentalId} onChange={(event) => setSelectedRentalId(event.target.value)}>
+        대여 건 <select value={selectedRentalId} onChange={(event) => {
+          setAppointmentLoading(true);
+          setSelectedRentalId(event.target.value);
+        }}>
           {allowedRentals.map((rental) => <option key={rental.id} value={rental.id}>
             {rental.startDate} – {rental.endDate}
           </option>)}
@@ -231,7 +340,8 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
         {older ? <Button size="sm" variant="secondary" disabled={loadingOlder} onClick={() => void loadOlder()}>
           {loadingOlder ? "불러오는 중" : "이전 대화 보기"}
         </Button> : null}
-        {messages.length === 0 && pending.length === 0 ? <EmptyState icon="chat" title="대화를 시작해 보세요" /> : null}
+        {messages.length === 0 && pending.length === 0 && visibleSlots.every((slot) => !slot.pendingProposal && !slot.confirmedProposal) ?
+          <EmptyState icon="chat" title="대화를 시작해 보세요" /> : null}
         {messages.map((message, index) => {
           const date = new Date(message.createdAt).toDateString();
           const divider = index === 0 || date !== new Date(messages[index - 1].createdAt).toDateString();
@@ -250,6 +360,23 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
             </>}
           </div>;
         })}
+        {appointmentLoading && visibleSlots.length === 0 ? <Skeleton w="70%" h={120} r={16} /> : null}
+        {appointmentError ? <ErrorState title="약속을 불러오지 못했어요" onRetry={() => setAppointmentRevision((value) => value + 1)} /> : null}
+        {!appointmentError ? visibleSlots.flatMap((slot) => {
+          const cards = [];
+          if (slot.confirmedProposal) cards.push(<AppointmentCard key={`${slot.id}-confirmed`}
+            appt={appointmentView(slot.confirmedProposal)} status="confirmed" other={other}
+            onRequestChange={slot.allowedActions.includes("PROPOSE") && !appointmentBusy
+              ? () => void openAppointmentSheet(slot.kind === "PICKUP" ? "give" : "back") : undefined} />);
+          if (slot.pendingProposal) cards.push(<AppointmentCard key={`${slot.id}-pending`}
+            appt={appointmentView(slot.pendingProposal)} status={slot.confirmedProposal ? "change" : "proposed"}
+            mine={slot.pendingProposal.proposerId !== room.otherMember.id} other={other}
+            onAccept={slot.allowedActions.includes("ACCEPT") && !appointmentBusy ? () => void updateAppointment(slot, "ACCEPT") : undefined}
+            onWithdraw={slot.allowedActions.includes("WITHDRAW") && !appointmentBusy ? () => void updateAppointment(slot, "WITHDRAW") : undefined}
+            onChangeTime={slot.allowedActions.includes("PROPOSE") && !appointmentBusy
+              ? () => void openAppointmentSheet(slot.kind === "PICKUP" ? "give" : "back") : undefined} />);
+          return cards;
+        }) : null}
         {pending.map((entry) => <div key={entry.clientMessageId}>
           <Bubble me failed={entry.failed} time={entry.failed ? undefined : "보내는 중"}>{entry.body}</Bubble>
           {entry.failed ? <div className={c("chat-retry")}>
@@ -259,6 +386,13 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
         </div>)}
       </div>
       <Composer blocked={!room.access.canSend} blockedMessage={chatBlockedMessage(room.access.reason)} onSend={createMessage} />
+      {sheetKind && selectedRental ? <AppointmentSheet key={`${selectedRental.id}-${sheetKind}`}
+        initialKind={sheetKind} onClose={() => setSheetKind(undefined)} live={{
+          dates: { give: selectedRental.startDate, back: selectedRental.endDate },
+          places,
+          kinds: proposalKinds.map((slot) => slot.kind === "PICKUP" ? "give" : "back"),
+          onSubmit: submitAppointment,
+        }} /> : null}
     </section>
   );
 }
