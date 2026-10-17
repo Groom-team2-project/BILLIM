@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useUi } from "@/components/overlay/UiContext";
-import { getRentalChatRoom } from "@/api/rental-detail";
+import { getRental } from "@/api/rentals";
 import { ApiError } from "@/api/client";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ export function NotificationsPage() {
       } catch {
         toast("알림을 읽음 처리하지 못했어요. 다시 시도해 주세요.");
       }
-      const path = await notificationDestination(notification, getRentalChatRoom);
+      const path = await notificationDestination(notification, getRental);
       if (!path) {
         toast("연결된 채팅방을 찾지 못했어요. 채팅 목록에서 확인해 주세요.");
         return;
