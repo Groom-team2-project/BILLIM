@@ -192,6 +192,38 @@ class BlockNoticeFlowDbTest {
         assertThat(blockService.findBlockedAmong(me, Set.of())).isEmpty();
     }
 
+    @Test
+    @DisplayName("내가 차단한 경우만 단방향 판정이 참이다")
+    void hasBlockedIsOneDirectional() {
+        blockService.block(me, neighbor);
+
+        assertThat(blockService.hasBlocked(me, neighbor)).isTrue();
+        // 상대 입장에서는 자기가 차단한 게 아니다. 프로필 버튼이 '차단 해제'로 보이면 안 된다
+        assertThat(blockService.hasBlocked(neighbor, me)).isFalse();
+        // 접근 제한은 양방향이라 둘 다 참이다
+        assertThat(blockService.isBlockedBetween(neighbor, me)).isTrue();
+    }
+
+    @Test
+    @DisplayName("해제하면 내 단방향 판정만 거짓이 되고 상대 차단은 남는다")
+    void hasBlockedFollowsOnlyMyDirection() {
+        blockService.block(me, neighbor);
+        blockService.block(neighbor, me);
+
+        blockService.unblock(me, neighbor);
+
+        assertThat(blockService.hasBlocked(me, neighbor)).isFalse();
+        assertThat(blockService.hasBlocked(neighbor, me)).isTrue();
+        assertThat(blockService.isBlockedBetween(me, neighbor)).isTrue();
+    }
+
+    @Test
+    @DisplayName("차단 관계가 없거나 자기 자신이면 단방향 판정은 거짓이다")
+    void hasBlockedIsFalseWithoutRelation() {
+        assertThat(blockService.hasBlocked(me, neighbor)).isFalse();
+        assertThat(blockService.hasBlocked(me, me)).isFalse();
+    }
+
     // ---------- 공지 ----------
 
     @Test
