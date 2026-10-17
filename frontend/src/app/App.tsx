@@ -47,7 +47,7 @@ const router = createBrowserRouter([
       { path: "search", element: <SearchPage /> },
       { path: "items/:itemId", element: <ItemDetailPage /> },
       { path: "items/:itemId/request", element: <RequestPage /> },
-      { path: "neighbors/:name", element: <NeighborPage /> },
+      { path: "neighbors/:memberId", element: <NeighborPage /> },
       { path: "blocked", element: <BlockedPage /> },
       { path: "neighborhoods", element: <NeighborhoodsPage /> },
       { path: "policy/:key", element: <PolicyPage /> },

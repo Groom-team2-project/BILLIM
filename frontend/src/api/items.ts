@@ -80,6 +80,9 @@ export function uploadMedia(file: File, idempotencyKey?: string) {
 export const deleteMedia = (mediaId: string) => api<void>(`/media/${mediaId}`, { method: "DELETE" });
 
 export const searchItems = (params: ItemSearchParams) => api<ApiItemPage>("/items", { query: { ...params } });
+/** B_025 이웃 프로필의 공개 물건 목록 */
+export const getNeighborItems = (memberId: string, page = 0, size = 20) =>
+  api<ApiItemPage>(`/members/${encodeURIComponent(memberId)}/items`, { query: { page, size } });
 export const getItem = (itemId: string) => api<ApiItemDetail>(`/items/${itemId}`);
 export const createItem = (body: CreateItemBody, idempotencyKey?: string) =>
   api<ApiItemDetail>("/items", { method: "POST", json: body, idempotencyKey });

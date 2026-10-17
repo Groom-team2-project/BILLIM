@@ -4,6 +4,7 @@ import { Icon } from "@/components/ui/icon";
 import type { Trust } from "@/data/items";
 import styles from "@/components/custom/profile/OwnerCard.module.css";
 import { classes } from "@/utils/classes";
+import { ownerProfilePath } from "@/utils/profileRoute";
 
 const c = classes(styles);
 
@@ -43,12 +44,14 @@ export function TrustLines({ trust }: { trust: Trust }) {
 }
 
 type OwnerCardProps = {
+  ownerId: string;
   owner: string;
+  own: boolean;
   trust: Trust;
   community?: string;
 };
 
-export function OwnerCard({ owner, trust, community = "새솔마을 5단지" }: OwnerCardProps) {
+export function OwnerCard({ ownerId, owner, own, trust, community = "새솔마을 5단지" }: OwnerCardProps) {
   return (
     <div className={c("owner-card")}>
       <div className={c("owner-card-head")}>
@@ -57,7 +60,13 @@ export function OwnerCard({ owner, trust, community = "새솔마을 5단지" }: 
           <div className={c("t-body-lg owner-card-owner")}>{owner}</div>
           <div className={c("t-caption owner-card-muted")}>{community}</div>
         </div>
-        <Link to={`/neighbors/${owner}`} className={c("t-label owner-card-link")}>프로필</Link>
+        <Link
+          to={ownerProfilePath(ownerId, own)}
+          state={own ? undefined : { neighborName: owner }}
+          className={c("t-label owner-card-link")}
+        >
+          프로필
+        </Link>
       </div>
       <TrustLines trust={trust} />
       <p className={c("t-caption owner-card-muted owner-card-note")}>
