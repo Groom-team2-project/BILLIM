@@ -6,8 +6,12 @@ import com.billim.domain.chat.entity.ChatParticipant;
 import com.billim.domain.chat.entity.ChatRoom;
 import com.billim.domain.chat.repository.ChatMessageRepository;
 import com.billim.domain.chat.repository.ChatRoomRepository;
+import com.billim.domain.community.service.CommunityMembershipQuery;
 import com.billim.domain.item.entity.Item;
+import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.item.repository.CategoryRepository;
+import com.billim.domain.safety.service.BlockQuery;
+import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import jakarta.persistence.EntityManager;
@@ -20,21 +24,25 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
 
 @DataJpaTest
 @Import({
     ChatMessageSendServiceDbTest.MySql.class,
     ChatMessageSendService.class,
-    ChatSendAccessPolicy.class
+    ChatSendAccessPolicy.class,
+    ChatRoomLinkedRentalService.class
 })
 class ChatMessageSendServiceDbTest {
 
@@ -56,6 +64,9 @@ class ChatMessageSendServiceDbTest {
     @Autowired ChatMessageRepository messageRepository;
     @Autowired ChatRoomRepository roomRepository;
     @Autowired ChatMessageSendService sendService;
+    @MockitoBean CommunityMembershipQuery membershipQuery;
+    @MockitoBean BlockQuery blockQuery;
+    @MockitoBean SanctionService sanctionService;
 
     private Long roomId;
 
@@ -63,10 +74,11 @@ class ChatMessageSendServiceDbTest {
     void setUp() {
         em.createNativeQuery("""
                 insert into members (
-                    id, display_name, role, status, version, created_at, updated_at
+                    id, display_name, role, status, active_community_id,
+                    version, created_at, updated_at
                 ) values
-                    (1, '소유자', 'USER', 'ACTIVE', 0, NOW(6), NOW(6)),
-                    (2, '요청자', 'USER', 'ACTIVE', 0, NOW(6), NOW(6))
+                    (1, '소유자', 'USER', 'ACTIVE', 100, 0, NOW(6), NOW(6)),
+                    (2, '요청자', 'USER', 'ACTIVE', 100, 0, NOW(6), NOW(6))
                 """).executeUpdate();
 
         Long categoryId = categoryRepository
@@ -91,6 +103,8 @@ class ChatMessageSendServiceDbTest {
         em.persist(ChatParticipant.join(roomId, OWNER_ID, NOW));
         em.persist(ChatParticipant.join(roomId, REQUESTER_ID, NOW));
         em.flush();
+        when(membershipQuery.findActiveCommunityId(REQUESTER_ID))
+            .thenReturn(Optional.of(100L));
     }
 
     @Test
@@ -139,6 +153,25 @@ class ChatMessageSendServiceDbTest {
     }
 
     @Test
+    @DisplayName("메시지 저장 뒤 물건이 비공개로 바뀌어도 같은 메시지 재시도는 기존 결과를 반환한다")
+    void retryAfterItemHiddenReturnsExistingMessage() {
+        UUID clientMessageId = UUID.randomUUID();
+        SendMessageRequest request = new SendMessageRequest(clientMessageId, "이미 보낸 메시지", null);
+        ChatMessage first = sendService.send(roomId, REQUESTER_ID, request);
+
+        Long itemId = roomRepository.findById(roomId).orElseThrow().getItemId();
+        Item item = em.find(Item.class, itemId);
+        item.changeVisibility(ItemVisibility.HIDDEN, NOW);
+        em.flush();
+
+        ChatMessage retried = sendService.send(roomId, REQUESTER_ID, request);
+
+        assertThat(retried.getId()).isEqualTo(first.getId());
+        assertThat(retried.getSequence()).isEqualTo(first.getSequence());
+        assertThat(messageRepository.count()).isEqualTo(1L);
+    }
+
+    @Test
     @DisplayName("같은 메시지 키를 다른 내용으로 재사용하면 거부한다")
     void rejectsReusedKeyWithDifferentContent() {
         UUID clientMessageId = UUID.randomUUID();
@@ -175,6 +208,41 @@ class ChatMessageSendServiceDbTest {
         )).isInstanceOfSatisfying(BusinessException.class, exception ->
             assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND)
         );
+    }
+
+    @Test
+    @DisplayName("활성 동네가 달라진 참여자의 메시지는 저장하지 않는다")
+    void rejectsMessageAfterCommunityChange() {
+        when(membershipQuery.findActiveCommunityId(REQUESTER_ID))
+            .thenReturn(Optional.of(999L));
+
+        assertThatThrownBy(() -> sendService.send(
+            roomId,
+            REQUESTER_ID,
+            new SendMessageRequest(UUID.randomUUID(), "다른 동네에서 보낸 메시지", null)
+        )).isInstanceOfSatisfying(BusinessException.class, exception ->
+            assertThat(exception.getErrorCode())
+                .isEqualTo(ErrorCode.COMMUNITY_VERIFICATION_REQUIRED)
+        );
+        assertThat(messageRepository.count()).isZero();
+    }
+
+    @Test
+    @DisplayName("비공개 물건의 채팅방에서는 메시지를 저장하지 않는다")
+    void rejectsMessageForHiddenItem() {
+        Long itemId = roomRepository.findById(roomId).orElseThrow().getItemId();
+        Item item = em.find(Item.class, itemId);
+        item.changeVisibility(ItemVisibility.HIDDEN, NOW);
+        em.flush();
+
+        assertThatThrownBy(() -> sendService.send(
+            roomId,
+            REQUESTER_ID,
+            new SendMessageRequest(UUID.randomUUID(), "비공개 물건 메시지", null)
+        )).isInstanceOfSatisfying(BusinessException.class, exception ->
+            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.FORBIDDEN)
+        );
+        assertThat(messageRepository.count()).isZero();
     }
 
     @Test

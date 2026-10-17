@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getChatMessages, getChatRoom, sendChatMessage, updateChatReadPosition } from "@/api/chat";
 import { acceptAppointment, getAppointments, proposeAppointment, withdrawAppointment } from "@/api/appointments";
 import { getCommunityPlaces, type ApiCommunityPlace } from "@/api/communities";
@@ -47,6 +47,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [foregroundEpoch, setForegroundEpoch] = useState(0);
   const [selectedRentalId, setSelectedRentalId] = useState<string>();
   const [slots, setSlots] = useState<ApiAppointmentSlot[]>([]);
   const [appointmentLoading, setAppointmentLoading] = useState(false);
@@ -60,6 +61,16 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
   const highestSequence = messages.at(-1)?.sequence ?? 0;
   const lastFetchedSequenceRef = useRef(0);
 
+  const receiveMessages = useCallback((incoming: ApiChatMessage[]) => {
+    setMessages((previous) => mergeChatMessages(previous, incoming));
+    const confirmedIds = new Set(incoming
+      .map((message) => message.clientMessageId)
+      .filter((id): id is string => typeof id === "string"));
+    if (confirmedIds.size > 0) {
+      setPending((previous) => previous.filter((entry) => !confirmedIds.has(entry.clientMessageId)));
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
     Promise.all([getChatRoom(roomId), getChatMessages(roomId)]).then(([detail, page]) => {
@@ -67,7 +78,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
       setRoom(detail);
       setSelectedRentalId(detail.access.allowedRentalIds[0] ?? detail.rentals[0]?.id);
       setAppointmentLoading(true);
-      setMessages(mergeChatMessages([], page.items));
+      receiveMessages(page.items);
       lastFetchedSequenceRef.current = Math.max(0, ...page.items.map((item) => item.sequence));
       setOtherLastRead(page.otherLastReadSequence);
       setOlder(page.hasMore);
@@ -78,7 +89,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [roomId, retry]);
+  }, [roomId, retry, receiveMessages]);
 
   useEffect(() => {
     if (!selectedRentalId) return;
@@ -115,7 +126,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
         do {
           page = await getChatMessages(roomId, { afterSequence: cursor });
           if (!active) return;
-          setMessages((previous) => mergeChatMessages(previous, page.items));
+          receiveMessages(page.items);
           if (page.items.some((item) => item.type === "SYSTEM")) setAppointmentRevision((value) => value + 1);
           setOtherLastRead(page.otherLastReadSequence);
           const nextCursor = page.nextAfterSequence ?? page.items.at(-1)?.sequence ?? cursor;
@@ -138,7 +149,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
         current.onmessage = (event) => {
           const message = parseChatSocketMessage(event.data, roomId);
           if (message && active) {
-            setMessages((previous) => mergeChatMessages(previous, [message]));
+            receiveMessages([message]);
             if (message.type === "SYSTEM") setAppointmentRevision((value) => value + 1);
           }
         };
@@ -152,7 +163,11 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     };
     connect();
     const timer = window.setInterval(() => { void poll(); }, 3000);
-    const onFocus = () => { void poll(); };
+    const onFocus = () => {
+      if (document.hidden) return;
+      setForegroundEpoch((previous) => previous + 1);
+      void poll();
+    };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
     return () => {
@@ -163,7 +178,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onFocus);
     };
-  }, [roomId, loading, error]);
+  }, [roomId, loading, error, receiveMessages]);
 
   useEffect(() => {
     if (!room || highestSequence <= lastReadRef.current || document.hidden) return;
@@ -175,7 +190,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     }).catch(() => {
       lastReadRef.current = Math.min(lastReadRef.current, sequence - 1);
     });
-  }, [room, roomId, highestSequence, onRead]);
+  }, [room, roomId, highestSequence, onRead, foregroundEpoch]);
 
   const loadOlder = async () => {
     const first = messages[0]?.sequence;
@@ -183,7 +198,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     setLoadingOlder(true);
     try {
       const page = await getChatMessages(roomId, { beforeSequence: first });
-      setMessages((previous) => mergeChatMessages(previous, page.items));
+      receiveMessages(page.items);
       setOtherLastRead(page.otherLastReadSequence);
       setOlder(page.hasMore);
     } catch {
@@ -201,7 +216,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
         body: entry.body,
         rentalId: entry.rentalId,
       });
-      setMessages((previous) => mergeChatMessages(previous, [saved]));
+      receiveMessages([saved]);
       setPending((previous) => previous.filter((item) => item.clientMessageId !== entry.clientMessageId));
     } catch {
       setPending((previous) => previous.map((item) => item.clientMessageId === entry.clientMessageId ? { ...item, failed: true } : item));

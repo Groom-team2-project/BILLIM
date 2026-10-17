@@ -46,6 +46,9 @@ spring:
             user-name-attribute: id
 
 billim:
+  chat:
+    rooms:
+      enabled: true
   notification:
     outbox:
       # 사건 소비 주기 실행 on/off. 테스트·부하 측정에서 끈다

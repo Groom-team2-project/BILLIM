@@ -4,8 +4,15 @@ import com.billim.domain.chat.dto.ChatAccessResponse;
 import com.billim.domain.chat.dto.ChatRoomPageResponse;
 import com.billim.domain.chat.dto.ChatRoomResponse;
 import com.billim.domain.chat.entity.ChatRoom;
+import com.billim.domain.chat.repository.ChatRoomRepository;
+import com.billim.domain.community.service.CommunityMembershipQuery;
+import com.billim.domain.item.entity.Item;
+import com.billim.domain.item.entity.ItemVisibility;
+import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.rental.dto.RentalSummaryResponse;
-import com.billim.domain.rental.entity.Rental;
+import com.billim.domain.rental.service.RentalQueryService;
+import com.billim.domain.safety.service.BlockQuery;
+import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +29,13 @@ public class ChatRoomViewService {
     private final ChatRoomBaseService baseService;
     private final ChatRoomListBaseService listBaseService;
     private final ChatRoomLinkedRentalService linkedRentalService;
+    private final RentalQueryService rentalQueryService;
     private final ChatRoomAccessPolicy accessPolicy;
+    private final ChatRoomRepository roomRepository;
+    private final ItemRepository itemRepository;
+    private final CommunityMembershipQuery membershipQuery;
+    private final BlockQuery blockQuery;
+    private final SanctionService sanctionService;
 
     @Transactional
     public ChatRoomResponse open(Long itemId, Long memberId) {
@@ -55,7 +68,7 @@ public class ChatRoomViewService {
 
         List<RentalSummaryResponse> rentals =
             linkedRentalService.get(roomId, memberId).stream()
-                .map(this::toRentalSummary)
+                .map(rental -> rentalQueryService.getRentalSummary(rental.getId(), memberId))
                 .toList();
 
         ChatRoomAccessPolicy.Restriction restriction =
@@ -66,22 +79,36 @@ public class ChatRoomViewService {
         return ChatRoomResponse.from(base, rentals, access);
     }
 
-    private RentalSummaryResponse toRentalSummary(Rental rental) {
-        // TODO(대여): 대여 도메인의 RentalSummary 변환 기능 연결.
-        throw new BusinessException(
-            ErrorCode.DEPENDENCY_UNAVAILABLE,
-            "대여 요약 연동 전이라 처리할 수 없습니다."
-        );
-    }
-
     private ChatRoomAccessPolicy.Restriction resolveRestriction(
         Long roomId,
         Long memberId
     ) {
-        // TODO(동네·차단): 동네 변경, 차단, 물건 상태 및 제재 판정 연결.
-        throw new BusinessException(
-            ErrorCode.DEPENDENCY_UNAVAILABLE,
-            "채팅 권한 연동 전이라 처리할 수 없습니다."
-        );
+        ChatRoom room = roomRepository.findById(roomId)
+            .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        Item item = itemRepository.findById(room.getItemId())
+            .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        Long activeCommunityId =
+            membershipQuery.findActiveCommunityId(memberId).orElse(null);
+        if (!item.getCommunityId().equals(activeCommunityId)) {
+            return ChatRoomAccessPolicy.Restriction.COMMUNITY_CHANGED;
+        }
+
+        if (item.getVisibility() != ItemVisibility.PUBLIC) {
+            return ChatRoomAccessPolicy.Restriction.ITEM_UNAVAILABLE;
+        }
+
+        if (sanctionService.isRestricted(memberId)) {
+            return ChatRoomAccessPolicy.Restriction.RESTRICTED;
+        }
+
+        Long otherMemberId = room.getOwnerId().equals(memberId)
+            ? room.getRequesterId()
+            : room.getOwnerId();
+        if (blockQuery.isBlockedBetween(memberId, otherMemberId)) {
+            return ChatRoomAccessPolicy.Restriction.BLOCKED;
+        }
+
+        return ChatRoomAccessPolicy.Restriction.NONE;
     }
 }

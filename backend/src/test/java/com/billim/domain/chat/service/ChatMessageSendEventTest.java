@@ -36,6 +36,7 @@ class ChatMessageSendEventTest {
     void newMessagePublishesResponseEvent() {
         UUID clientMessageId = UUID.randomUUID();
         ChatRoom room = mock(ChatRoom.class);
+        when(room.isParticipant(2L)).thenReturn(true);
         when(roomRepository.findLockedById(901L)).thenReturn(Optional.of(room));
         when(room.allocateSequence(any(Instant.class))).thenReturn(1L);
         when(messageRepository.saveAndFlush(any(ChatMessage.class))).thenAnswer(invocation -> {
@@ -64,6 +65,7 @@ class ChatMessageSendEventTest {
         ChatRoom room = mock(ChatRoom.class);
         ChatMessage existing = ChatMessage.text(
             901L, 1L, 2L, "안녕하세요", null, clientMessageId, Instant.now());
+        when(room.isParticipant(2L)).thenReturn(true);
         when(roomRepository.findLockedById(901L)).thenReturn(Optional.of(room));
         when(messageRepository.findByRoomIdAndSenderIdAndClientMessageId(
             eq(901L), eq(2L), eq(clientMessageId.toString())))
