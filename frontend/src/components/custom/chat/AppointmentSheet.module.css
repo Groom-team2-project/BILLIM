@@ -75,6 +75,21 @@
   gap: 8px;
 }
 
+.appt-sheet-custom {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.appt-sheet-custom input {
+  min-height: var(--size-touch);
+  padding: var(--space-2);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+}
+
 .appt-radio-list {
   display: flex;
   flex-direction: column;
