@@ -1,12 +1,17 @@
 package com.billim.domain.item.service;
 
+import com.billim.domain.community.entity.Community;
 import com.billim.domain.community.entity.CommunityPlace;
 import com.billim.domain.community.repository.CommunityPlaceRepository;
+import com.billim.domain.community.repository.CommunityRepository;
 import com.billim.domain.item.dto.CreateItemRequest;
 import com.billim.domain.item.dto.ItemDetailResponse;
+import com.billim.domain.item.dto.ItemMapCondition;
 import com.billim.domain.item.dto.ItemPageResponse;
 import com.billim.domain.item.dto.ItemSearchCondition;
 import com.billim.domain.item.dto.ItemSort;
+import com.billim.domain.item.dto.MapResultsResponse;
+import com.billim.domain.item.dto.PlaceResponse;
 import com.billim.domain.item.dto.UpdateItemRequest;
 import com.billim.domain.item.dto.VisibilityChangeRequest;
 import com.billim.domain.item.entity.Category;
@@ -18,6 +23,7 @@ import com.billim.domain.item.repository.CategoryRepository;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.repository.ItemSpecifications;
 import com.billim.domain.item.repository.MediaFileRepository;
+import com.billim.domain.member.service.MemberService;
 import com.billim.domain.safety.service.MemberRowLock;
 import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
@@ -31,11 +37,13 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -48,6 +56,8 @@ public class ItemService {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final int MAX_SEARCH_DAYS = 30;
+    // 최신순 = createdAt DESC, id DESC (API 명세 B_017·B_024·B_025)
+    private static final Sort LATEST = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
     private static final int MAX_KEYWORD = 100;
 
     private final ItemRepository itemRepository;
@@ -56,6 +66,8 @@ public class ItemService {
     private final ItemAssembler assembler;
     private final ItemAccessPolicy accessPolicy;
     private final CommunityPlaceRepository placeRepository;
+    private final CommunityRepository communityRepository;
+    private final MemberService memberService;
     private final MemberRowLock memberRowLock;
     private final SanctionService sanctions;
     private final ItemIdempotency idempotency;
@@ -64,6 +76,7 @@ public class ItemService {
     public ItemService(ItemRepository itemRepository, MediaFileRepository mediaFileRepository,
                        CategoryRepository categoryRepository, ItemAssembler assembler,
                        ItemAccessPolicy accessPolicy, CommunityPlaceRepository placeRepository,
+                       CommunityRepository communityRepository, MemberService memberService,
                        MemberRowLock memberRowLock, SanctionService sanctions, ItemIdempotency idempotency,
                        Clock clock) {
         this.itemRepository = itemRepository;
@@ -72,6 +85,8 @@ public class ItemService {
         this.assembler = assembler;
         this.accessPolicy = accessPolicy;
         this.placeRepository = placeRepository;
+        this.communityRepository = communityRepository;
+        this.memberService = memberService;
         this.memberRowLock = memberRowLock;
         this.sanctions = sanctions;
         this.idempotency = idempotency;
@@ -202,57 +217,170 @@ public class ItemService {
     public ItemPageResponse search(long memberId, ItemSearchCondition cond) {
         ItemSort sort = cond.sort() == null ? ItemSort.LATEST : cond.sort();
         validateSearch(cond);
-        if (sort == ItemSort.NEAREST) {
-            // TODO(E): 동네 중심과 장소 좌표가 연동되면 거리순 정렬을 구현한다. 연동 전에는 다른 정렬로 바꿔 응답하지 않는다.
-            throw new BusinessException(ErrorCode.DEPENDENCY_UNAVAILABLE, "거리순 정렬은 동네 연동 후 사용할 수 있습니다.");
-        }
-        long communityId = accessPolicy.requireActiveCommunityId(memberId);   // 선택한 동네가 없으면 403
+        long communityId = accessPolicy.requireActiveCommunityId(memberId);   // 유효 소속이 없으면 403
+        Specification<Item> filter = searchFilter(memberId, communityId, cond.keyword(), cond.categoryId(),
+                cond.placeId(), cond.startDate(), cond.endDate());
 
-        // 차단 관계(양방향) 소유자의 물건 제외. 페이지 수가 맞도록 조회 전에 조건으로 거름
+        Page<Item> page = sort == ItemSort.NEAREST
+                // 정렬은 Specification의 CASE 거리 정렬을 쓰므로 Pageable은 정렬 없이
+                ? itemRepository.findAll(ItemSpecifications.allOf(filter,
+                        ItemSpecifications.orderByPlaceDistance(placeDistances(communityId))),
+                        PageRequest.of(cond.page(), cond.size()))
+                : itemRepository.findAll(filter, PageRequest.of(cond.page(), cond.size(), LATEST));
+        return toPage(page, cond.page(), cond.size());
+    }
+
+    // ───────── 지도 집계 (B_018) ─────────
+
+    /** 검색과 같은 노출·기간 규칙으로 거래 장소별 물건 수. 지도 범위 안 장소만, 가까운 순 최대 200곳(초과 시 truncated) */
+    @Transactional(readOnly = true)
+    public MapResultsResponse map(long memberId, ItemMapCondition cond) {
+        validateFilter(cond.keyword(), cond.startDate(), cond.endDate());
+        validateBounds(cond);
+        long communityId = accessPolicy.requireActiveCommunityId(memberId);
+        Specification<Item> filter = searchFilter(memberId, communityId, cond.keyword(), cond.categoryId(),
+                null, cond.startDate(), cond.endDate());
+
+        Map<Long, Long> counts = itemRepository.countByPlace(filter);
+        Community community = communityRepository.findById(communityId).orElse(null);
+        List<MapResultsResponse.MapPlace> places = placeRepository.findAllById(counts.keySet()).stream()
+                .filter(p -> p.getLatitude() != null && p.getLongitude() != null)
+                .filter(p -> cond.contains(p.getLatitude(), p.getLongitude()))
+                .map(p -> new MapResultsResponse.MapPlace(PlaceResponse.from(p), counts.get(p.getId()).intValue(),
+                        distanceFromCenter(community, p)))
+                .sorted(Comparator.comparing(MapResultsResponse.MapPlace::distanceMeters,
+                                Comparator.nullsLast(Comparator.naturalOrder()))
+                        .thenComparing(m -> m.place().id()))
+                .toList();
+        boolean truncated = places.size() > ItemMapCondition.MAX_PLACES;
+        return new MapResultsResponse(truncated ? places.subList(0, ItemMapCondition.MAX_PLACES) : places,
+                truncated, ItemAssembler.DISTANCE_BASIS);
+    }
+
+    // ───────── 회원별 물건 목록 (B_024·B_025) ─────────
+
+    /** 내 등록 물건: PUBLIC·HIDDEN, 삭제 제외, 최신순. 소속이 바뀌기 전 물건도 포함 */
+    @Transactional(readOnly = true)
+    public ItemPageResponse listMine(long memberId, int page, int size) {
+        validatePage(page, size);
+        // TODO(C): 물건별 대기 요청 수(pendingRequestCount)는 대여 조회 연동 후 채움
+        Page<Item> result = itemRepository.findAll(
+                ItemSpecifications.allOf(ItemSpecifications.ownedBy(memberId), ItemSpecifications.notDeleted()),
+                PageRequest.of(page, size, LATEST));
+        return toPage(result, page, size);
+    }
+
+    /** 이웃 공개 물건: 내 유효 동네의 PUBLIC만, 최신순. 없는 회원이거나 차단 관계면 404 */
+    @Transactional(readOnly = true)
+    public ItemPageResponse listNeighbor(long memberId, long targetMemberId, int page, int size) {
+        validatePage(page, size);
+        long communityId = accessPolicy.requireActiveCommunityId(memberId);
+        if (!memberService.getSummaries(Set.of(targetMemberId)).containsKey(targetMemberId)
+                || (memberId != targetMemberId && accessPolicy.isBlocked(memberId, targetMemberId))) {
+            throw notFound();
+        }
+        Page<Item> result = itemRepository.findAll(ItemSpecifications.allOf(
+                        ItemSpecifications.community(communityId),
+                        ItemSpecifications.publicOnly(),
+                        ItemSpecifications.ownedBy(targetMemberId)),
+                PageRequest.of(page, size, LATEST));
+        return toPage(result, page, size);
+    }
+
+    // 검색·지도 공통 조건: 같은 동네의 공개 물건, 차단 관계 소유자 제외
+    private Specification<Item> searchFilter(long memberId, long communityId, String keyword, Long categoryId,
+                                             Long placeId, LocalDate startDate, LocalDate endDate) {
+        // 차단 관계(양방향) 소유자는 페이지 수가 맞도록 조회 전에 조건으로 제외
         Set<Long> blockedOwners = accessPolicy.findBlockedOwners(memberId, itemRepository.findPublicOwnerIds(communityId));
-        // TODO(C): 선택 기간에 승인·진행 중인 대여가 있는 물건을 제외하고 availableForRange를 채운다.
-        //          연동 전에는 물건의 대여 가능 기간이 선택 기간을 포함하는지만 본다.
-        Specification<Item> spec = ItemSpecifications.allOf(
+        // TODO(C): 선택 기간에 승인·진행 중인 대여가 있는 물건 제외, availableForRange 채움.
+        //          연동 전에는 물건의 대여 가능 기간이 선택 기간을 포함하는지만 확인
+        return ItemSpecifications.allOf(
                 ItemSpecifications.community(communityId),
                 ItemSpecifications.publicOnly(),
                 ItemSpecifications.ownerNotIn(blockedOwners),
-                ItemSpecifications.category(cond.categoryId()),
-                ItemSpecifications.place(cond.placeId()),
-                ItemSpecifications.titleContains(cond.keyword()),
-                ItemSpecifications.availableCovers(cond.startDate(), cond.endDate()));
+                ItemSpecifications.category(categoryId),
+                ItemSpecifications.place(placeId),
+                ItemSpecifications.titleContains(keyword),
+                ItemSpecifications.availableCovers(startDate, endDate));
+    }
 
-        Page<Item> page = itemRepository.findAll(spec, PageRequest.of(cond.page(), cond.size(),
-                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))));
-        return new ItemPageResponse(assembler.summaries(page.getContent()),
-                cond.page(), cond.size(), page.getTotalElements(), page.hasNext());
+    // 동네의 운영 중인 공용 장소별 동네 중심 거리(m)
+    private Map<Long, Integer> placeDistances(long communityId) {
+        Community community = communityRepository.findById(communityId).orElse(null);
+        Map<Long, Integer> meters = new HashMap<>();
+        for (CommunityPlace p : placeRepository.findByCommunityIdAndActiveTrueOrderByNameAscIdAsc(communityId)) {
+            Integer d = distanceFromCenter(community, p);
+            if (d != null) {
+                meters.put(p.getId(), d);
+            }
+        }
+        return meters;
+    }
+
+    private static Integer distanceFromCenter(Community community, CommunityPlace place) {
+        return community == null ? null : GeoDistance.meters(community.getCenterLatitude(), community.getCenterLongitude(),
+                place.getLatitude(), place.getLongitude());
+    }
+
+    private ItemPageResponse toPage(Page<Item> page, int pageNo, int size) {
+        return new ItemPageResponse(assembler.summaries(page.getContent()), pageNo, size,
+                page.getTotalElements(), page.hasNext());
     }
 
     /** 검색 조건 검증 (API 명세 B_017). 위반은 모두 400 INVALID_REQUEST */
     void validateSearch(ItemSearchCondition c) {
-        if (c.page() < 0) {
+        validatePage(c.page(), c.size());
+        validateFilter(c.keyword(), c.startDate(), c.endDate());
+    }
+
+    private static void validatePage(int page, int size) {
+        if (page < 0) {
             throw invalid("page는 0 이상이어야 합니다.");
         }
-        if (c.size() < 1 || c.size() > ItemSearchCondition.MAX_SIZE) {
+        if (size < 1 || size > ItemSearchCondition.MAX_SIZE) {
             throw invalid("size는 1 이상 50 이하여야 합니다.");
         }
-        if (c.keyword() != null && c.keyword().trim().length() > MAX_KEYWORD) {
+    }
+
+    private void validateFilter(String keyword, LocalDate startDate, LocalDate endDate) {
+        if (keyword != null && keyword.trim().length() > MAX_KEYWORD) {
             throw invalid("검색어는 100자 이하여야 합니다.");
         }
-        if ((c.startDate() == null) != (c.endDate() == null)) {
+        if ((startDate == null) != (endDate == null)) {
             throw invalid("시작일과 종료일은 함께 입력해야 합니다.");
         }
-        if (c.startDate() != null) {
-            if (c.startDate().isAfter(c.endDate())) {
+        if (startDate != null) {
+            if (startDate.isAfter(endDate)) {
                 throw invalid("시작일이 종료일보다 늦을 수 없습니다.");
             }
             LocalDate todayKst = LocalDate.now(clock.withZone(KST));
-            if (c.startDate().isBefore(todayKst)) {
+            if (startDate.isBefore(todayKst)) {
                 throw invalid("시작일은 오늘 이후여야 합니다.");
             }
-            if (ChronoUnit.DAYS.between(c.startDate(), c.endDate()) + 1 > MAX_SEARCH_DAYS) {
+            if (ChronoUnit.DAYS.between(startDate, endDate) + 1 > MAX_SEARCH_DAYS) {
                 throw invalid("검색 기간은 최대 30일입니다.");
             }
         }
+    }
+
+    // 지도 범위: 4개를 함께 지정하거나 모두 생략, 위도 -90~90·경도 -180~180, 최소 ≤ 최대
+    private static void validateBounds(ItemMapCondition c) {
+        long given = java.util.stream.Stream.of(c.minLat(), c.maxLat(), c.minLng(), c.maxLng())
+                .filter(java.util.Objects::nonNull).count();
+        if (given == 0) {
+            return;
+        }
+        if (given != 4) {
+            throw invalid("지도 범위는 minLat·maxLat·minLng·maxLng를 함께 입력해야 합니다.");
+        }
+        if (outside(c.minLat(), 90) || outside(c.maxLat(), 90) || outside(c.minLng(), 180) || outside(c.maxLng(), 180)
+                || c.minLat().compareTo(c.maxLat()) > 0 || c.minLng().compareTo(c.maxLng()) > 0) {
+            throw invalid("지도 범위가 올바르지 않습니다.");
+        }
+    }
+
+    private static boolean outside(BigDecimal value, int limit) {
+        return value.abs().compareTo(BigDecimal.valueOf(limit)) > 0;
     }
 
     // ───────── 내부 ─────────
