@@ -5,6 +5,7 @@ import com.billim.domain.item.entity.ItemVisibility;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
+import java.util.Collection;
 
 // 물건 검색 조건 조합. 인덱스 시작 후보:
 // (community_id, visibility, created_at, id) · (community_id, visibility, category_id, created_at, id)
@@ -23,6 +24,10 @@ public final class ItemSpecifications {
 
     public static Specification<Item> category(Long categoryId) {
         return categoryId == null ? null : (root, q, cb) -> cb.equal(root.get("categoryId"), categoryId);
+    }
+
+    public static Specification<Item> ownerNotIn(Collection<Long> ownerIds) {
+        return ownerIds == null || ownerIds.isEmpty() ? null : (root, q, cb) -> cb.not(root.get("ownerId").in(ownerIds));
     }
 
     public static Specification<Item> place(Long placeId) {

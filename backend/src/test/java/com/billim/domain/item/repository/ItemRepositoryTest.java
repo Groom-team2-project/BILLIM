@@ -210,4 +210,35 @@ class ItemRepositoryTest {
         String possibleKeys = String.valueOf(plan.getFirst()[5]);
         assertThat(possibleKeys).contains("idx_items_community_visibility_created");
     }
+
+    private Item itemOf(long owner, long community, String title, ItemVisibility visibility) {
+        MediaFile m = media(owner);
+        m.attach(owner, NOW);
+        Item item = Item.create(owner, community, categoryId(), 10L, title, null, START, END, NOW.plusSeconds(++seq));
+        item.replaceImages(List.of(m.getId()), NOW);
+        if (visibility == ItemVisibility.HIDDEN) {
+            item.changeVisibility(ItemVisibility.HIDDEN, NOW);
+        }
+        em.persist(item);
+        return item;
+    }
+
+    @Test
+    @DisplayName("차단 판정 후보는 동네의 공개 물건 소유자만이고, ownerNotIn으로 해당 소유자 물건을 검색에서 제외한다")
+    void publicOwnerCandidatesAndOwnerExclusion() {
+        Item fromTwo = itemOf(2L, COMMUNITY, "드릴", ItemVisibility.PUBLIC);
+        itemOf(3L, COMMUNITY, "텐트", ItemVisibility.PUBLIC);
+        itemOf(4L, COMMUNITY, "숨김", ItemVisibility.HIDDEN);
+        itemOf(5L, 999L, "다른 동네", ItemVisibility.PUBLIC);
+        em.flush();
+
+        assertThat(itemRepository.findPublicOwnerIds(COMMUNITY)).containsExactlyInAnyOrder(2L, 3L);
+
+        List<Long> visible = itemRepository.findAll(ItemSpecifications.allOf(
+                        ItemSpecifications.community(COMMUNITY),
+                        ItemSpecifications.publicOnly(),
+                        ItemSpecifications.ownerNotIn(Set.of(3L))),
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))).stream().map(Item::getId).toList();
+        assertThat(visible).containsExactly(fromTwo.getId());
+    }
 }
