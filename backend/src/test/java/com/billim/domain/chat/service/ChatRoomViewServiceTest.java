@@ -59,6 +59,7 @@ class ChatRoomViewServiceTest {
         assertThat(response.access().canSend()).isFalse();
         assertThat(response.access().allowedRentalIds()).isEmpty();
         assertThat(response.access().reason()).isEqualTo("COMMUNITY_CHANGED");
+        assertThat(response.communityId()).isEqualTo(String.valueOf(COMMUNITY_ID));
     }
 
     @Test
@@ -115,6 +116,7 @@ class ChatRoomViewServiceTest {
 
         assertThat(response.access().canSend()).isFalse();
         assertThat(response.access().reason()).isEqualTo("ITEM_UNAVAILABLE");
+        assertThat(response.communityId()).isEqualTo(String.valueOf(COMMUNITY_ID));
     }
 
     @Test
@@ -157,7 +159,7 @@ class ChatRoomViewServiceTest {
     private void givenRoom() {
         when(baseService.get(ROOM_ID, MEMBER_ID)).thenReturn(
             new ChatRoomBaseService.RoomBase(
-                String.valueOf(ROOM_ID), String.valueOf(ITEM_ID), "전동드릴",
+                String.valueOf(ROOM_ID), String.valueOf(ITEM_ID), String.valueOf(COMMUNITY_ID), "전동드릴",
                 null, 0, null, null
             )
         );
