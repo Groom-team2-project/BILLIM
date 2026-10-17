@@ -107,6 +107,14 @@ public class BlockService implements BlockQuery {
     }
 
     @Override
+    public boolean hasBlocked(long memberId, long targetMemberId) {
+        if (memberId == targetMemberId) {
+            return false;
+        }
+        return blockRepository.existsByBlockerIdAndBlockedId(memberId, targetMemberId);
+    }
+
+    @Override
     public Set<Long> findBlockedAmong(long memberId, Collection<Long> candidateMemberIds) {
         if (candidateMemberIds == null || candidateMemberIds.isEmpty()) {
             return Set.of();
