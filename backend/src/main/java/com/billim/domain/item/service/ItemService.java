@@ -18,6 +18,8 @@ import com.billim.domain.item.repository.CategoryRepository;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.repository.ItemSpecifications;
 import com.billim.domain.item.repository.MediaFileRepository;
+import com.billim.domain.safety.service.MemberRowLock;
+import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import com.billim.global.exception.VersionConflictException;
@@ -38,6 +40,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -53,25 +56,42 @@ public class ItemService {
     private final ItemAssembler assembler;
     private final ItemAccessPolicy accessPolicy;
     private final CommunityPlaceRepository placeRepository;
+    private final MemberRowLock memberRowLock;
+    private final SanctionService sanctions;
+    private final ItemIdempotency idempotency;
     private final Clock clock;
 
     public ItemService(ItemRepository itemRepository, MediaFileRepository mediaFileRepository,
                        CategoryRepository categoryRepository, ItemAssembler assembler,
-                       ItemAccessPolicy accessPolicy, CommunityPlaceRepository placeRepository, Clock clock) {
+                       ItemAccessPolicy accessPolicy, CommunityPlaceRepository placeRepository,
+                       MemberRowLock memberRowLock, SanctionService sanctions, ItemIdempotency idempotency,
+                       Clock clock) {
         this.itemRepository = itemRepository;
         this.mediaFileRepository = mediaFileRepository;
         this.categoryRepository = categoryRepository;
         this.assembler = assembler;
         this.accessPolicy = accessPolicy;
         this.placeRepository = placeRepository;
+        this.memberRowLock = memberRowLock;
+        this.sanctions = sanctions;
+        this.idempotency = idempotency;
         this.clock = clock;
     }
 
     // ───────── 등록 ─────────
 
     @Transactional
-    public ItemDetailResponse create(long memberId, CreateItemRequest req) {
+    public ItemDetailResponse create(long memberId, String idempotencyKey, CreateItemRequest req) {
         Instant now = clock.instant();
+        // 같은 회원의 동시 요청 직렬화 후 재전송 확인. 같은 키로 이미 성공했으면 처음 응답 그대로
+        memberRowLock.lock(memberId);
+        String requestHash = idempotency.hashOf(req);
+        Optional<ItemDetailResponse> replay = idempotency.replay(memberId, ItemIdempotency.CREATE_ITEM,
+                idempotencyKey, requestHash, 201, ItemDetailResponse.class, now);
+        if (replay.isPresent()) {
+            return replay.get();
+        }
+        requireNotRestricted(memberId);
         long communityId = accessPolicy.requireActiveCommunityId(memberId);   // 선택한 동네가 없으면 403
         List<Long> imageIds = parseImageIds(req.imageIds());
         Category category = requireCategory(IdParser.parse(req.categoryId()));
@@ -87,7 +107,9 @@ public class ItemService {
             // 같은 사진의 동시 연결 등 unique 위반
             throw new BusinessException(ErrorCode.MEDIA_NOT_ATTACHABLE);
         }
-        return assembler.detail(item, memberId);
+        ItemDetailResponse response = assembler.detail(item, memberId);
+        idempotency.record(memberId, ItemIdempotency.CREATE_ITEM, idempotencyKey, requestHash, 201, response, now);
+        return response;
     }
 
     // ───────── 상세 ─────────
@@ -155,6 +177,7 @@ public class ItemService {
         // PUBLIC 복원은 해당 동네 유효 소속 필요. HIDDEN 전환은 인증 만료·소속 변경에도 정리 목적으로 허용 (B_022)
         if (req.visibility() == ItemVisibility.PUBLIC) {
             accessPolicy.requireValidMembership(memberId, item.getCommunityId());
+            requireNotRestricted(memberId);
         }
         item.changeVisibility(req.visibility(), now);
         itemRepository.flush();
@@ -246,6 +269,13 @@ public class ItemService {
             throw notFound();
         }
         return item;
+    }
+
+    // 유효 제재 중이면 등록·공개 복원 불가 (B_019 제한 없음, B_022)
+    private void requireNotRestricted(long memberId) {
+        if (sanctions.isRestricted(memberId)) {
+            throw new BusinessException(ErrorCode.MEMBER_RESTRICTED);
+        }
     }
 
     // 거래 장소는 해당 동네의 활성 공용 장소만 (B_019 다른 동네 장소 금지, 정책 5 거래 장소)

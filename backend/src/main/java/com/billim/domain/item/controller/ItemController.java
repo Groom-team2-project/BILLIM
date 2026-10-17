@@ -72,8 +72,8 @@ public class ItemController {
                                      @Valid @RequestBody CreateItemRequest request,
                                      Authentication authentication) {
         long memberId = AuthenticatedMember.id(authentication);
-        IdempotencyKeys.require(idempotencyKey);
-        return itemService.create(memberId, request);
+        String key = IdempotencyKeys.require(idempotencyKey);
+        return itemService.create(memberId, key, request);
     }
 
     /** B_020 물건 상세. 본인은 숨김 포함, 타인은 같은 동네 공개 물건만. 그 외 404 */

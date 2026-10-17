@@ -40,9 +40,9 @@ public class MediaController {
                                     @RequestPart("file") MultipartFile file,
                                     Authentication authentication) {
         long memberId = AuthenticatedMember.id(authentication);
-        IdempotencyKeys.require(idempotencyKey);
+        String key = IdempotencyKeys.require(idempotencyKey);
         try {
-            return mediaService.upload(memberId, file.getBytes(), file.getContentType());
+            return mediaService.upload(memberId, key, file.getBytes(), file.getContentType());
         } catch (IOException e) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "파일을 읽을 수 없습니다.");
         }

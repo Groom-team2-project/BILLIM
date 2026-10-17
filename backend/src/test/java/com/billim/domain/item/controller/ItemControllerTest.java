@@ -33,6 +33,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -91,7 +92,7 @@ class ItemControllerTest {
     @Test
     @DisplayName("물건 등록에 성공하면 201과 상세를 돌려준다")
     void createReturns201WithDetail() throws Exception {
-        when(itemService.create(anyLong(), any())).thenReturn(detail());
+        when(itemService.create(anyLong(), anyString(), any())).thenReturn(detail());
 
         mvc.perform(post("/api/v1/items").with(csrf()).header("Idempotency-Key", KEY)
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE_BODY))
@@ -100,6 +101,18 @@ class ItemControllerTest {
                 .andExpect(jsonPath("$.visibility").value("PUBLIC"))
                 .andExpect(jsonPath("$.images[0].sortOrder").value(0))
                 .andExpect(jsonPath("$.description").value("설명"));
+    }
+
+    @Test
+    @DisplayName("Idempotency-Key는 소문자로 정규화해 서비스에 전달한다")
+    void createPassesNormalizedIdempotencyKey() throws Exception {
+        when(itemService.create(anyLong(), anyString(), any())).thenReturn(detail());
+
+        mvc.perform(post("/api/v1/items").with(csrf()).header("Idempotency-Key", KEY.toUpperCase())
+                        .contentType(MediaType.APPLICATION_JSON).content(CREATE_BODY))
+                .andExpect(status().isCreated());
+
+        verify(itemService).create(eq(1L), eq(KEY), any());
     }
 
     @Test
@@ -190,7 +203,7 @@ class ItemControllerTest {
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE_BODY))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
-        verify(itemService, never()).create(anyLong(), any());
+        verify(itemService, never()).create(anyLong(), anyString(), any());
     }
 
     @Test
@@ -229,7 +242,7 @@ class ItemControllerTest {
     @Test
     @DisplayName("다른 동네 장소나 연결 불가 사진 오류를 서비스에서 받으면 그대로 돌려준다")
     void createPropagatesServiceErrorCode() throws Exception {
-        when(itemService.create(anyLong(), any())).thenThrow(new BusinessException(ErrorCode.MEDIA_NOT_ATTACHABLE));
+        when(itemService.create(anyLong(), anyString(), any())).thenThrow(new BusinessException(ErrorCode.MEDIA_NOT_ATTACHABLE));
 
         mvc.perform(post("/api/v1/items").with(csrf()).header("Idempotency-Key", KEY)
                         .contentType(MediaType.APPLICATION_JSON).content(CREATE_BODY))
