@@ -46,6 +46,7 @@ export type ApiChatAccess = {
 export type ApiChatRoom = {
   id: string;
   itemId: string;
+  communityId: string;
   itemTitle: string;
   otherMember: ApiChatMember;
   unreadCount: number;

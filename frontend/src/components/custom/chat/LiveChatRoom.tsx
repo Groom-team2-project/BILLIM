@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { getChatMessages, getChatRoom, sendChatMessage, updateChatReadPosition } from "@/api/chat";
 import { acceptAppointment, getAppointments, proposeAppointment, withdrawAppointment } from "@/api/appointments";
 import { getCommunityPlaces, type ApiCommunityPlace } from "@/api/communities";
-import { getItem } from "@/api/items";
 import { newIdempotencyKey } from "@/api/client";
 import { reportMessage, type ReportReasonCode } from "@/api/reports";
 import { useUi } from "@/components/overlay/UiContext";
@@ -220,10 +219,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     if (!room || !slot?.allowedActions.includes("PROPOSE")) return;
     setAppointmentBusy(true);
     try {
-      const communityId = slot.pendingProposal?.place.communityId
-        ?? slot.confirmedProposal?.place.communityId
-        ?? (await getItem(room.itemId)).communityId;
-      const options = await getCommunityPlaces(communityId);
+      const options = await getCommunityPlaces(room.communityId);
       if (options.length === 0) {
         toast("선택할 수 있는 공용 장소가 없어요.");
         return;
