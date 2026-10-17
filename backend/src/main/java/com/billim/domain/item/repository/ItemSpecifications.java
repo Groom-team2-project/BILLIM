@@ -2,10 +2,12 @@ package com.billim.domain.item.repository;
 
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.Map;
 
 // 물건 검색 조건 조합. 인덱스 시작 후보:
 // (community_id, visibility, created_at, id) · (community_id, visibility, category_id, created_at, id)
@@ -24,6 +26,33 @@ public final class ItemSpecifications {
 
     public static Specification<Item> category(Long categoryId) {
         return categoryId == null ? null : (root, q, cb) -> cb.equal(root.get("categoryId"), categoryId);
+    }
+
+    public static Specification<Item> ownedBy(long ownerId) {
+        return (root, q, cb) -> cb.equal(root.get("ownerId"), ownerId);
+    }
+
+    public static Specification<Item> notDeleted() {
+        return (root, q, cb) -> cb.notEqual(root.get("visibility"), ItemVisibility.DELETED);
+    }
+
+    // 가까운 순 (API 명세 B_017 NEAREST = distance ASC, id DESC). 거리는 장소마다 고정이라 place_id → 거리(m) CASE로 정렬
+    // 거리를 모르는 장소는 맨 뒤. 개수 조회(count)에는 정렬을 붙이지 않음
+    public static Specification<Item> orderByPlaceDistance(Map<Long, Integer> metersByPlace) {
+        return (root, q, cb) -> {
+            if (q.getResultType() != Long.class && q.getResultType() != long.class) {
+                if (metersByPlace.isEmpty()) {
+                    q.orderBy(cb.desc(root.get("id")));
+                } else {
+                    CriteriaBuilder.SimpleCase<Long, Integer> distance = cb.selectCase(root.<Long>get("placeId"));
+                    for (Map.Entry<Long, Integer> e : metersByPlace.entrySet()) {
+                        distance = distance.when(e.getKey(), e.getValue());
+                    }
+                    q.orderBy(cb.asc(distance.otherwise(Integer.MAX_VALUE)), cb.desc(root.get("id")));
+                }
+            }
+            return cb.conjunction();
+        };
     }
 
     public static Specification<Item> ownerNotIn(Collection<Long> ownerIds) {

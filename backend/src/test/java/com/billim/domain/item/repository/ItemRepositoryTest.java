@@ -15,6 +15,8 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
@@ -22,6 +24,7 @@ import org.testcontainers.utility.DockerImageName;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -240,5 +243,51 @@ class ItemRepositoryTest {
                         ItemSpecifications.ownerNotIn(Set.of(3L))),
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))).stream().map(Item::getId).toList();
         assertThat(visible).containsExactly(fromTwo.getId());
+    }
+
+    private Item itemAtPlace(long placeId, String title, ItemVisibility visibility) {
+        MediaFile m = media(OWNER);
+        m.attach(OWNER, NOW);
+        Item item = Item.create(OWNER, COMMUNITY, categoryId(), placeId, title, null, START, END, NOW.plusSeconds(++seq));
+        item.replaceImages(List.of(m.getId()), NOW);
+        if (visibility == ItemVisibility.HIDDEN) {
+            item.changeVisibility(ItemVisibility.HIDDEN, NOW);
+        }
+        em.persist(item);
+        return item;
+    }
+
+    @Test
+    @DisplayName("지도 집계는 검색 조건에 맞는 물건 수를 장소별로 센다 (숨김 제외)")
+    void countByPlaceGroupsMatchingItems() {
+        itemAtPlace(10L, "드릴", ItemVisibility.PUBLIC);
+        itemAtPlace(10L, "텐트", ItemVisibility.PUBLIC);
+        itemAtPlace(20L, "의자", ItemVisibility.PUBLIC);
+        itemAtPlace(20L, "숨김", ItemVisibility.HIDDEN);
+        em.flush();
+
+        Map<Long, Long> counts = itemRepository.countByPlace(ItemSpecifications.allOf(
+                ItemSpecifications.community(COMMUNITY), ItemSpecifications.publicOnly()));
+
+        assertThat(counts).containsExactlyInAnyOrderEntriesOf(Map.of(10L, 2L, 20L, 1L));
+    }
+
+    @Test
+    @DisplayName("가까운 순은 장소 거리 오름차순, 같은 거리는 id 내림차순, 거리를 모르는 장소는 맨 뒤다")
+    void orderByPlaceDistanceSortsNearestFirst() {
+        Item far = itemAtPlace(10L, "먼 곳", ItemVisibility.PUBLIC);
+        Item nearOld = itemAtPlace(20L, "가까운 곳 1", ItemVisibility.PUBLIC);
+        Item nearNew = itemAtPlace(20L, "가까운 곳 2", ItemVisibility.PUBLIC);
+        Item unknown = itemAtPlace(30L, "거리 모름", ItemVisibility.PUBLIC);
+        em.flush();
+
+        Page<Item> page = itemRepository.findAll(ItemSpecifications.allOf(
+                        ItemSpecifications.community(COMMUNITY), ItemSpecifications.publicOnly(),
+                        ItemSpecifications.orderByPlaceDistance(Map.of(10L, 300, 20L, 100))),
+                PageRequest.of(0, 10));
+
+        assertThat(page.getContent()).extracting(Item::getId)
+                .containsExactly(nearNew.getId(), nearOld.getId(), far.getId(), unknown.getId());
+        assertThat(page.getTotalElements()).isEqualTo(4);
     }
 }

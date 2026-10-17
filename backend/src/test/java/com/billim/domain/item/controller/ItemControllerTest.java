@@ -3,9 +3,11 @@ package com.billim.domain.item.controller;
 import com.billim.domain.item.dto.CategoryResponse;
 import com.billim.domain.item.dto.ImageResponse;
 import com.billim.domain.item.dto.ItemDetailResponse;
+import com.billim.domain.item.dto.ItemMapCondition;
 import com.billim.domain.item.dto.ItemPageResponse;
 import com.billim.domain.item.dto.ItemSearchCondition;
 import com.billim.domain.item.dto.ItemSort;
+import com.billim.domain.item.dto.MapResultsResponse;
 import com.billim.domain.item.dto.PlaceResponse;
 import com.billim.domain.item.service.CategoryService;
 import com.billim.domain.item.service.ItemService;
@@ -32,6 +34,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -56,7 +59,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * 401·403 계약은 운영 SecurityFilterChain이 아직 없으므로 Spring Boot 기본 보안 설정 기준으로 확인한다.
  */
 // OAuth2 client-id/secret은 실제 환경변수 없이도 컨텍스트가 뜨도록 테스트 값을 주입 (BillimApplicationTests와 같은 방식)
-@WebMvcTest(controllers = {ItemController.class, MediaController.class, CategoryController.class}, properties = {
+@WebMvcTest(controllers = {ItemController.class, MediaController.class, CategoryController.class,
+        MemberItemController.class}, properties = {
         "spring.security.oauth2.client.registration.kakao.client-id=test-client-id",
         "spring.security.oauth2.client.registration.kakao.client-secret=test-client-secret"
 })
@@ -500,5 +504,52 @@ class ItemControllerTest {
         mvc.perform(delete("/api/v1/items/7").with(csrf()).param("expectedVersion", "0"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ITEM_HAS_OPEN_RENTALS"));
+    }
+
+    // ───── 지도 집계·회원별 목록 ─────
+
+    @Test
+    @DisplayName("지도 집계는 조건과 지도 범위를 서비스로 전달하고 200이다")
+    void mapPassesConditionAndBounds() throws Exception {
+        when(itemService.map(anyLong(), any())).thenReturn(new MapResultsResponse(List.of(), false, "COMMUNITY_CENTER"));
+
+        mvc.perform(get("/api/v1/items/map").param("categoryId", "2")
+                        .param("minLat", "37.49").param("maxLat", "37.51").param("minLng", "127.02").param("maxLng", "127.04"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.truncated").value(false))
+                .andExpect(jsonPath("$.distanceBasis").value("COMMUNITY_CENTER"));
+
+        ArgumentCaptor<ItemMapCondition> cond = ArgumentCaptor.forClass(ItemMapCondition.class);
+        verify(itemService).map(eq(1L), cond.capture());
+        assertThat(cond.getValue().categoryId()).isEqualTo(2L);
+        assertThat(cond.getValue().minLat()).isEqualByComparingTo("37.49");
+        assertThat(cond.getValue().maxLng()).isEqualByComparingTo("127.04");
+    }
+
+    @Test
+    @DisplayName("내 물건 목록은 page·size를 그대로 전달하고 200이다")
+    void myItemsReturns200() throws Exception {
+        when(itemService.listMine(1L, 1, 10)).thenReturn(new ItemPageResponse(List.of(), 1, 10, 0, false));
+
+        mvc.perform(get("/api/v1/members/me/items").param("page", "1").param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page").value(1));
+    }
+
+    @Test
+    @DisplayName("이웃 물건 목록은 회원 ID를 숫자로 바꿔 전달하고 기본 페이지는 0·20이다")
+    void neighborItemsReturns200() throws Exception {
+        when(itemService.listNeighbor(1L, 7L, 0, 20)).thenReturn(new ItemPageResponse(List.of(), 0, 20, 0, false));
+
+        mvc.perform(get("/api/v1/members/7/items")).andExpect(status().isOk());
+
+        verify(itemService).listNeighbor(1L, 7L, 0, 20);
+    }
+
+    @Test
+    @DisplayName("이웃 회원 ID 형식이 틀리면 400이다")
+    void neighborItemsWithMalformedIdReturns400() throws Exception {
+        mvc.perform(get("/api/v1/members/abc/items")).andExpect(status().isBadRequest());
+        verify(itemService, never()).listNeighbor(anyLong(), anyLong(), anyInt(), anyInt());
     }
 }
