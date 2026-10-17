@@ -41,7 +41,8 @@ import static org.mockito.Mockito.when;
 @Import({
     ChatMessageSendServiceDbTest.MySql.class,
     ChatMessageSendService.class,
-    ChatSendAccessPolicy.class
+    ChatSendAccessPolicy.class,
+    ChatRoomLinkedRentalService.class
 })
 class ChatMessageSendServiceDbTest {
 
