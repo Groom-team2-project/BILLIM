@@ -22,6 +22,7 @@ public enum ErrorCode {
     LOCATION_OUTSIDE(HttpStatus.FORBIDDEN, "선택한 동네의 인증 범위 밖입니다."),
     LOCATION_INACCURATE(HttpStatus.UNPROCESSABLE_CONTENT, "위치 정확도가 낮아 확인할 수 없습니다. 잠시 후 다시 시도해 주세요."),
     MEMBER_RESTRICTED(HttpStatus.FORBIDDEN, "이용이 제한된 계정입니다."),
+    BLOCKED_RELATION(HttpStatus.FORBIDDEN, "차단 관계로 이용할 수 없습니다."),
     RENTAL_DATE_CONFLICT(HttpStatus.CONFLICT, "선택 기간에 이미 점유된 대여가 있습니다."),
     DUPLICATE_RENTAL_REQUEST(HttpStatus.CONFLICT, "선택 기간에 이미 대기 중인 요청이 있습니다."),
     ITEM_OVERDUE(HttpStatus.CONFLICT, "연체 중인 물건은 대여할 수 없습니다."),

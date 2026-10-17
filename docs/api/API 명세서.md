@@ -1,7 +1,7 @@
 # API 명세서
 
-> 버전 : v0.1.4\
-> 수정일 : 2026.10.13
+> 버전 : v0.1.7\
+> 수정일 : 2026.10.17
 
 ## 0. 공통 규약
 
@@ -636,6 +636,8 @@
 ## 10. 채팅 (chat)
 
 > `chat_rooms`, `chat_participants`, `rentals`, `messages`, `blocks`, `sanctions`
+
+> D_041~D_043은 대여 요약·기존 거래 연결·채팅 접근 제한 판정을 연동해 기본 활성화한다. 운영에서 `billim.chat.rooms.enabled=false`로 비활성화할 수 있다. 메시지 조회·전송 등 다른 채팅 API에는 이 설정을 적용하지 않는다.
 
 ### 10.1 D_041 물건 문의 채팅방 열기
 
@@ -1380,6 +1382,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | --- | --- | --- | --- |
 | id | string | Y | ID 문자열 |
 | itemId | string | Y | ID 문자열 |
+| communityId | string | Y | 방의 물건이 등록된 동네 ID. 비공개 물건·동네 변경 후에도 기존 거래 약속 장소 조회에 사용 |
 | itemTitle | string | Y | 최대 길이 100 |
 | otherMember | MemberSummary | Y | — |
 | unreadCount | integer(int32) | Y | 최소 0 |

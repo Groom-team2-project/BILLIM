@@ -92,6 +92,7 @@ class ChatRoomBaseServiceDbTest {
 
         assertThat(result.id()).isEqualTo(String.valueOf(roomId));
         assertThat(result.itemId()).isEqualTo(String.valueOf(itemId));
+        assertThat(result.communityId()).isEqualTo("100");
         assertThat(result.itemTitle()).isEqualTo("전동드릴");
         assertThat(result.otherMember().id()).isEqualTo(String.valueOf(ownerId));
         assertThat(result.otherMember().displayName()).isEqualTo("물건주인");
