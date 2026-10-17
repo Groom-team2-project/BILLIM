@@ -12,6 +12,7 @@ public record ChatRoomResponse(
     String itemId,
     String communityId,
     String itemTitle,
+    String itemThumbnailUrl,
     MemberSummaryResponse otherMember,
     int unreadCount,
     String lastMessagePreview,
@@ -26,13 +27,15 @@ public record ChatRoomResponse(
     public static ChatRoomResponse from(
         ChatRoomBaseService.RoomBase base,
         List<RentalSummaryResponse> rentals,
-        ChatAccessResponse access
+        ChatAccessResponse access,
+        String itemThumbnailUrl
     ) {
         return new ChatRoomResponse(
             base.id(),
             base.itemId(),
             base.communityId(),
             base.itemTitle(),
+            itemThumbnailUrl,
             base.otherMember(),
             base.unreadCount(),
             base.lastMessagePreview(),
