@@ -10,7 +10,7 @@ import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.rental.dto.RentalSummaryResponse;
-import com.billim.domain.rental.entity.Rental;
+import com.billim.domain.rental.service.RentalQueryService;
 import com.billim.domain.safety.service.BlockQuery;
 import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
@@ -29,6 +29,7 @@ public class ChatRoomViewService {
     private final ChatRoomBaseService baseService;
     private final ChatRoomListBaseService listBaseService;
     private final ChatRoomLinkedRentalService linkedRentalService;
+    private final RentalQueryService rentalQueryService;
     private final ChatRoomAccessPolicy accessPolicy;
     private final ChatRoomRepository roomRepository;
     private final ItemRepository itemRepository;
@@ -67,7 +68,7 @@ public class ChatRoomViewService {
 
         List<RentalSummaryResponse> rentals =
             linkedRentalService.get(roomId, memberId).stream()
-                .map(this::toRentalSummary)
+                .map(rental -> rentalQueryService.getRentalSummary(rental.getId(), memberId))
                 .toList();
 
         ChatRoomAccessPolicy.Restriction restriction =
@@ -76,14 +77,6 @@ public class ChatRoomViewService {
             accessPolicy.resolve(roomId, memberId, restriction);
 
         return ChatRoomResponse.from(base, rentals, access);
-    }
-
-    private RentalSummaryResponse toRentalSummary(Rental rental) {
-        // TODO(대여): 대여 도메인의 RentalSummary 변환 기능 연결.
-        throw new BusinessException(
-            ErrorCode.DEPENDENCY_UNAVAILABLE,
-            "대여 요약 연동 전이라 처리할 수 없습니다."
-        );
     }
 
     private ChatRoomAccessPolicy.Restriction resolveRestriction(

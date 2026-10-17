@@ -8,6 +8,7 @@ import com.billim.domain.community.service.CommunityMembershipQuery;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.service.ItemAccessPolicy;
+import com.billim.domain.rental.repository.RentalRepository;
 import com.billim.domain.safety.service.BlockQuery;
 import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
@@ -30,6 +31,7 @@ public class ChatRoomOpenService {
     private final SanctionService sanctionService;
     private final ChatRoomRepository roomRepository;
     private final ChatParticipantRepository participantRepository;
+    private final RentalRepository rentalRepository;
 
     @Transactional
     public ChatRoom open(Long itemId, Long requesterId) {
@@ -59,8 +61,14 @@ public class ChatRoomOpenService {
             throw new BusinessException(ErrorCode.MEMBER_RESTRICTED);
         }
 
-        return roomRepository.findByItemIdAndRequesterId(itemId, requesterId)
+        ChatRoom room = roomRepository.findByItemIdAndRequesterId(itemId, requesterId)
             .orElseGet(() -> createRoom(item, requesterId));
+
+        rentalRepository.linkChatRoom(
+            itemId, item.getOwnerId(), requesterId, room.getId()
+        );
+
+        return room;
     }
 
     private ChatRoom createRoom(Item item, Long requesterId) {
