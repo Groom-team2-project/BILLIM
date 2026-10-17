@@ -18,6 +18,8 @@ import com.billim.domain.item.entity.MediaStatus;
 import com.billim.domain.item.repository.CategoryRepository;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.repository.MediaFileRepository;
+import com.billim.domain.safety.service.MemberRowLock;
+import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import com.billim.global.exception.VersionConflictException;
@@ -26,6 +28,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -55,6 +58,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -65,6 +72,7 @@ class ItemServiceTest {
     private static final long ME = 1L;
     private static final long OTHER = 2L;
     private static final long COMMUNITY = 100L;
+    private static final String KEY = "4429a68a-0270-4c19-9c5f-427b08aaac87";
     private static final LocalDate START = LocalDate.of(2026, 10, 5);
     private static final LocalDate END = LocalDate.of(2026, 10, 10);
 
@@ -74,6 +82,9 @@ class ItemServiceTest {
     @Mock ItemAssembler assembler;
     @Mock ItemAccessPolicy accessPolicy;   // 동네 소속·차단 판정은 Mock
     @Mock CommunityPlaceRepository placeRepository;
+    @Mock MemberRowLock memberRowLock;
+    @Mock SanctionService sanctions;
+    @Mock ItemIdempotency idempotency;
 
     ItemService service;
     final Category category = new Category(1L, "TOOL", "공구", 1, true);
@@ -82,7 +93,7 @@ class ItemServiceTest {
     void setUp() {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         service = new ItemService(itemRepository, mediaFileRepository, categoryRepository, assembler,
-                accessPolicy, placeRepository, clock);
+                accessPolicy, placeRepository, memberRowLock, sanctions, idempotency, clock);
         lenient().when(assembler.detail(any(), anyLong())).thenReturn(null);
     }
 
@@ -158,7 +169,7 @@ class ItemServiceTest {
         MediaFile m6 = media(6, ME);
         stubMedia(m6, m5);
 
-        service.create(ME, createReq(List.of("5", "6"), START, END));
+        service.create(ME, KEY, createReq(List.of("5", "6"), START, END));
 
         Item saved = captureSaved();
         assertThat(saved.getOwnerId()).isEqualTo(ME);
@@ -174,7 +185,7 @@ class ItemServiceTest {
         stubCreateDependencies();
         stubMedia(media(5, ME), media(6, ME), media(7, ME));
 
-        service.create(ME, createReq(List.of("7", "5", "6"), START, END));
+        service.create(ME, KEY, createReq(List.of("7", "5", "6"), START, END));
 
         List<ItemImage> images = captureSaved().getImages();
         assertThat(images).extracting(ItemImage::getMediaFileId).containsExactly(7L, 5L, 6L);
@@ -187,7 +198,7 @@ class ItemServiceTest {
     void createRejectsMissingCategory() {
         when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
         when(categoryRepository.findById(1L)).thenReturn(Optional.empty());
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
         verify(itemRepository, never()).saveAndFlush(any());
     }
 
@@ -196,7 +207,7 @@ class ItemServiceTest {
     void createRejectsInactiveCategory() {
         when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(new Category(1L, "TOOL", "공구", 1, false)));
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
     }
 
 
@@ -207,7 +218,7 @@ class ItemServiceTest {
         stubCreateDependencies();
         stubMedia(media(5, ME));
 
-        service.create(ME, createReq(List.of("5"), START, END));
+        service.create(ME, KEY, createReq(List.of("5"), START, END));
 
         assertThat(captureSaved().getPlaceId()).isEqualTo(10L);
     }
@@ -219,7 +230,7 @@ class ItemServiceTest {
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(placeRepository.findByIdAndCommunityId(10L, COMMUNITY)).thenReturn(Optional.empty());
 
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
         verify(itemRepository, never()).saveAndFlush(any());
     }
 
@@ -230,7 +241,7 @@ class ItemServiceTest {
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(placeRepository.findByIdAndCommunityId(10L, COMMUNITY)).thenReturn(Optional.of(place(10, COMMUNITY, false)));
 
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
     }
 
     @Test
@@ -238,7 +249,7 @@ class ItemServiceTest {
     void createRejectsMalformedPlaceId() {
         when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
-        assertCode(() -> service.create(ME, new CreateItemRequest("전동드릴", null, "1", "abc", START, END, List.of("5"))),
+        assertCode(() -> service.create(ME, KEY, new CreateItemRequest("전동드릴", null, "1", "abc", START, END, List.of("5"))),
                 ErrorCode.INVALID_REQUEST);
     }
 
@@ -246,7 +257,7 @@ class ItemServiceTest {
     @DisplayName("시작일이 종료일보다 늦으면 거부한다")
     void createRejectsStartAfterEnd() {
         stubCreateDependencies();
-        assertCode(() -> service.create(ME, createReq(List.of("5"), END, START)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), END, START)), ErrorCode.INVALID_REQUEST);
         verify(itemRepository, never()).saveAndFlush(any());
     }
 
@@ -254,15 +265,15 @@ class ItemServiceTest {
     @DisplayName("이미지 ID가 중복되면 거부한다")
     void createRejectsDuplicateImageIds() {
         when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
-        assertCode(() -> service.create(ME, createReq(List.of("5", "5"), START, END)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5", "5"), START, END)), ErrorCode.INVALID_REQUEST);
     }
 
     @Test
     @DisplayName("이미지가 없거나 6개 이상이면 거부한다")
     void createRejectsZeroOrSixImages() {
         when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
-        assertCode(() -> service.create(ME, createReq(List.of(), START, END)), ErrorCode.INVALID_REQUEST);
-        assertCode(() -> service.create(ME, createReq(List.of("1", "2", "3", "4", "5", "6"), START, END)),
+        assertCode(() -> service.create(ME, KEY, createReq(List.of(), START, END)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("1", "2", "3", "4", "5", "6"), START, END)),
                 ErrorCode.INVALID_REQUEST);
     }
 
@@ -280,7 +291,7 @@ class ItemServiceTest {
     void createRejectsImageOfOtherUploader() {
         stubCreateDependencies();
         stubMedia(media(5, OTHER));
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
         verify(itemRepository, never()).saveAndFlush(any());
     }
 
@@ -291,7 +302,7 @@ class ItemServiceTest {
         MediaFile expired = MediaFile.temp(ME, "k/5.jpg", "image/jpeg", 100, 10, 10, NOW.minusSeconds(25 * 3600));
         ReflectionTestUtils.setField(expired, "id", 5L);
         stubMedia(expired);
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
     }
 
     @Test
@@ -301,7 +312,7 @@ class ItemServiceTest {
         MediaFile attached = media(5, ME);
         attached.attach(ME, NOW);
         stubMedia(attached);
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
     }
 
     @Test
@@ -309,7 +320,7 @@ class ItemServiceTest {
     void createRejectsMissingImage() {
         stubCreateDependencies();
         stubMedia();
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
     }
 
     // ───── 수정 ─────
@@ -673,5 +684,61 @@ class ItemServiceTest {
 
         verify(accessPolicy).findBlockedOwners(ME, List.of(2L, 3L, 4L));
         verify(itemRepository).findAll(any(Specification.class), any(Pageable.class));
+    }
+
+    // ───── 재전송·제재 ─────
+
+    @Test
+    @DisplayName("같은 키로 이미 성공한 등록은 저장된 응답을 그대로 돌려주고 다시 저장하지 않는다")
+    void createReplaysStoredResponseForSameKey() {
+        ItemDetailResponse stored = mock(ItemDetailResponse.class);
+        when(idempotency.hashOf(any())).thenReturn("h");
+        when(idempotency.replay(ME, ItemIdempotency.CREATE_ITEM, KEY, "h", 201, ItemDetailResponse.class, NOW))
+                .thenReturn(Optional.of(stored));
+
+        assertThat(service.create(ME, KEY, createReq(List.of("5"), START, END))).isSameAs(stored);
+
+        verify(memberRowLock).lock(ME);
+        verify(itemRepository, never()).saveAndFlush(any());
+        verify(idempotency, never()).record(anyLong(), anyString(), anyString(), anyString(), anyInt(), any(), any());
+    }
+
+    @Test
+    @DisplayName("처음 등록은 회원 행을 잠근 뒤 저장하고 성공 응답을 키와 함께 보관한다")
+    void createRecordsResponseForReplay() {
+        stubCreateDependencies();
+        stubMedia(media(5, ME));
+        ItemDetailResponse response = mock(ItemDetailResponse.class);
+        when(assembler.detail(any(), anyLong())).thenReturn(response);
+        when(idempotency.hashOf(any())).thenReturn("h");
+
+        service.create(ME, KEY, createReq(List.of("5"), START, END));
+
+        InOrder order = inOrder(memberRowLock, itemRepository, idempotency);
+        order.verify(memberRowLock).lock(ME);
+        order.verify(itemRepository).saveAndFlush(any());
+        order.verify(idempotency).record(ME, ItemIdempotency.CREATE_ITEM, KEY, "h", 201, response, NOW);
+    }
+
+    @Test
+    @DisplayName("제재 중인 회원은 물건을 등록할 수 없다 (403 MEMBER_RESTRICTED)")
+    void restrictedMemberCannotCreate() {
+        when(sanctions.isRestricted(ME)).thenReturn(true);
+
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.MEMBER_RESTRICTED);
+        verify(itemRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("제재 중인 회원은 숨긴 물건을 다시 공개할 수 없다 (숨김 전환은 허용)")
+    void restrictedMemberCannotRepublish() {
+        Item item = existingItem(7, ME, List.of(5L));
+        item.changeVisibility(ItemVisibility.HIDDEN, NOW);
+        when(itemRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(item));
+        when(sanctions.isRestricted(ME)).thenReturn(true);
+
+        assertCode(() -> service.changeVisibility(ME, 7, new VisibilityChangeRequest(0L, ItemVisibility.PUBLIC)),
+                ErrorCode.MEMBER_RESTRICTED);
+        assertThat(item.getVisibility()).isEqualTo(ItemVisibility.HIDDEN);
     }
 }
