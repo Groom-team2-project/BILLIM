@@ -7,6 +7,8 @@ import com.billim.domain.item.entity.MediaStatus;
 import com.billim.domain.item.repository.ItemImageRepository;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.repository.MediaFileRepository;
+import com.billim.domain.safety.service.MemberRowLock;
+import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import org.slf4j.Logger;
@@ -20,6 +22,7 @@ import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.IntConsumer;
 
@@ -38,24 +41,42 @@ public class MediaService {
     private final ImageInspector inspector;
     private final MediaStorage storage;
     private final ItemAccessPolicy accessPolicy;
+    private final MemberRowLock memberRowLock;
+    private final SanctionService sanctions;
+    private final ItemIdempotency idempotency;
     private final Clock clock;
 
     public MediaService(MediaFileRepository mediaFileRepository, ItemImageRepository itemImageRepository,
                         ItemRepository itemRepository, ImageInspector inspector, MediaStorage storage,
-                        ItemAccessPolicy accessPolicy, Clock clock) {
+                        ItemAccessPolicy accessPolicy, MemberRowLock memberRowLock, SanctionService sanctions,
+                        ItemIdempotency idempotency, Clock clock) {
         this.mediaFileRepository = mediaFileRepository;
         this.itemImageRepository = itemImageRepository;
         this.itemRepository = itemRepository;
         this.inspector = inspector;
         this.storage = storage;
         this.accessPolicy = accessPolicy;
+        this.memberRowLock = memberRowLock;
+        this.sanctions = sanctions;
+        this.idempotency = idempotency;
         this.clock = clock;
     }
 
     /** 검사·재인코딩 → 파일 원자 저장 → 메타데이터 기록. 커밋 실패 시 방금 쓴 파일 삭제 */
     @Transactional
-    public MediaFileResponse upload(long memberId, byte[] data, String declaredMime) {
+    public MediaFileResponse upload(long memberId, String idempotencyKey, byte[] data, String declaredMime) {
         Instant now = clock.instant();
+        // 같은 회원의 동시 요청 직렬화 후 재전송 확인. 같은 키·같은 파일이면 처음 응답 그대로(파일 재저장 없음)
+        memberRowLock.lock(memberId);
+        String requestHash = ItemIdempotency.hashOfFile(declaredMime, data);
+        Optional<MediaFileResponse> replay = idempotency.replay(memberId, ItemIdempotency.UPLOAD_MEDIA,
+                idempotencyKey, requestHash, 201, MediaFileResponse.class, now);
+        if (replay.isPresent()) {
+            return replay.get();
+        }
+        if (sanctions.isRestricted(memberId)) {   // 유효 인증·제한 없음 (B_014)
+            throw new BusinessException(ErrorCode.MEMBER_RESTRICTED);
+        }
         ImageInspector.Result r = inspector.inspect(data, declaredMime);
         String key = "%04d/%02d/%s.%s".formatted(
                 now.atZone(ZoneOffset.UTC).getYear(), now.atZone(ZoneOffset.UTC).getMonthValue(),
@@ -75,7 +96,9 @@ public class MediaService {
         try {
             MediaFile saved = mediaFileRepository.saveAndFlush(
                     MediaFile.temp(memberId, key, r.mimeType(), r.bytes().length, r.width(), r.height(), now));
-            return MediaFileResponse.from(saved);
+            MediaFileResponse response = MediaFileResponse.from(saved);
+            idempotency.record(memberId, ItemIdempotency.UPLOAD_MEDIA, idempotencyKey, requestHash, 201, response, now);
+            return response;
         } catch (RuntimeException e) {
             deleteQuietly(key);   // 메타데이터 기록 실패 시 즉시 정리
             throw e;

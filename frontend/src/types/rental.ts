@@ -9,10 +9,16 @@ export type RentalStatusView =
   | "returned"
   | "overdue"
   | "rejected"
-  | "canceled";
+  | "canceled"
+  | "expired";
 
 export type Rental = {
   id: string;
+  itemId?: string;
+  startDate?: string;
+  endDate?: string;
+  allowedActions?: string[];
+  chatRoomId?: string;
   title: string;
   cat: CategoryId;
   /** 빌린 목록에서는 소유자, 빌려준 목록에서는 요청자가 상대 */
@@ -20,8 +26,8 @@ export type Rental = {
   borrower?: string;
   trustLine?: string;
   status: RentalStatusView;
-  start: MonthDay;
-  end: MonthDay;
+  start: MonthDay | [number, number, number];
+  end: MonthDay | [number, number, number];
   dday?: string;
   place: string;
   appt?: string;

@@ -22,6 +22,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -80,7 +81,7 @@ class MediaAndCategoryControllerTest {
     @Test
     @DisplayName("사진 업로드에 성공하면 201이다")
     void uploadReturns201() throws Exception {
-        when(mediaService.upload(anyLong(), any(), any())).thenReturn(new MediaFileResponse(
+        when(mediaService.upload(anyLong(), anyString(), any(), any())).thenReturn(new MediaFileResponse(
                 "5", "image/jpeg", 100, 10, 10, "/api/v1/media/5/content", "TEMP", Instant.parse("2026-10-03T00:00:00Z")));
 
         mvc.perform(multipart("/api/v1/media").file(file(new byte[]{1, 2, 3})).with(csrf())
@@ -90,7 +91,7 @@ class MediaAndCategoryControllerTest {
                 .andExpect(jsonPath("$.status").value("TEMP"))
                 .andExpect(jsonPath("$.contentUrl").value("/api/v1/media/5/content"))
                 .andExpect(jsonPath("$.storageKey").doesNotExist());
-        verify(mediaService).upload(eq(1L), any(), eq("image/jpeg"));
+        verify(mediaService).upload(eq(1L), eq(KEY), any(), eq("image/jpeg"));
     }
 
     @Test
@@ -112,7 +113,7 @@ class MediaAndCategoryControllerTest {
     @Test
     @DisplayName("이미지 검증 실패는 명세의 상태 코드로 돌려준다")
     void uploadImageValidationErrorUsesSpecStatus() throws Exception {
-        when(mediaService.upload(anyLong(), any(), any()))
+        when(mediaService.upload(anyLong(), anyString(), any(), any()))
                 .thenThrow(new BusinessException(ErrorCode.UNSUPPORTED_IMAGE));
 
         mvc.perform(multipart("/api/v1/media").file(file(new byte[]{1})).with(csrf()).header("Idempotency-Key", KEY))

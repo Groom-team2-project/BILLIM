@@ -7,6 +7,8 @@ import com.billim.domain.item.entity.MediaStatus;
 import com.billim.domain.item.repository.ItemImageRepository;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.repository.MediaFileRepository;
+import com.billim.domain.safety.service.MemberRowLock;
+import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,11 +49,15 @@ class MediaServiceTest {
     private static final Instant NOW = Instant.parse("2026-10-02T00:00:00Z");
     private static final long ME = 1L;
     private static final long OTHER = 2L;
+    private static final String KEY = "4429a68a-0270-4c19-9c5f-427b08aaac87";
 
     @Mock MediaFileRepository mediaFileRepository;
     @Mock ItemImageRepository itemImageRepository;
     @Mock ItemRepository itemRepository;
     @Mock ItemAccessPolicy accessPolicy;
+    @Mock MemberRowLock memberRowLock;
+    @Mock SanctionService sanctions;
+    @Mock ItemIdempotency idempotency;
     @TempDir Path root;
 
     LocalMediaStorage storage;
@@ -61,7 +67,7 @@ class MediaServiceTest {
     void setUp() {
         storage = new LocalMediaStorage(root.toString());
         service = new MediaService(mediaFileRepository, itemImageRepository, itemRepository, new ImageInspector(),
-                storage, accessPolicy, Clock.fixed(NOW, ZoneOffset.UTC));
+                storage, accessPolicy, memberRowLock, sanctions, idempotency, Clock.fixed(NOW, ZoneOffset.UTC));
     }
 
     private static byte[] jpg() throws IOException {
@@ -99,7 +105,7 @@ class MediaServiceTest {
             return m;
         });
 
-        MediaFileResponse res = service.upload(ME, jpg(), "image/jpeg");
+        MediaFileResponse res = service.upload(ME, KEY, jpg(), "image/jpeg");
 
         ArgumentCaptor<MediaFile> captor = ArgumentCaptor.forClass(MediaFile.class);
         verify(mediaFileRepository).saveAndFlush(captor.capture());
@@ -119,7 +125,7 @@ class MediaServiceTest {
     @Test
     @DisplayName("검사에 실패한 파일은 저장하지 않는다")
     void invalidUploadStoresNothing() throws IOException {
-        assertCode(() -> service.upload(ME, "not image".getBytes(), "image/jpeg"), ErrorCode.UNSUPPORTED_IMAGE);
+        assertCode(() -> service.upload(ME, KEY, "not image".getBytes(), "image/jpeg"), ErrorCode.UNSUPPORTED_IMAGE);
         verify(mediaFileRepository, never()).saveAndFlush(any());
         assertThat(storedFileCount()).isZero();
     }
@@ -130,7 +136,7 @@ class MediaServiceTest {
         when(mediaFileRepository.saveAndFlush(any())).thenThrow(new DataIntegrityViolationException("dup"));
         byte[] data = jpg();
 
-        assertThatThrownBy(() -> service.upload(ME, data, "image/jpeg"))
+        assertThatThrownBy(() -> service.upload(ME, KEY, data, "image/jpeg"))
                 .isInstanceOf(DataIntegrityViolationException.class);
         assertThat(storedFileCount()).isZero();
     }
@@ -201,5 +207,59 @@ class MediaServiceTest {
         when(mediaFileRepository.findByIdForUpdate(6L)).thenReturn(Optional.of(attached));
         assertCode(() -> service.deleteTemp(ME, 6), ErrorCode.MEDIA_IN_USE);
         assertThat(Files.exists(root.resolve("2026/10/f.jpg"))).isTrue();
+    }
+
+    // ───── 재전송·제재 ─────
+
+    @Test
+    @DisplayName("같은 키·같은 파일로 이미 성공한 업로드는 저장된 응답을 돌려주고 파일을 다시 저장하지 않는다")
+    void uploadReplaysWithoutStoringAgain() throws IOException {
+        byte[] data = jpg();
+        MediaFileResponse stored = new MediaFileResponse("5", "image/jpeg", data.length, 40, 30,
+                "/api/v1/media/5/content", "TEMP", NOW.plusSeconds(86400));
+        when(idempotency.replay(ME, ItemIdempotency.UPLOAD_MEDIA, KEY, ItemIdempotency.hashOfFile("image/jpeg", data),
+                201, MediaFileResponse.class, NOW)).thenReturn(Optional.of(stored));
+
+        assertThat(service.upload(ME, KEY, data, "image/jpeg")).isSameAs(stored);
+
+        verify(memberRowLock).lock(ME);
+        verify(mediaFileRepository, never()).saveAndFlush(any());
+        assertThat(storedFileCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("처음 업로드는 성공 응답을 키와 파일 해시로 보관한다")
+    void uploadRecordsResponseForReplay() throws IOException {
+        byte[] data = jpg();
+        when(mediaFileRepository.saveAndFlush(any())).thenAnswer(inv -> {
+            MediaFile m = inv.getArgument(0);
+            ReflectionTestUtils.setField(m, "id", 5L);
+            return m;
+        });
+
+        MediaFileResponse res = service.upload(ME, KEY, data, "image/jpeg");
+
+        verify(idempotency).record(ME, ItemIdempotency.UPLOAD_MEDIA, KEY,
+                ItemIdempotency.hashOfFile("image/jpeg", data), 201, res, NOW);
+    }
+
+    @Test
+    @DisplayName("제재 중인 회원은 사진을 올릴 수 없고 파일도 저장되지 않는다 (403 MEMBER_RESTRICTED)")
+    void restrictedMemberCannotUpload() throws IOException {
+        when(sanctions.isRestricted(ME)).thenReturn(true);
+        byte[] data = jpg();
+
+        assertCode(() -> service.upload(ME, KEY, data, "image/jpeg"), ErrorCode.MEMBER_RESTRICTED);
+        assertThat(storedFileCount()).isZero();
+    }
+
+    @Test
+    @DisplayName("파일 해시는 내용이 다르거나 선언 MIME이 다르면 달라진다")
+    void fileHashDependsOnContentAndMime() {
+        byte[] a = {1, 2, 3};
+        byte[] b = {1, 2, 4};
+        assertThat(ItemIdempotency.hashOfFile("image/png", a)).isEqualTo(ItemIdempotency.hashOfFile("image/png", a.clone()));
+        assertThat(ItemIdempotency.hashOfFile("image/png", a)).isNotEqualTo(ItemIdempotency.hashOfFile("image/png", b));
+        assertThat(ItemIdempotency.hashOfFile("image/png", a)).isNotEqualTo(ItemIdempotency.hashOfFile("image/jpeg", a));
     }
 }

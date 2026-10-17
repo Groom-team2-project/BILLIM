@@ -1,12 +1,17 @@
 package com.billim.domain.item.service;
 
+import com.billim.domain.community.entity.Community;
 import com.billim.domain.community.entity.CommunityPlace;
+import com.billim.domain.community.entity.CommunityStatus;
 import com.billim.domain.community.repository.CommunityPlaceRepository;
+import com.billim.domain.community.repository.CommunityRepository;
 import com.billim.domain.item.dto.CreateItemRequest;
 import com.billim.domain.item.dto.ItemDetailResponse;
+import com.billim.domain.item.dto.ItemMapCondition;
 import com.billim.domain.item.dto.ItemPageResponse;
 import com.billim.domain.item.dto.ItemSearchCondition;
 import com.billim.domain.item.dto.ItemSort;
+import com.billim.domain.item.dto.MapResultsResponse;
 import com.billim.domain.item.dto.UpdateItemRequest;
 import com.billim.domain.item.dto.VisibilityChangeRequest;
 import com.billim.domain.item.entity.Category;
@@ -18,6 +23,10 @@ import com.billim.domain.item.entity.MediaStatus;
 import com.billim.domain.item.repository.CategoryRepository;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.repository.MediaFileRepository;
+import com.billim.domain.member.dto.MemberSummaryResponse;
+import com.billim.domain.member.service.MemberService;
+import com.billim.domain.safety.service.MemberRowLock;
+import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import com.billim.global.exception.VersionConflictException;
@@ -26,6 +35,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -42,7 +52,9 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -55,6 +67,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -65,6 +81,7 @@ class ItemServiceTest {
     private static final long ME = 1L;
     private static final long OTHER = 2L;
     private static final long COMMUNITY = 100L;
+    private static final String KEY = "4429a68a-0270-4c19-9c5f-427b08aaac87";
     private static final LocalDate START = LocalDate.of(2026, 10, 5);
     private static final LocalDate END = LocalDate.of(2026, 10, 10);
 
@@ -74,6 +91,11 @@ class ItemServiceTest {
     @Mock ItemAssembler assembler;
     @Mock ItemAccessPolicy accessPolicy;   // 동네 소속·차단 판정은 Mock
     @Mock CommunityPlaceRepository placeRepository;
+    @Mock CommunityRepository communityRepository;
+    @Mock MemberService memberService;
+    @Mock MemberRowLock memberRowLock;
+    @Mock SanctionService sanctions;
+    @Mock ItemIdempotency idempotency;
 
     ItemService service;
     final Category category = new Category(1L, "TOOL", "공구", 1, true);
@@ -82,7 +104,7 @@ class ItemServiceTest {
     void setUp() {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         service = new ItemService(itemRepository, mediaFileRepository, categoryRepository, assembler,
-                accessPolicy, placeRepository, clock);
+                accessPolicy, placeRepository, communityRepository, memberService, memberRowLock, sanctions, idempotency, clock);
         lenient().when(assembler.detail(any(), anyLong())).thenReturn(null);
     }
 
@@ -158,7 +180,7 @@ class ItemServiceTest {
         MediaFile m6 = media(6, ME);
         stubMedia(m6, m5);
 
-        service.create(ME, createReq(List.of("5", "6"), START, END));
+        service.create(ME, KEY, createReq(List.of("5", "6"), START, END));
 
         Item saved = captureSaved();
         assertThat(saved.getOwnerId()).isEqualTo(ME);
@@ -174,7 +196,7 @@ class ItemServiceTest {
         stubCreateDependencies();
         stubMedia(media(5, ME), media(6, ME), media(7, ME));
 
-        service.create(ME, createReq(List.of("7", "5", "6"), START, END));
+        service.create(ME, KEY, createReq(List.of("7", "5", "6"), START, END));
 
         List<ItemImage> images = captureSaved().getImages();
         assertThat(images).extracting(ItemImage::getMediaFileId).containsExactly(7L, 5L, 6L);
@@ -187,7 +209,7 @@ class ItemServiceTest {
     void createRejectsMissingCategory() {
         when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
         when(categoryRepository.findById(1L)).thenReturn(Optional.empty());
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
         verify(itemRepository, never()).saveAndFlush(any());
     }
 
@@ -196,7 +218,7 @@ class ItemServiceTest {
     void createRejectsInactiveCategory() {
         when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(new Category(1L, "TOOL", "공구", 1, false)));
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
     }
 
 
@@ -207,7 +229,7 @@ class ItemServiceTest {
         stubCreateDependencies();
         stubMedia(media(5, ME));
 
-        service.create(ME, createReq(List.of("5"), START, END));
+        service.create(ME, KEY, createReq(List.of("5"), START, END));
 
         assertThat(captureSaved().getPlaceId()).isEqualTo(10L);
     }
@@ -219,7 +241,7 @@ class ItemServiceTest {
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(placeRepository.findByIdAndCommunityId(10L, COMMUNITY)).thenReturn(Optional.empty());
 
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
         verify(itemRepository, never()).saveAndFlush(any());
     }
 
@@ -230,7 +252,7 @@ class ItemServiceTest {
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
         when(placeRepository.findByIdAndCommunityId(10L, COMMUNITY)).thenReturn(Optional.of(place(10, COMMUNITY, false)));
 
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
     }
 
     @Test
@@ -238,7 +260,7 @@ class ItemServiceTest {
     void createRejectsMalformedPlaceId() {
         when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
-        assertCode(() -> service.create(ME, new CreateItemRequest("전동드릴", null, "1", "abc", START, END, List.of("5"))),
+        assertCode(() -> service.create(ME, KEY, new CreateItemRequest("전동드릴", null, "1", "abc", START, END, List.of("5"))),
                 ErrorCode.INVALID_REQUEST);
     }
 
@@ -246,7 +268,7 @@ class ItemServiceTest {
     @DisplayName("시작일이 종료일보다 늦으면 거부한다")
     void createRejectsStartAfterEnd() {
         stubCreateDependencies();
-        assertCode(() -> service.create(ME, createReq(List.of("5"), END, START)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), END, START)), ErrorCode.INVALID_REQUEST);
         verify(itemRepository, never()).saveAndFlush(any());
     }
 
@@ -254,15 +276,15 @@ class ItemServiceTest {
     @DisplayName("이미지 ID가 중복되면 거부한다")
     void createRejectsDuplicateImageIds() {
         when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
-        assertCode(() -> service.create(ME, createReq(List.of("5", "5"), START, END)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5", "5"), START, END)), ErrorCode.INVALID_REQUEST);
     }
 
     @Test
     @DisplayName("이미지가 없거나 6개 이상이면 거부한다")
     void createRejectsZeroOrSixImages() {
         when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
-        assertCode(() -> service.create(ME, createReq(List.of(), START, END)), ErrorCode.INVALID_REQUEST);
-        assertCode(() -> service.create(ME, createReq(List.of("1", "2", "3", "4", "5", "6"), START, END)),
+        assertCode(() -> service.create(ME, KEY, createReq(List.of(), START, END)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("1", "2", "3", "4", "5", "6"), START, END)),
                 ErrorCode.INVALID_REQUEST);
     }
 
@@ -280,7 +302,7 @@ class ItemServiceTest {
     void createRejectsImageOfOtherUploader() {
         stubCreateDependencies();
         stubMedia(media(5, OTHER));
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
         verify(itemRepository, never()).saveAndFlush(any());
     }
 
@@ -291,7 +313,7 @@ class ItemServiceTest {
         MediaFile expired = MediaFile.temp(ME, "k/5.jpg", "image/jpeg", 100, 10, 10, NOW.minusSeconds(25 * 3600));
         ReflectionTestUtils.setField(expired, "id", 5L);
         stubMedia(expired);
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
     }
 
     @Test
@@ -301,7 +323,7 @@ class ItemServiceTest {
         MediaFile attached = media(5, ME);
         attached.attach(ME, NOW);
         stubMedia(attached);
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
     }
 
     @Test
@@ -309,7 +331,7 @@ class ItemServiceTest {
     void createRejectsMissingImage() {
         stubCreateDependencies();
         stubMedia();
-        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.MEDIA_NOT_ATTACHABLE);
     }
 
     // ───── 수정 ─────
@@ -654,11 +676,33 @@ class ItemServiceTest {
         verify(itemRepository).findAll(any(Specification.class), any(Pageable.class));
     }
 
+    private Community community() {
+        Community c = Community.of("강남역 생활권", "서울 강남구 강남대로 396 일대",
+                new BigDecimal("37.4979420"), new BigDecimal("127.0276210"), 1000, CommunityStatus.ACTIVE);
+        ReflectionTestUtils.setField(c, "id", COMMUNITY);
+        return c;
+    }
+
+    private static CommunityPlace placeAt(long id, String lat, String lng) {
+        CommunityPlace p = CommunityPlace.of(COMMUNITY, "장소" + id, new BigDecimal(lat), new BigDecimal(lng), null, true);
+        ReflectionTestUtils.setField(p, "id", id);
+        return p;
+    }
+
     @Test
-    @DisplayName("거리순 정렬은 동네 연동 전에는 다른 정렬로 바꾸지 않고 503으로 거부한다 (TODO(E))")
-    void searchNearestIsUnavailableUntilCommunityIsLinked() {
-        assertCode(() -> service.search(ME, cond(null, null, ItemSort.NEAREST, 0, 20)), ErrorCode.DEPENDENCY_UNAVAILABLE);
-        verify(itemRepository, never()).findAll(any(Specification.class), any(Pageable.class));
+    @DisplayName("가까운 순은 장소별 동네 중심 거리로 정렬하고 Pageable에는 정렬을 넣지 않는다")
+    void searchNearestOrdersByPlaceDistance() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(communityRepository.findById(COMMUNITY)).thenReturn(Optional.of(community()));
+        when(placeRepository.findByCommunityIdAndActiveTrueOrderByNameAscIdAsc(COMMUNITY))
+                .thenReturn(List.of(placeAt(10, "37.4987000", "127.0280000"), placeAt(11, "37.5016000", "127.0262000")));
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+
+        service.search(ME, cond(null, null, ItemSort.NEAREST, 0, 20));
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(itemRepository).findAll(any(Specification.class), pageable.capture());
+        assertThat(pageable.getValue().getSort().isUnsorted()).isTrue();
     }
 
     @Test
@@ -672,6 +716,176 @@ class ItemServiceTest {
         service.search(ME, cond(null, null, ItemSort.LATEST, 0, 20));
 
         verify(accessPolicy).findBlockedOwners(ME, List.of(2L, 3L, 4L));
+        verify(itemRepository).findAll(any(Specification.class), any(Pageable.class));
+    }
+
+    // ───── 재전송·제재 ─────
+
+    @Test
+    @DisplayName("같은 키로 이미 성공한 등록은 저장된 응답을 그대로 돌려주고 다시 저장하지 않는다")
+    void createReplaysStoredResponseForSameKey() {
+        ItemDetailResponse stored = mock(ItemDetailResponse.class);
+        when(idempotency.hashOf(any())).thenReturn("h");
+        when(idempotency.replay(ME, ItemIdempotency.CREATE_ITEM, KEY, "h", 201, ItemDetailResponse.class, NOW))
+                .thenReturn(Optional.of(stored));
+
+        assertThat(service.create(ME, KEY, createReq(List.of("5"), START, END))).isSameAs(stored);
+
+        verify(memberRowLock).lock(ME);
+        verify(itemRepository, never()).saveAndFlush(any());
+        verify(idempotency, never()).record(anyLong(), anyString(), anyString(), anyString(), anyInt(), any(), any());
+    }
+
+    @Test
+    @DisplayName("처음 등록은 회원 행을 잠근 뒤 저장하고 성공 응답을 키와 함께 보관한다")
+    void createRecordsResponseForReplay() {
+        stubCreateDependencies();
+        stubMedia(media(5, ME));
+        ItemDetailResponse response = mock(ItemDetailResponse.class);
+        when(assembler.detail(any(), anyLong())).thenReturn(response);
+        when(idempotency.hashOf(any())).thenReturn("h");
+
+        service.create(ME, KEY, createReq(List.of("5"), START, END));
+
+        InOrder order = inOrder(memberRowLock, itemRepository, idempotency);
+        order.verify(memberRowLock).lock(ME);
+        order.verify(itemRepository).saveAndFlush(any());
+        order.verify(idempotency).record(ME, ItemIdempotency.CREATE_ITEM, KEY, "h", 201, response, NOW);
+    }
+
+    @Test
+    @DisplayName("제재 중인 회원은 물건을 등록할 수 없다 (403 MEMBER_RESTRICTED)")
+    void restrictedMemberCannotCreate() {
+        when(sanctions.isRestricted(ME)).thenReturn(true);
+
+        assertCode(() -> service.create(ME, KEY, createReq(List.of("5"), START, END)), ErrorCode.MEMBER_RESTRICTED);
+        verify(itemRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("제재 중인 회원은 숨긴 물건을 다시 공개할 수 없다 (숨김 전환은 허용)")
+    void restrictedMemberCannotRepublish() {
+        Item item = existingItem(7, ME, List.of(5L));
+        item.changeVisibility(ItemVisibility.HIDDEN, NOW);
+        when(itemRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(item));
+        when(sanctions.isRestricted(ME)).thenReturn(true);
+
+        assertCode(() -> service.changeVisibility(ME, 7, new VisibilityChangeRequest(0L, ItemVisibility.PUBLIC)),
+                ErrorCode.MEMBER_RESTRICTED);
+        assertThat(item.getVisibility()).isEqualTo(ItemVisibility.HIDDEN);
+    }
+
+    // ───── 지도 집계 (B_018) ─────
+
+    private ItemMapCondition mapCond(String minLat, String maxLat, String minLng, String maxLng) {
+        return new ItemMapCondition(null, null, null, null,
+                minLat == null ? null : new BigDecimal(minLat), maxLat == null ? null : new BigDecimal(maxLat),
+                minLng == null ? null : new BigDecimal(minLng), maxLng == null ? null : new BigDecimal(maxLng));
+    }
+
+    @Test
+    @DisplayName("지도 범위는 4개를 함께 주거나 모두 생략해야 하고, 최소가 최대보다 크면 400이다")
+    void mapRejectsPartialOrReversedBounds() {
+        assertCode(() -> service.map(ME, mapCond("37.49", null, null, null)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.map(ME, mapCond("37.50", "37.49", "127.02", "127.03")), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.map(ME, mapCond("91", "92", "127.02", "127.03")), ErrorCode.INVALID_REQUEST);
+        verify(accessPolicy, never()).requireActiveCommunityId(anyLong());
+    }
+
+    @Test
+    @DisplayName("지도 집계는 범위 안 장소만 장소별 물건 수와 함께 가까운 순으로 돌려준다")
+    void mapAggregatesPlacesInsideBoundsByDistance() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(itemRepository.countByPlace(any())).thenReturn(Map.of(10L, 3L, 11L, 1L, 12L, 2L));
+        when(communityRepository.findById(COMMUNITY)).thenReturn(Optional.of(community()));
+        when(placeRepository.findAllById(anyCollection())).thenReturn(List.of(
+                placeAt(10, "37.4987000", "127.0280000"),     // 중심에서 약 90m
+                placeAt(11, "37.5016000", "127.0262000"),     // 약 430m
+                placeAt(12, "37.6000000", "127.1000000")));   // 범위 밖
+
+        MapResultsResponse res = service.map(ME, mapCond("37.49", "37.51", "127.02", "127.04"));
+
+        assertThat(res.items()).extracting(m -> m.place().id()).containsExactly("10", "11");
+        assertThat(res.items()).extracting(MapResultsResponse.MapPlace::matchingItemCount).containsExactly(3, 1);
+        assertThat(res.items().get(0).distanceMeters()).isLessThan(res.items().get(1).distanceMeters());
+        assertThat(res.truncated()).isFalse();
+        assertThat(res.distanceBasis()).isEqualTo("COMMUNITY_CENTER");
+    }
+
+    @Test
+    @DisplayName("장소가 200곳을 넘으면 가까운 200곳만 돌려주고 truncated다")
+    void mapTruncatesOver200Places() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        Map<Long, Long> counts = new HashMap<>();
+        List<CommunityPlace> places = new ArrayList<>();
+        for (long id = 1; id <= 201; id++) {
+            counts.put(id, 1L);
+            places.add(placeAt(id, "37.49" + String.format("%03d", id), "127.0276210"));
+        }
+        when(itemRepository.countByPlace(any())).thenReturn(counts);
+        when(communityRepository.findById(COMMUNITY)).thenReturn(Optional.of(community()));
+        when(placeRepository.findAllById(anyCollection())).thenReturn(places);
+
+        MapResultsResponse res = service.map(ME, mapCond(null, null, null, null));
+
+        assertThat(res.items()).hasSize(200);
+        assertThat(res.truncated()).isTrue();
+    }
+
+    // ───── 회원별 물건 목록 (B_024·B_025) ─────
+
+    @Test
+    @DisplayName("내 물건 목록은 최신순으로 조회하고 페이지 조건을 검증한다")
+    void listMineUsesLatestOrderAndValidatesPage() {
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+
+        service.listMine(ME, 1, 10);
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(itemRepository).findAll(any(Specification.class), pageable.capture());
+        assertThat(pageable.getValue().getPageNumber()).isEqualTo(1);
+        assertThat(pageable.getValue().getSort().toString()).isEqualTo("createdAt: DESC,id: DESC");
+        assertCode(() -> service.listMine(ME, -1, 10), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.listMine(ME, 0, 51), ErrorCode.INVALID_REQUEST);
+    }
+
+    @Test
+    @DisplayName("내 물건 목록은 동네 소속을 확인하지 않는다 (소속 변경 전 물건도 조회)")
+    void listMineDoesNotRequireMembership() {
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+        service.listMine(ME, 0, 20);
+        verify(accessPolicy, never()).requireActiveCommunityId(anyLong());
+    }
+
+    @Test
+    @DisplayName("이웃 물건 목록은 내 동네 소속이 필요하다 (403)")
+    void listNeighborRequiresMembership() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenThrow(new BusinessException(ErrorCode.COMMUNITY_VERIFICATION_REQUIRED));
+        assertCode(() -> service.listNeighbor(ME, OTHER, 0, 20), ErrorCode.COMMUNITY_VERIFICATION_REQUIRED);
+    }
+
+    @Test
+    @DisplayName("없는 회원이거나 차단 관계인 이웃의 물건 목록은 404다")
+    void listNeighborHidesMissingOrBlockedMember() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(memberService.getSummaries(Set.of(OTHER))).thenReturn(Map.of());
+        assertCode(() -> service.listNeighbor(ME, OTHER, 0, 20), ErrorCode.RESOURCE_NOT_FOUND);
+
+        when(memberService.getSummaries(Set.of(OTHER))).thenReturn(Map.of(OTHER, mock(MemberSummaryResponse.class)));
+        when(accessPolicy.isBlocked(ME, OTHER)).thenReturn(true);
+        assertCode(() -> service.listNeighbor(ME, OTHER, 0, 20), ErrorCode.RESOURCE_NOT_FOUND);
+        verify(itemRepository, never()).findAll(any(Specification.class), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("이웃 물건 목록은 조건을 통과하면 최신순으로 조회한다")
+    void listNeighborQueriesLatest() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(memberService.getSummaries(Set.of(OTHER))).thenReturn(Map.of(OTHER, mock(MemberSummaryResponse.class)));
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+
+        service.listNeighbor(ME, OTHER, 0, 20);
+
         verify(itemRepository).findAll(any(Specification.class), any(Pageable.class));
     }
 }

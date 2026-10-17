@@ -1,7 +1,10 @@
 package com.billim.domain.item.service;
 
+import com.billim.domain.community.entity.Community;
 import com.billim.domain.community.entity.CommunityPlace;
+import com.billim.domain.community.entity.CommunityStatus;
 import com.billim.domain.community.repository.CommunityPlaceRepository;
+import com.billim.domain.community.repository.CommunityRepository;
 import com.billim.domain.item.dto.ItemDetailResponse;
 import com.billim.domain.item.dto.ItemSummaryResponse;
 import com.billim.domain.item.entity.Category;
@@ -48,13 +51,15 @@ class ItemAssemblerTest {
     @Mock ItemImageRepository itemImageRepository;
     @Mock MemberService memberService;
     @Mock CommunityPlaceRepository placeRepository;
+    @Mock CommunityRepository communityRepository;
 
     ItemAssembler assembler;
     final Category category = new Category(1L, "TOOL", "공구", 1, true);
 
     @BeforeEach
     void setUp() {
-        assembler = new ItemAssembler(categoryRepository, itemImageRepository, memberService, placeRepository);
+        assembler = new ItemAssembler(categoryRepository, itemImageRepository, memberService, placeRepository,
+                communityRepository);
     }
 
     private Item item(long id, long ownerId) {
@@ -156,5 +161,33 @@ class ItemAssemblerTest {
         assertThat(res.get(0).place().name()).isEqualTo("정문 경비실 옆 벤치");
         assertThat(res.get(1).place().id()).isEqualTo("99");
         assertThat(res.get(1).place().name()).isNull();
+    }
+
+    @Test
+    @DisplayName("동네 중심 좌표가 있으면 장소까지의 거리와 기준(COMMUNITY_CENTER)을 채운다")
+    void detailFillsDistanceFromCommunityCenter() {
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(memberService.getSummaries(Set.of(2L))).thenReturn(Map.of(2L, member(2, "정우")));
+        when(placeRepository.findById(10L)).thenReturn(Optional.of(place(10, "정문 경비실 옆 벤치")));
+        Community center = Community.of("강남역 생활권", "서울 강남구", new BigDecimal("37.4979420"),
+                new BigDecimal("127.0276210"), 1000, CommunityStatus.ACTIVE);
+        when(communityRepository.findById(100L)).thenReturn(Optional.of(center));
+
+        ItemDetailResponse res = assembler.detail(item(7, 2), 9L);
+
+        assertThat(res.distanceMeters()).isBetween(30, 60);
+        assertThat(res.distanceBasis()).isEqualTo("COMMUNITY_CENTER");
+    }
+
+    @Test
+    @DisplayName("동네 정보를 찾지 못하면 거리와 기준을 생략한다")
+    void detailOmitsDistanceWithoutCommunity() {
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(memberService.getSummaries(Set.of(2L))).thenReturn(Map.of(2L, member(2, "정우")));
+
+        ItemDetailResponse res = assembler.detail(item(7, 2), 9L);
+
+        assertThat(res.distanceMeters()).isNull();
+        assertThat(res.distanceBasis()).isNull();
     }
 }

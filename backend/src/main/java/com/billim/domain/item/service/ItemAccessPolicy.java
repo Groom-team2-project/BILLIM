@@ -41,6 +41,11 @@ public class ItemAccessPolicy {
         }
     }
 
+    // 두 회원이 차단 관계(어느 방향이든)인지
+    public boolean isBlocked(long memberId, long otherMemberId) {
+        return blockQuery.isBlockedBetween(memberId, otherMemberId);
+    }
+
     // 후보 소유자 중 나와 차단 관계(양방향)인 회원
     public Set<Long> findBlockedOwners(long memberId, Collection<Long> ownerIds) {
         return blockQuery.findBlockedAmong(memberId, ownerIds);
@@ -61,6 +66,6 @@ public class ItemAccessPolicy {
         if (active.isEmpty() || !active.get().equals(item.getCommunityId())) {
             return false;
         }
-        return !blockQuery.isBlockedBetween(memberId, item.getOwnerId());
+        return !isBlocked(memberId, item.getOwnerId());
     }
 }

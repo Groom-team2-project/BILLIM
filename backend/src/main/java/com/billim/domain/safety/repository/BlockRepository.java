@@ -18,6 +18,9 @@ public interface BlockRepository extends JpaRepository<Block, Long> {
 
     Optional<Block> findByBlockerIdAndBlockedId(long blockerId, long blockedId);
 
+    /** 내가 상대를 차단했는지. UNIQUE (blocker_id, blocked_id)를 그대로 탄다 */
+    boolean existsByBlockerIdAndBlockedId(long blockerId, long blockedId);
+
     /**
      * 두 회원 사이에 어느 방향이든 차단이 있는지. 노출·채팅 제한 판정의 기준이다 (ERD 4.7).
      * UNIQUE (blocker_id, blocked_id)와 INDEX (blocked_id, blocker_id)로 양방향 모두 색인을 탄다.
