@@ -46,7 +46,7 @@ class RentalCommandServiceTest {
         effects = mock(RentalRequestEffects.class);
         queries = mock(RentalQueryService.class);
         service = new RentalService(rentals, histories, items, members, policy, effects,
-                Clock.fixed(NOW, ZoneOffset.UTC), queries);
+                Clock.fixed(NOW, ZoneOffset.UTC), queries, mock(com.billim.domain.rental.repository.AppointmentSlotRepository.class));
         for (long id = 1; id <= 3; id++) {
             Member member = Member.register("회원");
             ReflectionTestUtils.setField(member, "id", id);

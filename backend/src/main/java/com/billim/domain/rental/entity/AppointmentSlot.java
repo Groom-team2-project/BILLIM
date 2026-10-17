@@ -17,6 +17,22 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AppointmentSlot extends BaseTimeEntity {
 
+    public static AppointmentSlot create(long rentalId, AppointmentKind kind) {
+        AppointmentSlot slot = new AppointmentSlot();
+        slot.rentalId = rentalId;
+        slot.kind = kind;
+        return slot;
+    }
+
+    public void confirm(long proposalId) {
+        confirmedProposalId = proposalId;
+    }
+
+    // 제안 교체·철회도 슬롯 행을 변경해 낙관적 버전 증가 보장
+    public void changed(java.time.Instant now) {
+        touch(now);
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

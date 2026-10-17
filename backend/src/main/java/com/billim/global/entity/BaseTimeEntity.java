@@ -26,6 +26,10 @@ public abstract class BaseTimeEntity {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    protected void touch(Instant now) {
+        updatedAt = updatedAt != null && !now.isAfter(updatedAt) ? updatedAt.plusNanos(1000) : now;
+    }
+
     public Instant getCreatedAt() {
         return createdAt;
     }

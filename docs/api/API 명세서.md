@@ -225,6 +225,7 @@
 - 설명: 공개 프로필과 동일 권한. 완료·빌려준 횟수와 확정 반납 약속의 서버 확인 기준 준수 분자/분모. 본인 조회 가능.
 - 요청 본문: 없음
 - 성공 응답: 200 TrustMetrics
+- 집계: completedCount는 RETURNED 거래의 빌림·빌려줌 합계, lentCount는 그중 빌려준 건수. 반납 준수는 본인이 빌린 RETURNED 거래 중 returnPromiseKept가 NULL이 아닌 건만 분모에 포함하고 true인 건을 분자로 집계. 거래 0건은 모든 수치 0.
 - 관련 테이블: rentals
 - 목업 연결: profile, profileOther, detail
 
@@ -487,17 +488,17 @@
 
 - 구현 상태: P0 목록·상태별 건수·상세 조회 및 승인·거절·취소·전달·반납 서비스와 컨트롤러 연결. 날짜는 KST·양끝 포함 최대 30일 기준.
 - 생성·변경 명령은 양측 회원을 ID 순서로 잠근 뒤 물건·거래를 잠금. 상태 변경에 따른 회원 외래 키 검사와 상대방 명령의 교착 방지.
-- 거절·취소·전달·반납 명령과 DB 멱등 기록·outbox 이벤트 저장 연결. 같은 요청의 성공 응답은 24시간 재사용. 승인은 동네·차단·제재·물건 대여 상태 정책 미연동으로 현재 `503 DEPENDENCY_UNAVAILABLE` 반환.
-- 조회 응답의 `allowedActions`는 승인 정책 연동 전 `APPROVE` 제외. P1 약속 목록은 빈 배열 유지. 요청 자동 만료 작업은 미구현.
+- 거절·취소·전달·반납 명령과 DB 멱등 기록·outbox 이벤트 저장 연결. 같은 요청의 성공 응답은 24시간 재사용. 승인은 양측의 유효 소속·차단·제재·공개 상태·활성 공용 장소를 재검사.
+- 조회 응답의 `allowedActions`는 승인 정책·요청 만료·가능 기간·연체·점유 조건 충족 시 `APPROVE` 포함. 상세 응답은 실제 약속 슬롯·제안 포함. 요청 자동 만료 작업은 미구현.
 
 ### 8.1 C_028 대여 요청 생성
 
 - `POST /api/v1/rentals` · 박소빈 · P0
-- 설명: 유효 소속·본인 물건 아님·차단 없음. 시작일은 KST 오늘부터 허용. 소유자가 설정한 대여 가능 상태에서만 신규 요청 허용. 날짜 양끝 포함, 최대 30일. 물건 잠금 아래 가능 기간/연체/승인 점유 재검사. 동일인의 겹치는 대기 요청 거부, 다른 사람의 대기 요청 겹침 허용.
+- 설명: 유효 소속·본인 물건 아님·차단 없음. 시작일은 KST 오늘부터 허용. 공개(PUBLIC)이며 삭제되지 않은 물건만 신규 요청·승인 허용. 별도 수동 대여 가능 설정 없음. 날짜 양끝 포함, 최대 30일. 물건 잠금 아래 가능 기간/연체/승인 점유 재검사. 동일인의 겹치는 대기 요청 거부, 다른 사람의 대기 요청 겹침 허용.
 - 요청 본문: CreateRental
 - 성공 응답: 201 RentalDetail
 - 관련 테이블: rentals, rental_status_histories, outbox_events
-- 구현 상태: 요청 서비스·컨트롤러 연결. 멱등 기록·outbox 저장 연결. 물건 대여 상태·동네·차단·제재·장소 정책 미연동. 필수 기반 연결 전 `503 DEPENDENCY_UNAVAILABLE` 반환. 미연동 검증 생략 및 임시 성공 응답 금지.
+- 구현 상태: 요청 서비스·컨트롤러 연결. 멱등 기록·outbox 저장 연결. 공개 상태·양측 활성 회원·유효 소속·양방향 차단·제재·활성 공용 장소 검사 연결.
 - 목업 연결: request
 
 ### 8.2 C_029 내 대여 목록
@@ -531,7 +532,7 @@
 ### 8.4 C_031 내 거래 상세와 상태 이력
 
 - `GET /api/v1/rentals/{rentalId}` · 박소빈 · P0
-- 설명: 소유자/요청자만. 비공개 물건이라도 거래 당시 제목·장소 스냅샷 유지. 무관한 회원은 404. P1 전 appointments는 빈 배열.
+- 설명: 소유자/요청자만. 비공개 물건이라도 거래 당시 제목·장소 스냅샷 유지. 무관한 회원은 404. appointments는 전달·반납 슬롯과 확정·대기 제안 포함.
 - 요청 본문: 없음
 - 성공 응답: 200 RentalDetail
 - 관련 테이블: rentals, rental_status_histories, appointment_slots
@@ -621,6 +622,16 @@
 - 성공 응답: 200 AppointmentSlot
 - 관련 테이블: appointment_slots, appointment_proposals, outbox_events
 - 목업 연결: chat
+
+### 대여·약속 내부 연동
+
+- `RentalQueryService.getRentalSummary(rentalId, memberId)`: 거래 당사자 검사 후 RentalSummaryResponse 반환. 무관한 회원은 404. 기존 거래는 현재 동네·차단 상태와 무관하게 조회. 거절·취소·전달·반납에도 신규 관계 정책 미적용.
+- 채팅방 개설·재개설 시 기존 대여 연결은 채팅 담당의 후속 연동 대상. 대여의 `RentalRepository.linkChatRoom`은 같은 물건·소유자·요청자의 미연결 거래만 연결하는 내부 기능 제공.
+- 신규 대여 생성 시 같은 물건·소유자·요청자의 기존 채팅방 연결. 방이 없으면 NULL 유지.
+- APPROVED 진입 시 PICKUP/RETURN 슬롯 생성. V13은 기존 APPROVED/ACTIVE/RETURNED 거래의 누락 슬롯만 보충.
+- C_038~040은 회원 ID순 → 물건 → 거래 → 슬롯 순으로 직렬화하고 슬롯 version 비교. 제안·수락·철회와 슬롯 버전·outbox 사건을 같은 트랜잭션에 저장.
+- 제안 교체·철회는 기존 확정 약속 유지. 새 제안 수락 시 이전 확정은 SUPERSEDED. 수락 시 활성 공용 장소와 KST 날짜·미래 시각·대여 상태 재검사.
+- 채팅방 응답의 거래 요약 호출·기존 대여 연결·권한 판정과 약속 카드·버튼 화면 연결은 채팅 도메인 담당 범위.
 
 ## 10. 채팅 (chat)
 
@@ -1294,7 +1305,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | version | integer(int64) | Y | 최소 0 |
 | confirmedProposal | AppointmentProposal | N | — |
 | pendingProposal | AppointmentProposal | N | — |
-| allowedActions | string[] | Y | — |
+| allowedActions | string[] | Y | PROPOSE(제안·변경), ACCEPT(상대 제안 수락), WITHDRAW(내 대기 제안 철회). PICKUP은 APPROVED, RETURN은 APPROVED/ACTIVE에서 미래 시각 선택 가능한 날짜에 PROPOSE. ACCEPT는 같은 조건에 미래이며 슬롯 날짜와 일치하는 상대 대기 제안이 있을 때. WITHDRAW는 내 PROPOSED 제안이 있을 때. 서버의 실행 시 재검사는 별도 수행 |
 ### AppointmentSlots
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
