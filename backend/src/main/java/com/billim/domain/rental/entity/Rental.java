@@ -45,6 +45,13 @@ public class Rental extends BaseTimeEntity {
         return rental;
     }
 
+    public void linkChatRoom(long roomId) {
+        if (chatRoomId != null && chatRoomId != roomId) {
+            throw new IllegalStateException("이미 다른 채팅방에 연결된 거래");
+        }
+        chatRoomId = roomId;
+    }
+
     public boolean isParticipant(long memberId) {
         return ownerId.equals(memberId) || borrowerId.equals(memberId);
     }

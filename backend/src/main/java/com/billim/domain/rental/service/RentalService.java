@@ -1,5 +1,9 @@
 package com.billim.domain.rental.service;
 
+import com.billim.domain.chat.entity.ChatRoom;
+import com.billim.domain.rental.entity.AppointmentSlot;
+import com.billim.domain.rental.entity.AppointmentKind;
+import com.billim.domain.rental.repository.AppointmentSlotRepository;
 import com.billim.domain.rental.dto.*;
 import com.billim.domain.rental.entity.Rental;
 import com.billim.domain.rental.entity.AppointmentProposal;
@@ -22,7 +26,6 @@ import com.billim.global.exception.RentalDateConflictException;
 import com.billim.global.security.LoginMember;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -47,10 +50,12 @@ public class RentalService {
     private final RentalRequestEffects effects;
     private final Clock clock;
     private final RentalQueryService queries;
+    private final AppointmentSlotRepository appointmentSlots;
 
     public RentalService(RentalRepository rentals, RentalStatusHistoryRepository histories,
                          ItemRepository items, MemberRepository members, RentalRequestPolicy policy,
-                         RentalRequestEffects effects, Clock clock, RentalQueryService queries) {
+                         RentalRequestEffects effects, Clock clock, RentalQueryService queries,
+                         AppointmentSlotRepository appointmentSlots) {
         this.rentals = rentals;
         this.histories = histories;
         this.items = items;
@@ -59,6 +64,7 @@ public class RentalService {
         this.effects = effects;
         this.clock = clock;
         this.queries = queries;
+        this.appointmentSlots = appointmentSlots;
     }
 
     @Transactional
@@ -135,11 +141,16 @@ public class RentalService {
         /** 거래와 최초 상태 이력 저장 */
         Member owner = members.findById(item.getOwnerId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-        Rental rental = rentals.saveAndFlush(Rental.request(item.getId(), item.getOwnerId(), borrower.getId(),
+        Rental rental = Rental.request(item.getId(), item.getOwnerId(), borrower.getId(),
                 item.getCommunityId(), request.startDate(), request.endDate(),
                 request.startDate().plusDays(1).atStartOfDay(KST).toInstant(), // 시작일 다음 날 KST 00:00
                 request.endDate().plusDays(1).atStartOfDay(KST).toInstant(), // 종료일 다음 날 KST 00:00
-                item.getTitle(), item.getPlaceId(), placeName));
+                item.getTitle(), item.getPlaceId(), placeName);
+        rentals.findChatRoomForRentalLink(itemId, borrower.getId())
+                .filter(room -> room.getOwnerId().equals(item.getOwnerId()))
+                .map(ChatRoom::getId)
+                .ifPresent(rental::linkChatRoom);
+        rental = rentals.saveAndFlush(rental);
         /** 최초 요청 상태 이력 저장 */
         RentalStatusHistory history = histories.saveAndFlush(RentalStatusHistory.requested(rental));
         /** 응답 생성 및 후속 기록 저장 */
@@ -171,7 +182,8 @@ public class RentalService {
         var initialHistory = new RentalDetailStatusResponse.History(null, history.getToStatus(),
                 String.valueOf(history.getActorId()), null, history.getRentalVersion(), history.getCreatedAt());
         return new RentalDetailStatusResponse(summary, null, rental.getRequestExpiresAt(), rental.getDueAt(),
-                null, null, null, null, List.of(initialHistory), List.of());
+                null, null, null, rental.getChatRoomId() == null ? null : rental.getChatRoomId().toString(),
+                List.of(initialHistory), List.of());
     }
 
     @Transactional
@@ -301,6 +313,8 @@ public class RentalService {
                     throw new RentalDateConflictException(occupied.stream().map(Rental::getId).toList());
                 }
                 rental.approve(now);
+                appointmentSlots.saveAll(java.util.Arrays.stream(AppointmentKind.values())
+                        .map(kind -> AppointmentSlot.create(rentalId, kind)).toList());
             }
             case REJECT -> rental.reject(reason);
             case CANCEL -> rental.cancel(reason);

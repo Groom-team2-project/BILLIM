@@ -1,5 +1,6 @@
 package com.billim.domain.rental.service;
 
+import com.billim.domain.member.entity.MemberRole;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.member.dto.MemberSummaryResponse;
@@ -19,7 +20,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -41,16 +41,26 @@ public class RentalQueryService {
     private final ItemRepository items;
     private final RentalRequestPolicy policy;
     private final Clock clock;
+    private final AppointmentService appointments;
 
     public RentalQueryService(RentalRepository rentals, RentalStatusHistoryRepository histories,
                               MemberRepository members, ItemRepository items,
-                              RentalRequestPolicy policy, Clock clock) {
+                              RentalRequestPolicy policy, Clock clock, AppointmentService appointments) {
         this.rentals = rentals;
         this.histories = histories;
         this.members = members;
         this.items = items;
         this.policy = policy;
         this.clock = clock;
+        this.appointments = appointments;
+    }
+
+    public RentalSummaryResponse getRentalSummary(Long rentalId, Long memberId) {
+        if (memberId == null || memberId < 1) throw new BusinessException(ErrorCode.UNAUTHENTICATED);
+        if (rentalId == null || rentalId < 1) throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        Rental rental = rentals.findById(rentalId).filter(r -> r.isParticipant(memberId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        return summary(rental, memberId, clock.instant());
     }
 
     public RentalListResponse getRentalList(RentalRole role, RentalStatus status, boolean overdueOnly,
@@ -109,7 +119,10 @@ public class RentalQueryService {
         return new RentalDetailStatusResponse(summary(rental, memberId, now), rental.getReason(),
                 rental.getRequestExpiresAt(), rental.getDueAt(), rental.getApprovedAt(),
                 rental.getHandedOverAt(), rental.getReturnedAt(),
-                rental.getChatRoomId() == null ? null : rental.getChatRoomId().toString(), history, List.of());
+                rental.getChatRoomId() == null ? null : rental.getChatRoomId().toString(), history, appointments.getAppointments(rental.getId(),
+                        new LoginMember(memberId, MemberRole.USER)).items().stream()
+                        .map(s -> new RentalDetailStatusResponse.AppointmentSlot(s.id(), s.rentalId(), s.kind().name(),
+                                s.version(), s.confirmedProposal(), s.pendingProposal(), s.allowedActions())).toList());
     }
 
     public RentalAvailabilityResponse getAvailability(Long itemId, LocalDate from, LocalDate to,
@@ -175,14 +188,26 @@ public class RentalQueryService {
     private List<String> allowedActions(Rental rental, long memberId, LocalDate today) {
         boolean owner = rental.getOwnerId().equals(memberId);
         return switch (rental.getStatus()) {
-            // 승인 정책 연동 전에는 승인 가능 여부를 단정하지 않음.
-            case REQUESTED -> owner ? List.of("REJECT") : List.of("CANCEL");
+            case REQUESTED -> owner
+                    ? (canApprove(rental, today) ? List.of("APPROVE", "REJECT") : List.of("REJECT"))
+                    : List.of("CANCEL");
             case APPROVED -> owner && !today.isBefore(rental.getStartDate()) && !today.isAfter(rental.getEndDate())
                     && !rentals.existsByItemIdAndStatus(rental.getItemId(), RentalStatus.ACTIVE)
                     ? List.of("CANCEL", "HANDOVER") : List.of("CANCEL");
             case ACTIVE -> owner ? List.of("RETURN") : List.of();
             default -> List.of();
         };
+    }
+
+    private boolean canApprove(Rental rental, LocalDate today) {
+        Instant now = clock.instant();
+        if (!rental.getRequestExpiresAt().isAfter(now) || rental.getStartDate().isBefore(today)) return false;
+        return items.findById(rental.getItemId()).filter(item -> policy.canApprove(item, rental)
+                && !rental.getStartDate().isBefore(item.getAvailableStartDate())
+                && !rental.getEndDate().isAfter(item.getAvailableEndDate())
+                && !rentals.existsByItemIdAndStatusAndDueAtLessThanEqual(item.getId(), RentalStatus.ACTIVE, now)
+                && !rentals.hasOccupiedDates(item.getId(), OCCUPYING_STATUSES,
+                        rental.getStartDate(), rental.getEndDate())).isPresent();
     }
 
     private RentalCountStatusResponse.RentalCounts counts(long memberId, boolean owner, Instant now) {
