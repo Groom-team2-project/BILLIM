@@ -1,37 +1,32 @@
 package com.billim.domain.item.service;
 
+import com.billim.domain.community.service.CommunityMembershipQuery;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
-import com.billim.domain.member.entity.Member;
-import com.billim.domain.member.repository.MemberRepository;
+import com.billim.domain.safety.service.BlockQuery;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import org.springframework.stereotype.Component;
 
+import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 
-/**
- * 물건 조회 권한 판정.
- * 활성 동네는 회원이 선택한 동네(members.active_community_id)를 쓴다.
- * 그 소속의 유효성(인증 만료·탈퇴)과 차단 판정은 동네 도메인(E) 연동 후 추가한다.
- */
+// 물건 조회 권한 판정. 동네 소속은 커뮤니티 도메인(CommunityMembershipQuery), 차단은 안전 도메인(BlockQuery) 판정 사용
 @Component
 public class ItemAccessPolicy {
 
-    private final MemberRepository memberRepository;
+    private final CommunityMembershipQuery membershipQuery;
+    private final BlockQuery blockQuery;
 
-    public ItemAccessPolicy(MemberRepository memberRepository) {
-        this.memberRepository = memberRepository;
+    public ItemAccessPolicy(CommunityMembershipQuery membershipQuery, BlockQuery blockQuery) {
+        this.membershipQuery = membershipQuery;
+        this.blockQuery = blockQuery;
     }
 
-    /**
-     * 로그인 회원의 활성 동네 ID. 선택한 동네가 없거나 활동 중인 회원이 아니면 Optional.empty().
-     * TODO(E): 선택한 동네가 유효한 소속인지(community_memberships의 인증 만료·탈퇴) 확인한다.
-     */
+    // 유효한 활성 동네 ID. 소속이 없거나 인증이 만료되면 빈 값
     public Optional<Long> findActiveCommunityId(long memberId) {
-        return memberRepository.findById(memberId)
-                .filter(Member::isActive)
-                .map(Member::getActiveCommunityId);
+        return membershipQuery.findActiveCommunityId(memberId);
     }
 
     public long requireActiveCommunityId(long memberId) {
@@ -39,7 +34,19 @@ public class ItemAccessPolicy {
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMMUNITY_VERIFICATION_REQUIRED));
     }
 
-    /** 본인은 HIDDEN도 조회. 타인은 같은 유효 동네의 PUBLIC만. DELETED는 모두 불가 */
+    // 해당 동네의 유효 소속이 아니면 403 (수정·공개 복원)
+    public void requireValidMembership(long memberId, long communityId) {
+        if (!membershipQuery.hasValidMembership(memberId, communityId)) {
+            throw new BusinessException(ErrorCode.COMMUNITY_VERIFICATION_REQUIRED);
+        }
+    }
+
+    // 후보 소유자 중 나와 차단 관계(양방향)인 회원
+    public Set<Long> findBlockedOwners(long memberId, Collection<Long> ownerIds) {
+        return blockQuery.findBlockedAmong(memberId, ownerIds);
+    }
+
+    /** 본인은 HIDDEN도 조회. 타인은 같은 유효 동네의 PUBLIC이면서 차단 관계가 아닌 경우만. DELETED는 모두 불가 */
     public boolean canView(Item item, long memberId) {
         if (item.isDeleted()) {
             return false;
@@ -54,7 +61,6 @@ public class ItemAccessPolicy {
         if (active.isEmpty() || !active.get().equals(item.getCommunityId())) {
             return false;
         }
-        // TODO(E): 차단 관계(내가 차단했거나 나를 차단한 회원)의 물건은 제외한다.
-        return true;
+        return !blockQuery.isBlockedBetween(memberId, item.getOwnerId());
     }
 }

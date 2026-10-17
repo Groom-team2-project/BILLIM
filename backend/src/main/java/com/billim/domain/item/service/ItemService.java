@@ -1,5 +1,7 @@
 package com.billim.domain.item.service;
 
+import com.billim.domain.community.entity.CommunityPlace;
+import com.billim.domain.community.repository.CommunityPlaceRepository;
 import com.billim.domain.item.dto.CreateItemRequest;
 import com.billim.domain.item.dto.ItemDetailResponse;
 import com.billim.domain.item.dto.ItemPageResponse;
@@ -50,16 +52,18 @@ public class ItemService {
     private final CategoryRepository categoryRepository;
     private final ItemAssembler assembler;
     private final ItemAccessPolicy accessPolicy;
+    private final CommunityPlaceRepository placeRepository;
     private final Clock clock;
 
     public ItemService(ItemRepository itemRepository, MediaFileRepository mediaFileRepository,
                        CategoryRepository categoryRepository, ItemAssembler assembler,
-                       ItemAccessPolicy accessPolicy, Clock clock) {
+                       ItemAccessPolicy accessPolicy, CommunityPlaceRepository placeRepository, Clock clock) {
         this.itemRepository = itemRepository;
         this.mediaFileRepository = mediaFileRepository;
         this.categoryRepository = categoryRepository;
         this.assembler = assembler;
         this.accessPolicy = accessPolicy;
+        this.placeRepository = placeRepository;
         this.clock = clock;
     }
 
@@ -71,8 +75,7 @@ public class ItemService {
         long communityId = accessPolicy.requireActiveCommunityId(memberId);   // 선택한 동네가 없으면 403
         List<Long> imageIds = parseImageIds(req.imageIds());
         Category category = requireCategory(IdParser.parse(req.categoryId()));
-        // TODO(E): 거래 장소가 존재하고, 활성이며, 이 동네의 공용 장소인지 검증한다. 연동 전에는 ID 형식만 확인한다.
-        long placeId = IdParser.parse(req.placeId());
+        long placeId = requirePlace(IdParser.parse(req.placeId()), communityId);
 
         Item item = Item.create(memberId, communityId, category.getId(), placeId,
                 req.title(), req.description(), req.availableStartDate(), req.availableEndDate(), now);
@@ -107,13 +110,12 @@ public class ItemService {
     public ItemDetailResponse update(long memberId, long itemId, UpdateItemRequest req) {
         Instant now = clock.instant();
         Item item = loadForCommand(memberId, itemId);
-        // TODO(E): 수정하는 회원의 현재 유효 동네가 이 물건의 동네와 같은지 확인한다(다르면 403).
+        accessPolicy.requireValidMembership(memberId, item.getCommunityId());   // 소유자·유효 해당 동네만 (B_021)
         requireVersion(item, req.expectedVersion());
 
         List<Long> imageIds = parseImageIds(req.imageIds());
         Category category = requireCategory(IdParser.parse(req.categoryId()));
-        // TODO(E): 거래 장소가 존재하고, 활성이며, 이 물건의 동네 공용 장소인지 검증한다.
-        long placeId = IdParser.parse(req.placeId());
+        long placeId = requirePlace(IdParser.parse(req.placeId()), item.getCommunityId());
         // TODO(C): 진행 중인 요청·거래(REQUESTED/APPROVED/ACTIVE)가 있으면
         //          ① 가능 기간이 그 기간을 모두 포함해야 하고(아니면 409 ITEM_HAS_OPEN_RENTALS),
         //          ② 사진을 제거할 수 없다(409 MEDIA_IN_USE). 연동 전에는 검사하지 않는다.
@@ -150,7 +152,10 @@ public class ItemService {
         Instant now = clock.instant();
         Item item = loadForCommand(memberId, itemId);
         requireVersion(item, req.expectedVersion());
-        // TODO(E): 공개(PUBLIC) 복원은 해당 동네의 유효 소속이 필요하다(아니면 403). HIDDEN 전환은 소속과 무관하게 허용.
+        // PUBLIC 복원은 해당 동네 유효 소속 필요. HIDDEN 전환은 인증 만료·소속 변경에도 정리 목적으로 허용 (B_022)
+        if (req.visibility() == ItemVisibility.PUBLIC) {
+            accessPolicy.requireValidMembership(memberId, item.getCommunityId());
+        }
         item.changeVisibility(req.visibility(), now);
         itemRepository.flush();
         return assembler.detail(item, memberId);
@@ -180,12 +185,14 @@ public class ItemService {
         }
         long communityId = accessPolicy.requireActiveCommunityId(memberId);   // 선택한 동네가 없으면 403
 
-        // TODO(E): 차단 관계(내가 차단했거나 나를 차단한 회원)의 물건을 제외한다.
+        // 차단 관계(양방향) 소유자의 물건 제외. 페이지 수가 맞도록 조회 전에 조건으로 거름
+        Set<Long> blockedOwners = accessPolicy.findBlockedOwners(memberId, itemRepository.findPublicOwnerIds(communityId));
         // TODO(C): 선택 기간에 승인·진행 중인 대여가 있는 물건을 제외하고 availableForRange를 채운다.
         //          연동 전에는 물건의 대여 가능 기간이 선택 기간을 포함하는지만 본다.
         Specification<Item> spec = ItemSpecifications.allOf(
                 ItemSpecifications.community(communityId),
                 ItemSpecifications.publicOnly(),
+                ItemSpecifications.ownerNotIn(blockedOwners),
                 ItemSpecifications.category(cond.categoryId()),
                 ItemSpecifications.place(cond.placeId()),
                 ItemSpecifications.titleContains(cond.keyword()),
@@ -239,6 +246,14 @@ public class ItemService {
             throw notFound();
         }
         return item;
+    }
+
+    // 거래 장소는 해당 동네의 활성 공용 장소만 (B_019 다른 동네 장소 금지, 정책 5 거래 장소)
+    private long requirePlace(long placeId, long communityId) {
+        return placeRepository.findByIdAndCommunityId(placeId, communityId)
+                .filter(CommunityPlace::isActive)
+                .map(CommunityPlace::getId)
+                .orElseThrow(() -> invalid("유효하지 않은 거래 장소입니다."));
     }
 
     private static void requireVersion(Item item, long expectedVersion) {
