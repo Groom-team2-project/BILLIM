@@ -23,6 +23,15 @@
   color: var(--ink-muted);
 }
 
+.chat-room-mobile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
 /* 스크롤 영역 + 메시지 목록 (nb-room__scroll + nb-msgs) */
 .chat-room-scroll {
   flex: 1;
@@ -47,6 +56,9 @@
 }
 
 @media (min-width: 760px) {
+  .chat-room-mobile-actions {
+    display: none;
+  }
   .chat-room {
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);

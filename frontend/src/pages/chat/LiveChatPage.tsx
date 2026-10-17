@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getChatRooms } from "@/api/chat";
+import { getAppointments } from "@/api/appointments";
 import { LiveChatRoom } from "@/components/custom/chat/LiveChatRoom";
 import { ChatListItem } from "@/components/custom/chat/ChatListItem";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,9 @@ import { ChipScroller } from "@/components/ui/chip-scroller";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/state";
 import { refreshChatUnreadCount } from "@/stores/chat-unread";
 import type { ApiChatRoom, ChatRoomFilter } from "@/types/chat-api";
+import type { ApiChatMessage } from "@/types/chat-api";
+import { updateRoomPreview } from "@/utils/chat-state";
+import { loadChatAppointmentPreviews } from "@/utils/chat-appointment-preview";
 import { classes } from "@/utils/classes";
 import styles from "@/pages/chat/ChatPage.module.css";
 
@@ -21,6 +25,7 @@ export function LiveChatPage() {
   const [desktop, setDesktop] = useState(() => window.matchMedia("(min-width: 760px)").matches);
   const [filter, setFilter] = useState<ChatRoomFilter>("ALL");
   const [rooms, setRooms] = useState<ApiChatRoom[]>([]);
+  const [appointmentPreviews, setAppointmentPreviews] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -41,6 +46,9 @@ export function LiveChatPage() {
       setRooms((previous) => page === 0 ? result.items : [...previous, ...result.items]);
       setHasNext(result.hasNext);
       setError(false);
+      void loadChatAppointmentPreviews(result.items, getAppointments, () => active).then((previews) => {
+        if (active) setAppointmentPreviews((previous) => page === 0 ? previews : { ...previous, ...previews });
+      });
     }).catch(() => {
       if (active) setError(true);
     }).finally(() => {
@@ -51,6 +59,7 @@ export function LiveChatPage() {
 
   const changeFilter = (next: ChatRoomFilter) => {
     setRooms([]);
+    setAppointmentPreviews({});
     setPage(0);
     setFilter(next);
     setLoading(true);
@@ -60,6 +69,28 @@ export function LiveChatPage() {
     setRooms((previous) => previous.map((room) => room.id === roomId ? { ...room, unreadCount: 0 } : room));
     void refreshChatUnreadCount();
   };
+  const onMessage = useCallback((message: ApiChatMessage) => {
+    setRooms((previous) => {
+      let changed = false;
+      const next = previous.map((room) => {
+        const updated = updateRoomPreview(room, message);
+        if (updated !== room) changed = true;
+        return updated;
+      });
+      return changed ? next : previous;
+    });
+  }, []);
+  const onRoomUpdated = useCallback((updated: ApiChatRoom) => {
+    setRooms((previous) => previous.map((room) => room.id === updated.id ? updated : room));
+    void loadChatAppointmentPreviews([updated], getAppointments).then((previews) => {
+      setAppointmentPreviews((previous) => {
+        const next = { ...previous };
+        if (previews[updated.id]) next[updated.id] = previews[updated.id];
+        else delete next[updated.id];
+        return next;
+      });
+    });
+  }, []);
   const selectedId = chatId ?? (desktop ? rooms[0]?.id : undefined);
 
   return (
@@ -88,7 +119,8 @@ export function LiveChatPage() {
                 <Button icon="search" onClick={() => navigate("/search")}>물건 찾아보기</Button>
               }>물건 상세에서 ‘채팅으로 물어보기’를 누르면 빌리기 전에 궁금한 걸 물어볼 수 있어요.</EmptyState>
             ) : <>
-              {rooms.map((room) => <ChatListItem key={room.id} room={room} selected={room.id === selectedId} />)}
+              {rooms.map((room) => <ChatListItem key={room.id} room={room}
+                selected={room.id === selectedId} appointment={appointmentPreviews[room.id]} />)}
               {hasNext ? <Button variant="secondary" onClick={() => { setLoading(true); setPage((value) => value + 1); }} disabled={loading}>
                 {loading ? "불러오는 중" : "더 보기"}
               </Button> : null}
@@ -97,7 +129,8 @@ export function LiveChatPage() {
         </section>
       </div>
       <div className={c(chatId ? "chat-page-room" : "only-desk chat-page-room")}>
-        {selectedId ? <LiveChatRoom key={selectedId} roomId={selectedId} onRead={onRead} /> : null}
+        {selectedId ? <LiveChatRoom key={selectedId} roomId={selectedId}
+          onRead={onRead} onMessage={onMessage} onRoomUpdated={onRoomUpdated} /> : null}
       </div>
     </div>
   );

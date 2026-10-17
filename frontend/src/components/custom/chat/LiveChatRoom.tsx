@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getChatMessages, getChatRoom, sendChatMessage, updateChatReadPosition } from "@/api/chat";
 import { acceptAppointment, getAppointments, proposeAppointment, withdrawAppointment } from "@/api/appointments";
 import { getCommunityPlaces, type ApiCommunityPlace } from "@/api/communities";
 import { newIdempotencyKey } from "@/api/client";
-import { reportMessage, type ReportReasonCode } from "@/api/reports";
+import { createReport, reportMessage, type ReportReasonCode } from "@/api/reports";
+import { blockMember } from "@/api/blocks";
 import { useUi } from "@/components/overlay/UiContext";
 import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { MoreMenu } from "@/components/ui/more-menu";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/state";
 import { Bubble, DateDivider, SystemMessage } from "@/components/custom/chat/Bubble";
 import { Composer } from "@/components/custom/chat/Composer";
@@ -36,8 +39,14 @@ const reportReasons: Record<string, ReportReasonCode> = {
 
 type Pending = { clientMessageId: string; body: string; rentalId?: string; failed: boolean };
 
-export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (roomId: string) => void }) {
-  const { report, toast } = useUi();
+export function LiveChatRoom({ roomId, onRead, onMessage, onRoomUpdated }: {
+  roomId: string;
+  onRead: (roomId: string) => void;
+  onMessage: (message: ApiChatMessage) => void;
+  onRoomUpdated: (room: ApiChatRoom) => void;
+}) {
+  const { confirm, report, toast } = useUi();
+  const navigate = useNavigate();
   const [room, setRoom] = useState<ApiChatRoom | null>(null);
   const [messages, setMessages] = useState<ApiChatMessage[]>([]);
   const [pending, setPending] = useState<Pending[]>([]);
@@ -61,15 +70,27 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
   const highestSequence = messages.at(-1)?.sequence ?? 0;
   const lastFetchedSequenceRef = useRef(0);
 
-  const receiveMessages = useCallback((incoming: ApiChatMessage[]) => {
+  const refreshRoom = useCallback(async () => {
+    try {
+      const detail = await getChatRoom(roomId);
+      setRoom(detail);
+      onRoomUpdated(detail);
+    } catch {
+      // 대화 흐름은 유지하고 다음 시스템 메시지에서 다시 갱신한다.
+    }
+  }, [roomId, onRoomUpdated]);
+
+  const receiveMessages = useCallback((incoming: ApiChatMessage[], refreshSummary = true) => {
     setMessages((previous) => mergeChatMessages(previous, incoming));
+    [...incoming].sort((a, b) => a.sequence - b.sequence).forEach(onMessage);
+    if (refreshSummary && incoming.some((message) => message.type === "SYSTEM")) void refreshRoom();
     const confirmedIds = new Set(incoming
       .map((message) => message.clientMessageId)
       .filter((id): id is string => typeof id === "string"));
     if (confirmedIds.size > 0) {
       setPending((previous) => previous.filter((entry) => !confirmedIds.has(entry.clientMessageId)));
     }
-  }, []);
+  }, [onMessage, refreshRoom]);
 
   useEffect(() => {
     let active = true;
@@ -78,7 +99,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
       setRoom(detail);
       setSelectedRentalId(detail.access.allowedRentalIds[0] ?? detail.rentals[0]?.id);
       setAppointmentLoading(true);
-      receiveMessages(page.items);
+      receiveMessages(page.items, false);
       lastFetchedSequenceRef.current = Math.max(0, ...page.items.map((item) => item.sequence));
       setOtherLastRead(page.otherLastReadSequence);
       setOlder(page.hasMore);
@@ -267,6 +288,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
         : await withdrawAppointment(proposal.id, slot.version);
       setSlots((previous) => previous.map((entry) => entry.id === updated.id ? updated : entry));
       setAppointmentRevision((value) => value + 1);
+      void refreshRoom();
       toast(action === "ACCEPT" ? "약속을 수락했어요." : "제안을 철회했어요.");
     } catch (error) {
       appointmentFailed(error);
@@ -285,6 +307,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
       });
       setSlots((previous) => previous.map((entry) => entry.id === updated.id ? updated : entry));
       setAppointmentRevision((value) => value + 1);
+      void refreshRoom();
       toast("약속을 보냈어요.");
       return true;
     } catch (error) {
@@ -303,6 +326,33 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     },
   });
 
+  const openMemberReport = (memberId: string, name: string) => report({
+    name,
+    onConfirm: (reason) => {
+      const reasonCode = reportReasons[reason] ?? "OTHER";
+      void createReport({
+        targetType: "MEMBER",
+        targetId: memberId,
+        reasonCode,
+        detail: reasonCode === "OTHER" ? reason : undefined,
+      }).then(() => toast("신고를 접수했어요"))
+        .catch(() => toast("신고를 접수하지 못했어요. 다시 시도해 주세요."));
+    },
+  });
+
+  const openBlockConfirm = (memberId: string, name: string) => confirm({
+    title: `${name} 님을 차단할까요?`,
+    body: "차단하면 서로 대화할 수 없고 물건도 볼 수 없어요.",
+    confirm: "차단",
+    danger: true,
+    onConfirm: () => {
+      void blockMember(memberId).then(() => {
+        toast("차단했어요");
+        navigate("/chat");
+      }).catch(() => toast("차단하지 못했어요. 다시 시도해 주세요."));
+    },
+  });
+
   if (loading) return <section className={c("chat-room")} aria-label="대화 불러오는 중"><div className={c("chat-room-scroll")}>
     <Skeleton w="60%" h={40} r={16} /><Skeleton w="45%" h={40} r={16} />
   </div></section>;
@@ -312,6 +362,10 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
   }} /></section>;
 
   const other = room.otherMember.displayName;
+  const safetyItems = [
+    { label: "신고하기", danger: true, onSelect: () => openMemberReport(room.otherMember.id, other) },
+    { label: "차단", danger: true, onSelect: () => openBlockConfirm(room.otherMember.id, other) },
+  ];
   const allowedRentals = room.rentals.filter((rental) => room.access.allowedRentalIds.includes(rental.id));
   const selectedRental = room.rentals.find((entry) => entry.id === selectedRentalId);
   const visibleSlots = slots.filter((slot) => slot.rentalId === selectedRentalId);
@@ -322,6 +376,11 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
       <div className={c("chat-room-head only-desk")}>
         <Avatar name={other} size={36} />
         <div className={c("chat-room-head-body")}><div className={c("t-label")}>{other}</div></div>
+        <MoreMenu label="신고 · 차단" items={safetyItems} />
+      </div>
+      <div className={c("chat-room-mobile-actions")}>
+        <span className={c("t-caption chat-room-muted")}>{other} 님과의 대화</span>
+        <MoreMenu label="신고 · 차단" items={safetyItems} />
       </div>
       <ContextBar room={room} selectedRentalId={selectedRentalId} action={proposalKinds.length > 0 ?
         <Button size="sm" variant="secondary" icon="clock" disabled={appointmentBusy}
