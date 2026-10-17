@@ -27,7 +27,13 @@ export function notificationTime(createdAt: string): string {
   }).format(new Date(createdAt));
 }
 
+export function notificationOpensChat(notification: ApiNotification): boolean {
+  return notification.targetType === "RENTAL"
+    && (notification.type === "RENTAL_APPROVED" || notification.type.startsWith("APPOINTMENT_"));
+}
+
 export function notificationTargetPath(notification: ApiNotification): string {
+  if (notificationOpensChat(notification)) return "/chat";
   switch (notification.targetType) {
     case "RENTAL":
       return `/rentals?rentalId=${encodeURIComponent(notification.targetId)}`;
@@ -36,4 +42,13 @@ export function notificationTargetPath(notification: ApiNotification): string {
     case "MEMBER_SELF":
       return "/profile";
   }
+}
+
+export async function notificationDestination(
+  notification: ApiNotification,
+  getChatRoom: (rentalId: string) => Promise<{ chatRoomId?: string }>,
+): Promise<string | undefined> {
+  if (!notificationOpensChat(notification)) return notificationTargetPath(notification);
+  const detail = await getChatRoom(notification.targetId);
+  return detail.chatRoomId ? `/chat/${encodeURIComponent(detail.chatRoomId)}` : undefined;
 }
