@@ -10,6 +10,7 @@ import java.util.List;
 public record ChatRoomResponse(
     String id,
     String itemId,
+    String communityId,
     String itemTitle,
     MemberSummaryResponse otherMember,
     int unreadCount,
@@ -30,6 +31,7 @@ public record ChatRoomResponse(
         return new ChatRoomResponse(
             base.id(),
             base.itemId(),
+            base.communityId(),
             base.itemTitle(),
             base.otherMember(),
             base.unreadCount(),

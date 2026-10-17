@@ -82,6 +82,7 @@ public class ChatRoomBaseService {
         return new RoomBase(
             String.valueOf(room.getId()),
             String.valueOf(room.getItemId()),
+            String.valueOf(item.getCommunityId()),
             item.getTitle(),
             new MemberSummaryResponse(
                 String.valueOf(otherMember.getId()),
@@ -97,6 +98,7 @@ public class ChatRoomBaseService {
     public record RoomBase(
         String id,
         String itemId,
+        String communityId,
         String itemTitle,
         MemberSummaryResponse otherMember,
         int unreadCount,
