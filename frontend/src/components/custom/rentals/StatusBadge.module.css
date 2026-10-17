@@ -22,6 +22,7 @@
 .status-badge--returned { color: var(--status-returned-fg); background: var(--status-returned-bg); }
 .status-badge--overdue { color: var(--status-overdue-fg); background: var(--status-overdue-bg); }
 .status-badge--rejected { color: var(--status-rejected-fg); background: var(--status-rejected-bg); }
+.status-badge--expired,
 .status-badge--canceled {
   color: var(--status-canceled-fg);
   background: var(--status-canceled-bg);
