@@ -1,5 +1,7 @@
 package com.billim.domain.item.service;
 
+import com.billim.domain.community.entity.CommunityPlace;
+import com.billim.domain.community.repository.CommunityPlaceRepository;
 import com.billim.domain.item.dto.CategoryResponse;
 import com.billim.domain.item.dto.ImageResponse;
 import com.billim.domain.item.dto.ItemDetailResponse;
@@ -23,21 +25,23 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-// Entity → 응답 DTO 변환. 목록의 카테고리·썸네일·소유자는 배치 조회(항목별 쿼리 방지)
+// Entity → 응답 DTO 변환. 목록의 카테고리·썸네일·소유자·장소는 배치 조회(항목별 쿼리 방지)
 // 미연동 정보는 값을 지어내지 않고 생략
-// TODO(E): place 이름·좌표·안내, distanceMeters · TODO(C): pendingRequestCount
+// TODO(E): distanceMeters (동네 중심 좌표 연동) · TODO(C): pendingRequestCount
 @Component
 public class ItemAssembler {
 
     private final CategoryRepository categoryRepository;
     private final ItemImageRepository itemImageRepository;
     private final MemberService memberService;
+    private final CommunityPlaceRepository placeRepository;
 
     public ItemAssembler(CategoryRepository categoryRepository, ItemImageRepository itemImageRepository,
-                         MemberService memberService) {
+                         MemberService memberService, CommunityPlaceRepository placeRepository) {
         this.categoryRepository = categoryRepository;
         this.itemImageRepository = itemImageRepository;
         this.memberService = memberService;
+        this.placeRepository = placeRepository;
     }
 
     public ItemDetailResponse detail(Item item, long viewerId) {
@@ -57,7 +61,7 @@ public class ItemAssembler {
         return new ItemDetailResponse(
                 String.valueOf(item.getId()), item.getTitle(), item.getDescription(),
                 owner, String.valueOf(item.getCommunityId()),
-                CategoryResponse.from(category), PlaceResponse.of(item.getPlaceId(), item.getCommunityId()), images,
+                CategoryResponse.from(category), place(item, placeRepository.findById(item.getPlaceId()).orElse(null)), images,
                 item.getAvailableStartDate(), item.getAvailableEndDate(), item.getVisibility().name(),
                 null, null, item.getVersion(), actions, item.getCreatedAt());
     }
@@ -70,10 +74,12 @@ public class ItemAssembler {
         Set<Long> categoryIds = new HashSet<>();
         Set<Long> itemIds = new HashSet<>();
         Set<Long> ownerIds = new HashSet<>();
+        Set<Long> placeIds = new HashSet<>();
         for (Item i : items) {
             categoryIds.add(i.getCategoryId());
             itemIds.add(i.getId());
             ownerIds.add(i.getOwnerId());
+            placeIds.add(i.getPlaceId());
         }
         Map<Long, MemberSummaryResponse> owners = memberService.getSummaries(ownerIds);
         Map<Long, Category> categories = categoryRepository.findAllById(categoryIds).stream()
@@ -81,6 +87,8 @@ public class ItemAssembler {
         Map<Long, Long> thumbs = itemImageRepository.findThumbnails(itemIds).stream()
                 .collect(Collectors.toMap(ItemImageRepository.Thumbnail::getItemId,
                         ItemImageRepository.Thumbnail::getMediaFileId));
+        Map<Long, CommunityPlace> places = placeRepository.findAllById(placeIds).stream()
+                .collect(Collectors.toMap(CommunityPlace::getId, Function.identity()));
 
         return items.stream().map(i -> {
             Category category = categories.get(i.getCategoryId());
@@ -91,10 +99,15 @@ public class ItemAssembler {
             Long thumb = thumbs.get(i.getId());
             return new ItemSummaryResponse(
                     String.valueOf(i.getId()), i.getTitle(), CategoryResponse.from(category),
-                    owner, PlaceResponse.of(i.getPlaceId(), i.getCommunityId()),
+                    owner, place(i, places.get(i.getPlaceId())),
                     thumb == null ? null : MediaFileResponse.contentUrl(thumb),
                     i.getVisibility().name(), null, null, null, i.getCreatedAt(), null, i.getVersion());
         }).toList();
+    }
+
+    // 장소 행이 없으면(정합성 이상) 목록 전체를 실패시키지 않고 id만 응답
+    private static PlaceResponse place(Item item, CommunityPlace place) {
+        return place == null ? PlaceResponse.of(item.getPlaceId(), item.getCommunityId()) : PlaceResponse.from(place);
     }
 
     // 참조 대상(카테고리·소유 회원)이 사라진 데이터 정합성 오류

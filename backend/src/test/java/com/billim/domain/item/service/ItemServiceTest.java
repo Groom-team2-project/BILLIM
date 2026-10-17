@@ -1,5 +1,7 @@
 package com.billim.domain.item.service;
 
+import com.billim.domain.community.entity.CommunityPlace;
+import com.billim.domain.community.repository.CommunityPlaceRepository;
 import com.billim.domain.item.dto.CreateItemRequest;
 import com.billim.domain.item.dto.ItemDetailResponse;
 import com.billim.domain.item.dto.ItemPageResponse;
@@ -32,6 +34,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -41,6 +44,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -49,6 +53,7 @@ import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -67,7 +72,8 @@ class ItemServiceTest {
     @Mock MediaFileRepository mediaFileRepository;
     @Mock CategoryRepository categoryRepository;
     @Mock ItemAssembler assembler;
-    @Mock ItemAccessPolicy accessPolicy;   // 동네 소속 판정(TODO(E))은 Mock으로 대체
+    @Mock ItemAccessPolicy accessPolicy;   // 동네 소속·차단 판정은 Mock
+    @Mock CommunityPlaceRepository placeRepository;
 
     ItemService service;
     final Category category = new Category(1L, "TOOL", "공구", 1, true);
@@ -76,7 +82,7 @@ class ItemServiceTest {
     void setUp() {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         service = new ItemService(itemRepository, mediaFileRepository, categoryRepository, assembler,
-                accessPolicy, clock);
+                accessPolicy, placeRepository, clock);
         lenient().when(assembler.detail(any(), anyLong())).thenReturn(null);
     }
 
@@ -114,9 +120,21 @@ class ItemServiceTest {
         return new UpdateItemRequest("새 제목", null, "1", "10", start, end, imageIds, version);
     }
 
+    private static CommunityPlace place(long id, long communityId, boolean active) {
+        CommunityPlace p = CommunityPlace.of(communityId, "정문", BigDecimal.valueOf(37.5), BigDecimal.valueOf(127.0), null, active);
+        ReflectionTestUtils.setField(p, "id", id);
+        return p;
+    }
+
+    /** 장소 10번은 이 동네의 활성 공용 장소 */
+    private void stubPlace() {
+        when(placeRepository.findByIdAndCommunityId(10L, COMMUNITY)).thenReturn(Optional.of(place(10, COMMUNITY, true)));
+    }
+
     private void stubCreateDependencies() {
         when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        stubPlace();
     }
 
     private static void assertCode(Runnable call, ErrorCode code) {
@@ -184,14 +202,42 @@ class ItemServiceTest {
 
 
     @Test
-    @DisplayName("거래 장소 ID는 형식만 확인하고 그대로 저장한다 (존재·동네 검증은 TODO(E))")
-    void createStoresPlaceIdAsGiven() {
+    @DisplayName("거래 장소는 이 동네의 활성 공용 장소로 저장한다")
+    void createStoresPlaceOfOwnCommunity() {
         stubCreateDependencies();
         stubMedia(media(5, ME));
 
         service.create(ME, createReq(List.of("5"), START, END));
 
         assertThat(captureSaved().getPlaceId()).isEqualTo(10L);
+    }
+
+    @Test
+    @DisplayName("다른 동네 장소나 없는 장소는 400이다")
+    void createRejectsPlaceOutsideCommunity() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(placeRepository.findByIdAndCommunityId(10L, COMMUNITY)).thenReturn(Optional.empty());
+
+        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
+        verify(itemRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("운영 중지된 공용 장소는 400이다")
+    void createRejectsInactivePlace() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(placeRepository.findByIdAndCommunityId(10L, COMMUNITY)).thenReturn(Optional.of(place(10, COMMUNITY, false)));
+
+        assertCode(() -> service.create(ME, createReq(List.of("5"), START, END)), ErrorCode.INVALID_REQUEST);
+    }
+
+    @Test
+    @DisplayName("장소 ID 형식이 틀리면 400이다")
+    void createRejectsMalformedPlaceId() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
         assertCode(() -> service.create(ME, new CreateItemRequest("전동드릴", null, "1", "abc", START, END, List.of("5"))),
                 ErrorCode.INVALID_REQUEST);
     }
@@ -271,6 +317,30 @@ class ItemServiceTest {
     private void stubUpdateBase(Item item) {
         when(itemRepository.findByIdForUpdate(item.getId())).thenReturn(Optional.of(item));
         when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        stubPlace();
+    }
+
+    @Test
+    @DisplayName("해당 동네의 유효 소속이 아니면 수정할 수 없다 (403)")
+    void updateRequiresValidMembership() {
+        Item item = existingItem(7, ME, List.of(5L));
+        when(itemRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(item));
+        doThrow(new BusinessException(ErrorCode.COMMUNITY_VERIFICATION_REQUIRED))
+                .when(accessPolicy).requireValidMembership(ME, COMMUNITY);
+
+        assertCode(() -> service.update(ME, 7, updateReq(List.of("5"), START, END, 0)),
+                ErrorCode.COMMUNITY_VERIFICATION_REQUIRED);
+    }
+
+    @Test
+    @DisplayName("수정 때도 이 물건 동네의 공용 장소만 허용한다")
+    void updateRejectsPlaceOutsideCommunity() {
+        Item item = existingItem(7, ME, List.of(5L));
+        when(itemRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(item));
+        when(categoryRepository.findById(1L)).thenReturn(Optional.of(category));
+        when(placeRepository.findByIdAndCommunityId(10L, COMMUNITY)).thenReturn(Optional.empty());
+
+        assertCode(() -> service.update(ME, 7, updateReq(List.of("5"), START, END, 0)), ErrorCode.INVALID_REQUEST);
     }
 
     @Test
@@ -398,11 +468,12 @@ class ItemServiceTest {
 
         assertThat(item.getVisibility()).isEqualTo(ItemVisibility.HIDDEN);
         verify(accessPolicy, never()).requireActiveCommunityId(anyLong());
+        verify(accessPolicy, never()).requireValidMembership(anyLong(), anyLong());
     }
 
     @Test
-    @DisplayName("소유자는 숨긴 물건을 다시 공개할 수 있다 (동네 소속 확인은 TODO(E))")
-    void ownerCanRepublishHiddenItem() {
+    @DisplayName("해당 동네 유효 소속이면 숨긴 물건을 다시 공개할 수 있다")
+    void ownerWithValidMembershipCanRepublish() {
         Item item = existingItem(7, ME, List.of(5L));
         item.changeVisibility(ItemVisibility.HIDDEN, NOW);
         when(itemRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(item));
@@ -410,6 +481,21 @@ class ItemServiceTest {
         service.changeVisibility(ME, 7, new VisibilityChangeRequest(0L, ItemVisibility.PUBLIC));
 
         assertThat(item.getVisibility()).isEqualTo(ItemVisibility.PUBLIC);
+        verify(accessPolicy).requireValidMembership(ME, COMMUNITY);
+    }
+
+    @Test
+    @DisplayName("해당 동네 유효 소속이 아니면 다시 공개할 수 없다 (403)")
+    void republishRequiresValidMembership() {
+        Item item = existingItem(7, ME, List.of(5L));
+        item.changeVisibility(ItemVisibility.HIDDEN, NOW);
+        when(itemRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(item));
+        doThrow(new BusinessException(ErrorCode.COMMUNITY_VERIFICATION_REQUIRED))
+                .when(accessPolicy).requireValidMembership(ME, COMMUNITY);
+
+        assertCode(() -> service.changeVisibility(ME, 7, new VisibilityChangeRequest(0L, ItemVisibility.PUBLIC)),
+                ErrorCode.COMMUNITY_VERIFICATION_REQUIRED);
+        assertThat(item.getVisibility()).isEqualTo(ItemVisibility.HIDDEN);
     }
 
 
@@ -573,5 +659,19 @@ class ItemServiceTest {
     void searchNearestIsUnavailableUntilCommunityIsLinked() {
         assertCode(() -> service.search(ME, cond(null, null, ItemSort.NEAREST, 0, 20)), ErrorCode.DEPENDENCY_UNAVAILABLE);
         verify(itemRepository, never()).findAll(any(Specification.class), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("검색은 동네 공개 물건 소유자 중 차단 관계인 회원을 조회 전에 제외 조건으로 넣는다")
+    void searchExcludesBlockedOwnersBeforePaging() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(itemRepository.findPublicOwnerIds(COMMUNITY)).thenReturn(List.of(2L, 3L, 4L));
+        when(accessPolicy.findBlockedOwners(ME, List.of(2L, 3L, 4L))).thenReturn(Set.of(3L));
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+
+        service.search(ME, cond(null, null, ItemSort.LATEST, 0, 20));
+
+        verify(accessPolicy).findBlockedOwners(ME, List.of(2L, 3L, 4L));
+        verify(itemRepository).findAll(any(Specification.class), any(Pageable.class));
     }
 }
