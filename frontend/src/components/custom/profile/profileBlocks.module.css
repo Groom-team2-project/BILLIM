@@ -1,0 +1,122 @@
+/* 내 프로필·이웃 프로필 공용 블록 — 화면 골격, 머리글, 물건 행 (DESIGN_SYSTEM.md §6-0) */
+
+.profile-me {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.profile-me-action {
+  margin-left: auto;
+}
+
+.profile-muted {
+  color: var(--ink-muted);
+}
+
+.profile-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: 14px var(--space-4);
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  color: var(--ink);
+}
+
+/* 프로토타입 listItem은 menuItem보다 한 단 좁다 */
+.profile-row--item {
+  padding-top: var(--space-3);
+  padding-bottom: var(--space-3);
+}
+
+/* 상세 이동 영역 — 행 패딩 안의 남은 폭 */
+.profile-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-row-main > svg {
+  color: var(--ink-muted);
+}
+
+.profile-row-thumb {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  aspect-ratio: auto;
+  border-radius: var(--radius-md);
+}
+
+.profile-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.profile-row-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-row + .profile-row {
+  border-top: 1px solid var(--line);
+}
+
+.profile-row > svg {
+  color: var(--ink-muted);
+}
+
+/* ---------- 화면 골격 ---------- */
+
+.profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.profile-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.profile-section-label {
+  margin: 0;
+}
+
+.profile-note {
+  margin: 0;
+}
+
+.profile-card {
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.profile-card--list {
+  padding: 0;
+  overflow: hidden;
+}
+
+.profile-empty {
+  padding: var(--space-4);
+  margin: 0;
+}

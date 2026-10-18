@@ -94,7 +94,7 @@ function ReportModal({ opts, onClose }: { opts: ReportOptions; onClose: () => vo
               type="button"
               role="radio"
               aria-checked={reason === r ? "true" : "false"}
-              className={`ui-opt${reason === r ? " ui-opt--on" : ""}`}
+              className={c(`ui-opt${reason === r ? " ui-opt--on" : ""}`)}
               onClick={() => setReason(r)}
             >
               <span className={c("ui-opt-radio")} />
