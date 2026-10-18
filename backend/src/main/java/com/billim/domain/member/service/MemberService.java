@@ -1,5 +1,10 @@
 package com.billim.domain.member.service;
 
+import com.billim.domain.community.dto.MembershipResponse;
+import com.billim.domain.community.service.CommunityMembershipQuery;
+import com.billim.domain.member.dto.PublicProfileResponse;
+import com.billim.domain.rental.service.RentalPartyQuery;
+import com.billim.domain.safety.service.BlockQuery;
 import com.billim.domain.member.dto.MemberSummaryResponse;
 import com.billim.domain.member.dto.MyProfileResponse;
 import com.billim.domain.member.entity.Member;
@@ -25,6 +30,10 @@ public class MemberService {
     private final MemberRepository memberRepository;
     /** 제재 결정은 safety, 적용은 회원 도메인 (도메인 가이드 4장) */
     private final SanctionService sanctionService;
+    /** 소속 판정은 커뮤니티 도메인 (도메인 가이드 C06) */
+    private final CommunityMembershipQuery membershipQuery;
+    private final BlockQuery blockQuery;
+    private final RentalPartyQuery rentalPartyQuery;
 
     /** 미인증·제재 상태도 자신의 온보딩·제한 상태는 조회 가능 */
     @Transactional(readOnly = true)
@@ -51,6 +60,26 @@ public class MemberService {
         return toProfile(member);
     }
 
+    /**
+     * 이웃 공개 프로필 (A_007). 거래 없는 타 동네·차단 관계는 존재 은닉으로 404.
+     * 본인·거래 당사자는 소속·차단과 무관하게 허용 — C_008(공개 프로필과 동일 권한)과 같은 기준.
+     */
+    @Transactional(readOnly = true)
+    public PublicProfileResponse getPublicProfile(long viewerId, long targetId) {
+        requireActiveViewer(viewerId);
+        Member target = find(targetId);
+        boolean self = viewerId == targetId;
+        MembershipResponse membership = membershipQuery.findActiveMembership(targetId).orElse(null);
+
+        if (!self && !rentalPartyQuery.hasTraded(viewerId, targetId)
+                && (!inSameCommunity(viewerId, membership)
+                        || blockQuery.isBlockedBetween(viewerId, targetId))) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        return PublicProfileResponse.of(target, membership,
+                !self && blockQuery.hasBlocked(viewerId, targetId));
+    }
+
     /** 목록 응답의 소유자·당사자 표시용 */
     @Transactional(readOnly = true)
     public Map<Long, MemberSummaryResponse> getSummaries(Collection<Long> memberIds) {
@@ -61,8 +90,26 @@ public class MemberService {
                 .collect(Collectors.toMap(Member::getId, MemberSummaryResponse::from));
     }
 
+    /** 세션이 남은 탈퇴·삭제 회원 차단 — 인증 계층의 상태 미검사 (C_008과 같은 기준) */
+    private void requireActiveViewer(long viewerId) {
+        memberRepository.findById(viewerId).filter(Member::isActive)
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
+    }
+
+    /** 호출부가 읽은 대상 소속의 communityId만 비교 — 같은 소속 중복 조회 방지 */
+    private boolean inSameCommunity(long viewerId, MembershipResponse targetMembership) {
+        if (targetMembership == null) {
+            return false;
+        }
+        return membershipQuery.findActiveCommunityId(viewerId)
+                .map(String::valueOf)
+                .filter(targetMembership.communityId()::equals)
+                .isPresent();
+    }
+
     private MyProfileResponse toProfile(Member member) {
-        return MyProfileResponse.from(member, sanctionService.isRestricted(member.getId()));
+        return MyProfileResponse.from(member, sanctionService.isRestricted(member.getId()),
+                membershipQuery.findActiveMembership(member.getId()).orElse(null));
     }
 
     private Member find(Long memberId) {

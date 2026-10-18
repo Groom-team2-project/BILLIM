@@ -306,6 +306,30 @@ class CommunityFlowDbTest {
         assertThat(membershipQuery.findActiveCommunityId(me)).isEmpty();
     }
 
+    @Test
+    @DisplayName("활성 소속 조회는 동네 이름과 인증 시점까지 함께 준다")
+    void findsActiveMembershipWithCommunityName() {
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+
+        assertThat(membershipQuery.findActiveMembership(me)).get().satisfies(membership -> {
+            assertThat(membership.communityId()).isEqualTo(String.valueOf(homeId));
+            assertThat(membership.communityName()).isEqualTo("새솔마을 5단지");
+            assertThat(membership.status()).isEqualTo(MembershipStatus.ACTIVE.name());
+            assertThat(membership.isValid()).isTrue();
+            assertThat(membership.verifiedAt()).isNotNull();
+            assertThat(membership.verificationExpiresAt()).isNotNull();
+        });
+    }
+
+    @Test
+    @DisplayName("인증이 만료되면 활성 소속 조회도 비어 있다")
+    void activeMembershipIsEmptyWhenExpired() {
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+        expireMembership(me, homeId);
+
+        assertThat(membershipQuery.findActiveMembership(me)).isEmpty();
+    }
+
     // ---------- fixtures ----------
 
     private MembershipResponse verify(long memberId, long communityId,
