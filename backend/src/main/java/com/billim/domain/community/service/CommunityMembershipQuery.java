@@ -1,5 +1,7 @@
 package com.billim.domain.community.service;
 
+import com.billim.domain.community.dto.MembershipResponse;
+
 import java.util.Optional;
 
 /**
@@ -25,4 +27,7 @@ public interface CommunityMembershipQuery {
 
     /** 이 회원이 해당 동네의 유효 소속인지 */
     boolean hasValidMembership(long memberId, long communityId);
+
+    /** 회원의 유효한 활성 소속. 동네 이름·인증 시점이 필요한 응답용 */
+    Optional<MembershipResponse> findActiveMembership(long memberId);
 }
