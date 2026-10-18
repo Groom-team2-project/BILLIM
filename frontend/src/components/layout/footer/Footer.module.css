@@ -39,7 +39,6 @@
 .ft-bottom {
   max-width: var(--size-content);
   margin: 0 auto;
-  border-top: 1px solid var(--line);
   padding-top: 20px;
   display: flex;
   flex-direction: column;

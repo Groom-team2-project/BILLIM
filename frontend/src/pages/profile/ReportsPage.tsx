@@ -78,7 +78,7 @@ export function ReportsPage() {
       {list.state === "ok" && (
         <div className={c("reports-card")}>
           {list.rows.length === 0 ? (
-            <p className={c("t-caption reports-muted")}>접수한 신고가 없어요.</p>
+            <p className={c("t-caption reports-muted reports-empty")}>접수한 신고가 없어요.</p>
           ) : (
             list.rows.map((report) => {
               const done = report.status === "RESOLVED";

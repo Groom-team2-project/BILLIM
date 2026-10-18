@@ -12,6 +12,11 @@
   color: var(--ink-muted);
 }
 
+.reports-empty {
+  padding: var(--space-4);
+  margin: 0;
+}
+
 .reports-card {
   background: var(--surface);
   border: 1px solid var(--line);
