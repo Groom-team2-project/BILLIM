@@ -1,90 +1,6 @@
-.profile {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.profile-title {
-  margin: 0;
-}
-
-.profile-muted {
-  color: var(--ink-muted);
-}
-
-.profile-me {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.profile-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.profile-section-label {
-  margin: 0;
-}
-
-.profile-note {
-  margin: 0;
-}
-
-.profile-card {
-  padding: 18px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-}
-
-.profile-card--list {
-  padding: 0;
-  overflow: hidden;
-}
-
-.profile-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 14px var(--space-4);
-  font-size: 15px;
-  font-weight: 500;
-  text-align: left;
-  color: var(--ink);
-}
-
-.profile-row + .profile-row {
-  border-top: 1px solid var(--line);
-}
-
-.profile-row-thumb {
-  flex: none;
-  width: 44px;
-  height: 44px;
-  aspect-ratio: auto;
-  border-radius: var(--radius-md);
-}
-
-.profile-row-body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.profile-row-title {
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .profile-pill {
   flex: none;
+  cursor: pointer;
   padding: 3px 10px;
   border-radius: var(--radius-full);
   background: var(--status-active-bg);
@@ -98,11 +14,8 @@
   color: var(--ink-muted);
 }
 
-.profile-row > svg {
-  color: var(--ink-muted);
-}
-
 .profile-row-delete {
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -115,15 +28,22 @@
   cursor: pointer;
 }
 
-.profile-pill[role="button"] {
-  cursor: pointer;
-}
-
-.profile-pill[role="button"]:hover {
+.profile-pill:hover {
   filter: brightness(0.96);
 }
 
-.profile-empty {
-  padding: var(--space-4);
-  margin: 0;
+
+/* 더보기 — 카드 안 마지막 행 */
+.profile-more {
+  width: 100%;
+  padding: var(--space-3);
+  background: none;
+  border-top: 1px solid var(--line);
+  color: var(--action);
+  cursor: pointer;
+}
+
+.profile-more:disabled {
+  color: var(--ink-muted);
+  cursor: default;
 }

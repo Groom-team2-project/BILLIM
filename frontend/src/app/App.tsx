@@ -14,9 +14,8 @@ import { RentalsPage } from "@/pages/rentals";
 import { NotificationsPage } from "@/pages/notifications";
 import { ProfilePage } from "@/pages/profile";
 import { ItemDetailPage, RequestPage } from "@/pages/items";
-import { NeighborPage } from "@/pages/neighbors";
 import { BlockedPage } from "@/pages/profile";
-import { NeighborhoodsPage } from "@/pages/neighbors";
+import { NeighborPage, NeighborhoodsPage } from "@/pages/neighbors";
 import { PolicyPage } from "@/pages/policy";
 import { ReportsPage } from "@/pages/profile";
 import { AdminLayout } from "@/pages/admin";
@@ -47,7 +46,6 @@ const router = createBrowserRouter([
       { path: "search", element: <SearchPage /> },
       { path: "items/:itemId", element: <ItemDetailPage /> },
       { path: "items/:itemId/request", element: <RequestPage /> },
-      { path: "neighbors/:name", element: <NeighborPage /> },
       { path: "blocked", element: <BlockedPage /> },
       { path: "neighborhoods", element: <NeighborhoodsPage /> },
       { path: "policy/:key", element: <PolicyPage /> },
@@ -57,6 +55,7 @@ const router = createBrowserRouter([
       { path: "rentals", element: <RentalsPage /> },
       { path: "notifications", element: <NotificationsPage /> },
       { path: "profile", element: <ProfilePage /> },
+      { path: "members/:memberId", element: <NeighborPage /> },
     ],
   },
 ]);
