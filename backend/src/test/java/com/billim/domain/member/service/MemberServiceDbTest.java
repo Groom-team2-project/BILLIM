@@ -1,5 +1,10 @@
 package com.billim.domain.member.service;
 
+import com.billim.domain.community.dto.MembershipResponse;
+import com.billim.domain.community.service.CommunityMembershipQuery;
+import com.billim.domain.member.dto.PublicProfileResponse;
+import com.billim.domain.rental.service.RentalPartyQuery;
+import com.billim.domain.safety.service.BlockQuery;
 import com.billim.domain.member.dto.MemberSummaryResponse;
 import com.billim.domain.member.dto.MyProfileResponse;
 import com.billim.domain.member.entity.Member;
@@ -24,11 +29,18 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /** 표시 이름 수정의 권한·버전 규칙. Docker 필요 */
@@ -51,6 +63,138 @@ class MemberServiceDbTest {
 
     /** 제재 판정은 safety의 ReportFlowDbTest가 검증. 여기서는 프로필 반영만 확인 */
     @MockitoBean SanctionService sanctionService;
+    /** 소속 판정은 CommunityFlowDbTest가 검증. 여기서는 프로필 반영만 */
+    @MockitoBean CommunityMembershipQuery membershipQuery;
+    @MockitoBean BlockQuery blockQuery;
+    @MockitoBean RentalPartyQuery rentalPartyQuery;
+
+    @Test
+    @DisplayName("유효한 활성 소속이 있으면 프로필에 담고 온보딩을 요구하지 않는다")
+    void includesActiveMembership() {
+        Member member = memberRepository.save(Member.register("홍길동"));
+        when(membershipQuery.findActiveMembership(member.getId()))
+                .thenReturn(Optional.of(membership("7", "새솔마을 5단지")));
+
+        MyProfileResponse profile = memberService.getMyProfile(member.getId());
+
+        assertThat(profile.activeMembership()).isNotNull();
+        assertThat(profile.activeMembership().communityId()).isEqualTo("7");
+        assertThat(profile.onboardingRequired()).isFalse();
+    }
+
+    /** 미인증·만료 모두 같은 분기 */
+    @Test
+    @DisplayName("유효한 활성 소속이 없으면 소속을 생략하고 온보딩을 요구한다")
+    void omitsMembershipWithoutValidOne() {
+        Member member = memberRepository.save(Member.register("홍길동"));
+        when(membershipQuery.findActiveMembership(member.getId())).thenReturn(Optional.empty());
+
+        MyProfileResponse profile = memberService.getMyProfile(member.getId());
+
+        assertThat(profile.activeMembership()).isNull();
+        assertThat(profile.onboardingRequired()).isTrue();
+    }
+
+    // ---------- 이웃 공개 프로필 (A_007) ----------
+
+    @Test
+    @DisplayName("같은 동네 이웃의 공개 프로필을 조회한다")
+    void returnsPublicProfileForSameCommunity() {
+        Member viewer = memberRepository.save(Member.register("홍길동"));
+        Member target = memberRepository.save(Member.register("김철수"));
+        em.flush();
+        givenSameCommunity(viewer, target, "역삼동");
+        when(blockQuery.hasBlocked(viewer.getId(), target.getId())).thenReturn(true);
+
+        PublicProfileResponse profile = memberService.getPublicProfile(viewer.getId(), target.getId());
+
+        assertThat(profile.member().displayName()).isEqualTo("김철수");
+        assertThat(profile.communityName()).isEqualTo("역삼동");
+        assertThat(profile.isVerified()).isTrue();
+        assertThat(profile.blockedByMe()).isTrue();
+    }
+
+    @Test
+    @DisplayName("다른 동네이고 거래도 없으면 404")
+    void hidesProfileOutsideCommunity() {
+        Member viewer = memberRepository.save(Member.register("홍길동"));
+        Member target = memberRepository.save(Member.register("김철수"));
+        em.flush();
+        when(membershipQuery.findActiveCommunityId(viewer.getId())).thenReturn(Optional.of(1L));
+        when(membershipQuery.findActiveMembership(target.getId()))
+                .thenReturn(Optional.of(membership("2", "논현동")));
+
+        assertThatThrownBy(() -> memberService.getPublicProfile(viewer.getId(), target.getId()))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("거래 없이 차단 관계면 404")
+    void hidesProfileWhenBlockedWithoutRental() {
+        Member viewer = memberRepository.save(Member.register("홍길동"));
+        Member target = memberRepository.save(Member.register("김철수"));
+        em.flush();
+        givenSameCommunity(viewer, target, "역삼동");
+        when(blockQuery.isBlockedBetween(viewer.getId(), target.getId())).thenReturn(true);
+
+        assertThatThrownBy(() -> memberService.getPublicProfile(viewer.getId(), target.getId()))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    /** 유효 소속 없는 본인의 자기 프로필 조회 허용 (C_008과 같은 기준) */
+    @Test
+    @DisplayName("본인은 유효 소속이 없어도 조회된다")
+    void allowsOwnProfileWithoutMembership() {
+        Member viewer = memberRepository.save(Member.register("홍길동"));
+        em.flush();
+        when(membershipQuery.findActiveMembership(viewer.getId())).thenReturn(Optional.empty());
+
+        PublicProfileResponse profile = memberService.getPublicProfile(viewer.getId(), viewer.getId());
+
+        assertThat(profile.member().displayName()).isEqualTo("홍길동");
+        assertThat(profile.isVerified()).isFalse();
+        assertThat(profile.blockedByMe()).isFalse();
+        verifyNoInteractions(blockQuery, rentalPartyQuery);
+        verify(membershipQuery, never()).findActiveCommunityId(anyLong());
+    }
+
+    /** 인증 계층이 보지 않는 회원 상태를 서비스에서 차단 (C_008과 같은 기준) */
+    @Test
+    @DisplayName("탈퇴한 조회자는 401")
+    void rejectsWithdrawnViewer() {
+        Member viewer = memberRepository.save(Member.register("홍길동"));
+        Member target = memberRepository.save(Member.register("김철수"));
+        em.flush();
+        em.createNativeQuery("update members set status = 'WITHDRAWN' where id = :id")
+                .setParameter("id", viewer.getId())
+                .executeUpdate();
+        em.clear();
+
+        assertThatThrownBy(() -> memberService.getPublicProfile(viewer.getId(), target.getId()))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.UNAUTHENTICATED));
+    }
+
+    /** 거래 당사자는 동네·차단과 무관하게 열람 (명세 3.3) */
+    @Test
+    @DisplayName("기존 거래 당사자는 동네·차단과 무관하게 조회한다")
+    void allowsProfileForPastRentalParty() {
+        Member viewer = memberRepository.save(Member.register("홍길동"));
+        Member target = memberRepository.save(Member.register("김철수"));
+        em.flush();
+        when(rentalPartyQuery.hasTraded(viewer.getId(), target.getId())).thenReturn(true);
+        when(blockQuery.isBlockedBetween(viewer.getId(), target.getId())).thenReturn(true);
+        when(membershipQuery.findActiveMembership(target.getId())).thenReturn(Optional.empty());
+
+        PublicProfileResponse profile = memberService.getPublicProfile(viewer.getId(), target.getId());
+
+        assertThat(profile.member().displayName()).isEqualTo("김철수");
+        assertThat(profile.communityName()).isNull();
+        assertThat(profile.isVerified()).isFalse();
+        assertThat(profile.blockedByMe()).isFalse();   // 상대가 나를 차단한 건 내 버튼에 미반영
+    }
 
     @Test
     @DisplayName("표시 이름을 바꾸면 version이 올라간다")
@@ -181,5 +325,18 @@ class MemberServiceDbTest {
 
         assertThat(memberService.getSummaries(ids)).hasSize(3);
         assertThat(stats.getPrepareStatementCount()).isEqualTo(1);
+    }
+
+    private void givenSameCommunity(Member viewer, Member target, String communityName) {
+        long communityId = 1L;
+        when(membershipQuery.findActiveCommunityId(viewer.getId())).thenReturn(Optional.of(communityId));
+        when(membershipQuery.findActiveMembership(target.getId()))
+                .thenReturn(Optional.of(membership(String.valueOf(communityId), communityName)));
+    }
+
+    private static MembershipResponse membership(String communityId, String communityName) {
+        Instant now = Instant.parse("2026-10-18T00:00:00Z");
+        return new MembershipResponse("1", communityId, communityName,
+                "ACTIVE", now.minus(1, ChronoUnit.DAYS), now.plus(29, ChronoUnit.DAYS), true);
     }
 }
