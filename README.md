@@ -26,6 +26,11 @@
 
 ```bash
 cp backend/.env.example backend/.env    # MYSQL_* 임의 값, 카카오 키는 콘솔 발급
+```
+
+터미널 두 개로 각각 실행 (`bootRun`은 포그라운드):
+
+```bash
 cd backend && ./gradlew bootRun         # MySQL 컨테이너·Flyway 자동
 cd frontend && npm install && npm run dev
 ```

@@ -58,7 +58,7 @@
 /* 프로토타입 .btn.dan — 되돌리기 어려운 확정은 채운 버튼 */
 .btn--danger {
   background: var(--status-overdue-fg);
-  color: #fff;
+  color: var(--on-action);
   border-color: transparent;
 }
 

@@ -35,6 +35,9 @@ type Loaded = {
   items: ApiItemSummary[];
 };
 
+/** 라우트가 me·문자열도 받으므로 회원 ID 형식만 통과 — "me"는 GET /members/me로 해석돼 응답 형태가 다름 */
+const MEMBER_ID = /^[1-9][0-9]*$/;
+
 /** 열람 불가(404)와 일시 장애 구분 — 404는 존재 은닉 결과 */
 type State = { kind: "loading" } | { kind: "ok"; data: Loaded } | { kind: "hidden" } | { kind: "error" };
 
@@ -48,6 +51,12 @@ export function NeighborPage() {
 
   const load = useCallback(() => {
     let canceled = false;
+
+    if (!MEMBER_ID.test(memberId)) {
+      // "me"는 내 프로필로, 그 밖의 형식은 렌더에서 열람 불가로 처리
+      if (memberId === "me") navigate("/profile", { replace: true });
+      return () => {};
+    }
 
     // 열람 권한 판정은 프로필 응답이 대표 — 지표·물건 실패는 무시
     Promise.all([
@@ -121,6 +130,14 @@ export function NeighborPage() {
       {body}
     </div>
   );
+
+  if (!MEMBER_ID.test(memberId)) {
+    return shell(
+      <EmptyState icon="info" title="볼 수 없는 프로필이에요">
+        <p className={c("t-caption profile-muted")}>주소를 다시 확인해 주세요.</p>
+      </EmptyState>,
+    );
+  }
 
   if (state.kind === "loading") {
     return shell(<ProfileHeadingSkeleton />);

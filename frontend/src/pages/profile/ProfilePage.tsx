@@ -30,13 +30,20 @@ import { objectParticle } from "@/utils/korean";
 
 const c = classes({ ...shared, ...styles });
 
+/** getMyItems 기본 size와 동일 — 다음 페이지 번호 계산 기준 */
+const PAGE_SIZE = 20;
+
 
 export function ProfilePage() {
   const { confirm, reason, toast } = useUi();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ApiMyProfile | null>(null);
   const [failed, setFailed] = useState(false);
-  const [items, setItems] = useState<ApiItemSummary[]>([]);
+  /** 조회 실패와 0건 구분 — 빈 목록 표시는 물건이 사라진 것으로 오해 */
+  const [itemList, setItemList] = useState<
+    { state: "loading" } | { state: "ok"; rows: ApiItemSummary[]; hasNext: boolean } | { state: "error" }
+  >({ state: "loading" });
+  const [loadingMore, setLoadingMore] = useState(false);
   /** null은 하위 데이터 로딩 중 — 0건과 구분해야 빈 화면 오해 방지 */
   const [details, setDetails] = useState<{
     trust: ApiTrustMetrics | null;
@@ -56,12 +63,14 @@ export function ProfilePage() {
 
         const [loadedTrust, loadedItems, blocks, reports] = await Promise.all([
           getMemberTrust(loaded.member.id).catch(() => null),
-          getMyItems().then((page) => page.items).catch(() => []),
+          getMyItems()
+            .then((page) => ({ state: "ok" as const, rows: page.items, hasNext: page.hasNext }))
+            .catch(() => ({ state: "error" as const })),
           getMyBlocks(0, 1).then((page) => page.totalElements).catch(() => 0),
           getMyReports(0, 1).then((page) => page.totalElements).catch(() => 0),
         ]);
         if (canceled) return;
-        setItems(loadedItems);
+        setItemList(loadedItems);
         setDetails({ trust: loadedTrust, blocks, reports });
       })
       .catch(() => {
@@ -74,6 +83,24 @@ export function ProfilePage() {
   }, []);
 
   useEffect(() => load(), [load]);
+
+  /** 다음 페이지 — 20개 초과 물건의 프로필 내 관리용 */
+  const loadMore = async () => {
+    if (itemList.state !== "ok" || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const next = await getMyItems(Math.ceil(itemList.rows.length / PAGE_SIZE));
+      setItemList((prev) =>
+        prev.state === "ok"
+          ? { state: "ok", rows: [...prev.rows, ...next.items], hasNext: next.hasNext }
+          : prev,
+      );
+    } catch (e: unknown) {
+      toast(e instanceof ApiError ? e.message : "더 불러오지 못했어요");
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   /** A_006. reason 모달이 textarea라 줄바꿈·연속 공백은 한 칸으로 정리 */
   const editName = (current: ApiMyProfile) =>
@@ -115,7 +142,9 @@ export function ProfilePage() {
       onConfirm: async () => {
         try {
           await deleteItem(item.id, item.version);
-          setItems((prev) => prev.filter((it) => it.id !== item.id));
+          setItemList((prev) =>
+            prev.state === "ok" ? { ...prev, rows: prev.rows.filter((it) => it.id !== item.id) } : prev,
+          );
           toast("삭제했어요");
         } catch (e: unknown) {
           toast(e instanceof ApiError ? e.message : "삭제하지 못했어요");
@@ -128,7 +157,16 @@ export function ProfilePage() {
   const applyVisibility = async (item: ApiItemSummary, next: "PUBLIC" | "HIDDEN", done: string) => {
     try {
       const updated = await changeItemVisibility(item.id, next, item.version);
-      setItems((prev) => prev.map((it) => (it.id === item.id ? { ...it, visibility: next, version: updated.version } : it)));
+      setItemList((prev) =>
+        prev.state === "ok"
+          ? {
+              ...prev,
+              rows: prev.rows.map((it) =>
+                it.id === item.id ? { ...it, visibility: next, version: updated.version } : it,
+              ),
+            }
+          : prev,
+      );
       toast(done);
     } catch (e: unknown) {
       toast(e instanceof ApiError ? e.message : "상태를 바꾸지 못했어요");
@@ -201,46 +239,47 @@ export function ProfilePage() {
               <SkeletonItem layout="row" />
               <SkeletonItem layout="row" />
             </Loading>
-          ) : items.length === 0 ? (
+          ) : itemList.state === "error" ? (
+            <ErrorState title="물건 목록을 불러오지 못했어요" onRetry={load} />
+          ) : itemList.state !== "ok" || itemList.rows.length === 0 ? (
             <p className={c("t-caption profile-muted profile-empty")}>등록한 물건이 없어요.</p>
           ) : (
-            items.map((it) => (
-              <ProfileItemRow
-                key={it.id}
-                item={it}
-                subtitle={`${it.place.name ?? "거래 장소 미정"}${
-                  (it.pendingRequestCount ?? 0) > 0 ? ` · 요청 ${it.pendingRequestCount}건` : ""
-                }`}
-                onOpen={() => navigate(`/items/${it.id}?state=own`)}
-                actions={
-                  <>
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className={c("profile-row-delete")}
-                      aria-label={`${it.title} 삭제`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeItem(it);
-                      }}
-                    >
-                      <Icon name="x" size={16} />
-                    </span>
-                    <span
-                      role="button"
-                      tabIndex={0}
-                      className={c(`profile-pill${it.visibility === "HIDDEN" ? " profile-pill--off" : ""}`)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleVisibility(it);
-                      }}
-                    >
-                      {it.visibility === "PUBLIC" ? "공개 중" : "공개 중지"}
-                    </span>
-                  </>
-                }
-              />
-            ))
+            <>
+              {itemList.rows.map((it) => (
+                <ProfileItemRow
+                  key={it.id}
+                  item={it}
+                  subtitle={`${it.place.name ?? "거래 장소 미정"}${
+                    (it.pendingRequestCount ?? 0) > 0 ? ` · 요청 ${it.pendingRequestCount}건` : ""
+                  }`}
+                  onOpen={() => navigate(`/items/${it.id}?state=own`)}
+                  actions={
+                    <>
+                      <button
+                        type="button"
+                        className={c("profile-row-delete")}
+                        aria-label={`${it.title} 삭제`}
+                        onClick={() => removeItem(it)}
+                      >
+                        <Icon name="x" size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className={c(`profile-pill${it.visibility === "HIDDEN" ? " profile-pill--off" : ""}`)}
+                        onClick={() => toggleVisibility(it)}
+                      >
+                        {it.visibility === "PUBLIC" ? "공개 중" : "공개 중지"}
+                      </button>
+                    </>
+                  }
+                />
+              ))}
+              {itemList.hasNext ? (
+                <button type="button" className={c("profile-more t-label")} onClick={loadMore} disabled={loadingMore}>
+                  {loadingMore ? "불러오는 중" : "더보기"}
+                </button>
+              ) : null}
+            </>
           )}
         </div>
       </section>

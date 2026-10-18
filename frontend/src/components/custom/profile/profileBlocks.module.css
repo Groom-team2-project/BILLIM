@@ -32,6 +32,25 @@
   padding-bottom: var(--space-3);
 }
 
+/* 상세 이동 영역 — 행 패딩 안의 남은 폭 */
+.profile-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.profile-row-main > svg {
+  color: var(--ink-muted);
+}
+
 .profile-row-thumb {
   flex: none;
   width: 44px;

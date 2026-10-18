@@ -1,5 +1,6 @@
 .profile-pill {
   flex: none;
+  cursor: pointer;
   padding: 3px 10px;
   border-radius: var(--radius-full);
   background: var(--status-active-bg);
@@ -27,11 +28,22 @@
   cursor: pointer;
 }
 
-.profile-pill[role="button"] {
-  cursor: pointer;
-}
-
-.profile-pill[role="button"]:hover {
+.profile-pill:hover {
   filter: brightness(0.96);
 }
 
+
+/* 더보기 — 카드 안 마지막 행 */
+.profile-more {
+  width: 100%;
+  padding: var(--space-3);
+  background: none;
+  border-top: 1px solid var(--line);
+  color: var(--action);
+  cursor: pointer;
+}
+
+.profile-more:disabled {
+  color: var(--ink-muted);
+  cursor: default;
+}

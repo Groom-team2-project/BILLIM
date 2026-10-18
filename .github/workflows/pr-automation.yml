@@ -196,9 +196,12 @@ jobs:
           stale=()
           while IFS= read -r f; do
             [ -n "$f" ] || continue
-            git show "$head:$f" 2>/dev/null | sed -n '1,6p' | grep -q "버전 :" || continue
+            # grep -q는 첫 매치에서 종료 — 상류가 SIGPIPE로 죽어 pipefail과 겹치면 매치를 실패로 오판
+            head_lines="$(git show "$head:$f" 2>/dev/null | sed -n '1,6p')"
+            printf '%s' "$head_lines" | grep -F "버전 :" >/dev/null || continue
             # 머리말의 `버전 :` 줄이 이 PR에서 바뀌었는지
-            if ! git diff "$base" "$head" -- "$f" | grep -qE '^\+.*버전 :'; then
+            file_diff="$(git diff "$base" "$head" -- "$f")"
+            if ! printf '%s' "$file_diff" | grep -E '^\+.*버전 :' >/dev/null; then
               stale+=("$f")
             fi
           done < <(git -c core.quotePath=false diff --name-only --diff-filter=d "$base" "$head" -- 'docs/**/*.md')
