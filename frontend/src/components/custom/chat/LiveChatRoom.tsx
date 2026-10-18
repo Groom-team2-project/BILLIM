@@ -363,6 +363,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onRoomUpdated }: {
 
   const other = room.otherMember.displayName;
   const safetyItems = [
+    { label: "이웃 프로필", onSelect: () => navigate(`/members/${encodeURIComponent(room.otherMember.id)}`) },
     { label: "신고하기", danger: true, onSelect: () => openMemberReport(room.otherMember.id, other) },
     { label: "차단", danger: true, onSelect: () => openBlockConfirm(room.otherMember.id, other) },
   ];
