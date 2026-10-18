@@ -195,7 +195,7 @@
 ### 3.1 A_005 내 회원·활성 소속 조회
 
 - `GET /api/v1/members/me` · 이지은 · P0
-- 설명: 유효 로그인만 필요. 미인증/제재 상태도 자신의 onboarding·제한 상태를 조회할 수 있다.
+- 설명: 유효 로그인만 필요. 미인증/제재 상태도 자신의 onboarding·제한 상태를 조회할 수 있다. 유효한 활성 소속이 없으면 activeMembership을 생략하고 onboardingRequired는 참이다(인증 만료 포함).
 - 요청 본문: 없음
 - 성공 응답: 200 MyProfile
 - 관련 테이블: members, community_memberships, sanctions
@@ -213,8 +213,9 @@
 ### 3.3 A_007 이웃 공개 프로필
 
 - `GET /api/v1/members/{memberId}` · 이지은 · P1
-- 설명: 동일 유효 활성 동네의 회원 또는 기존 거래 당사자. 기존 거래 없이 차단 관계면 404. 소셜 식별자·개인 연락처 미노출.
+- 설명: 동일 유효 활성 동네의 회원 또는 기존 거래 당사자. 기존 거래 없이 차단 관계면 404. 소셜 식별자·개인 연락처 미노출. 본인 조회 가능.
 - 요청 본문: 없음
+- 오류: 탈퇴 조회자는 401 UNAUTHENTICATED, memberId가 양수가 아니면 400 INVALID_REQUEST, 없는 회원·타 동네·차단 관계는 404 RESOURCE_NOT_FOUND
 - 성공 응답: 200 PublicProfile
 - 관련 테이블: members, community_memberships, blocks, rentals
 - 목업 연결: profileOther

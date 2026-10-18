@@ -104,14 +104,13 @@ class MemberServiceDbTest {
         Member target = memberRepository.save(Member.register("김철수"));
         em.flush();
         givenSameCommunity(viewer, target, "역삼동");
-        when(blockQuery.hasBlocked(viewer.getId(), target.getId())).thenReturn(true);
 
         PublicProfileResponse profile = memberService.getPublicProfile(viewer.getId(), target.getId());
 
         assertThat(profile.member().displayName()).isEqualTo("김철수");
         assertThat(profile.communityName()).isEqualTo("역삼동");
         assertThat(profile.isVerified()).isTrue();
-        assertThat(profile.blockedByMe()).isTrue();
+        assertThat(profile.blockedByMe()).isFalse();
     }
 
     @Test
@@ -136,11 +135,29 @@ class MemberServiceDbTest {
         Member target = memberRepository.save(Member.register("김철수"));
         em.flush();
         givenSameCommunity(viewer, target, "역삼동");
+        when(blockQuery.hasBlocked(viewer.getId(), target.getId())).thenReturn(true);
         when(blockQuery.isBlockedBetween(viewer.getId(), target.getId())).thenReturn(true);
 
         assertThatThrownBy(() -> memberService.getPublicProfile(viewer.getId(), target.getId()))
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    /** 차단은 열람을 막으므로 blockedByMe가 참일 수 있는 경로는 거래 당사자뿐 */
+    @Test
+    @DisplayName("내가 차단한 거래 당사자는 조회되고 blockedByMe가 참이다")
+    void marksBlockedByMeForTradedParty() {
+        Member viewer = memberRepository.save(Member.register("홍길동"));
+        Member target = memberRepository.save(Member.register("김철수"));
+        em.flush();
+        when(rentalPartyQuery.hasTraded(viewer.getId(), target.getId())).thenReturn(true);
+        when(blockQuery.hasBlocked(viewer.getId(), target.getId())).thenReturn(true);
+        when(blockQuery.isBlockedBetween(viewer.getId(), target.getId())).thenReturn(true);
+        when(membershipQuery.findActiveMembership(target.getId())).thenReturn(Optional.empty());
+
+        PublicProfileResponse profile = memberService.getPublicProfile(viewer.getId(), target.getId());
+
+        assertThat(profile.blockedByMe()).isTrue();
     }
 
     /** 유효 소속 없는 본인의 자기 프로필 조회 허용 (C_008과 같은 기준) */
