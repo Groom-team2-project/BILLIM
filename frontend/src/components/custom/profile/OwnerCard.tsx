@@ -44,11 +44,13 @@ export function TrustLines({ trust }: { trust: Trust }) {
 
 type OwnerCardProps = {
   owner: string;
+  /** 회원 ID — 표시 이름은 중복 허용이라 식별자 불가 */
+  ownerId: string;
   trust: Trust;
   community?: string;
 };
 
-export function OwnerCard({ owner, trust, community = "새솔마을 5단지" }: OwnerCardProps) {
+export function OwnerCard({ owner, ownerId, trust, community = "새솔마을 5단지" }: OwnerCardProps) {
   return (
     <div className={c("owner-card")}>
       <div className={c("owner-card-head")}>
@@ -57,7 +59,7 @@ export function OwnerCard({ owner, trust, community = "새솔마을 5단지" }: 
           <div className={c("t-body-lg owner-card-owner")}>{owner}</div>
           <div className={c("t-caption owner-card-muted")}>{community}</div>
         </div>
-        <Link to={`/neighbors/${owner}`} className={c("t-label owner-card-link")}>프로필</Link>
+        <Link to={`/members/${ownerId}`} className={c("t-label owner-card-link")}>프로필</Link>
       </div>
       <TrustLines trust={trust} />
       <p className={c("t-caption owner-card-muted owner-card-note")}>

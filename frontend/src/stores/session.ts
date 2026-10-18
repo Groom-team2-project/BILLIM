@@ -10,6 +10,8 @@ import { clearChatUnreadCount } from "@/stores/chat-unread";
 export type Session = {
   loggedIn: boolean;
   admin: boolean;
+  /** 표시용 본인 판정 — 권한 판정은 서버가 한다 */
+  memberId: string | null;
 };
 
 const STORAGE_KEY = "billim-session";
@@ -21,7 +23,7 @@ function load(): Session {
   } catch {
     // 저장값 없음 · 접근 불가 — 로그아웃 상태
   }
-  return { loggedIn: false, admin: false };
+  return { loggedIn: false, admin: false, memberId: null };
 }
 
 let state: Session = load();
@@ -37,11 +39,11 @@ function commit(next: Session) {
   for (const f of subs) f();
 }
 
-/** 로그인 직후 서버가 준 역할로 표시 상태를 맞춘다 */
-export function signIn(role: "USER" | "ADMIN") {
+/** 로그인 직후 서버가 준 역할·회원 ID로 표시 상태를 맞춘다 */
+export function signIn(role: "USER" | "ADMIN", memberId: string) {
   clearNotifications();
   clearChatUnreadCount();
-  commit({ loggedIn: true, admin: role === "ADMIN" });
+  commit({ loggedIn: true, admin: role === "ADMIN", memberId });
 }
 
 /**
@@ -59,7 +61,7 @@ export async function logout(): Promise<boolean> {
   resetCsrf();
   clearNotifications();
   clearChatUnreadCount();
-  commit({ loggedIn: false, admin: false });
+  commit({ loggedIn: false, admin: false, memberId: null });
   return true;
 }
 

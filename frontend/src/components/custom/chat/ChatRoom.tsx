@@ -55,7 +55,6 @@ export function ChatRoom() {
   };
 
   const moreItems = [
-    { label: "이웃 프로필", onSelect: () => navigate(`/neighbors/${OTHER}`) },
     {
       label: "신고하기",
       danger: true,

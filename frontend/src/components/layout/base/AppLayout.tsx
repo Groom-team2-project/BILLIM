@@ -31,7 +31,7 @@ const OWN_HEADER = [
   /^\/register$/,
   /^\/notifications$/,
   /^\/neighborhoods$/,
-  /^\/neighbors\//,
+  /^\/members\//,
   /^\/policy\//,
   /^\/items\/[^/]+\/request$/,
 ];
@@ -92,7 +92,7 @@ export function AppLayout() {
           },
         ]
       : [
-          { label: "소유자 프로필", onSelect: () => navigate(`/neighbors/${moreItem.owner.displayName ?? UNKNOWN_OWNER}`) },
+          { label: "소유자 프로필", onSelect: () => navigate(`/members/${moreItem.owner.id}`) },
           {
             label: "이 물건 신고하기",
             danger: true,
@@ -101,7 +101,6 @@ export function AppLayout() {
         ]
     : chatRoomMatch && chatName && previewChat
       ? [
-          { label: "이웃 프로필", onSelect: () => navigate(`/neighbors/${chatName}`) },
           { label: "신고하기", danger: true, onSelect: () => doReport(chatName) },
           {
             label: "차단",

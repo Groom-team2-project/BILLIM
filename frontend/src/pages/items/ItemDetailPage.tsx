@@ -249,7 +249,7 @@ export function ItemDetailPage() {
               )}
             </div>
           </div>
-          <OwnerCard owner={owner} trust={trust} />
+          <OwnerCard owner={owner} ownerId={item.owner.id} trust={trust} />
           {own ? null : (
           <button
             type="button"
