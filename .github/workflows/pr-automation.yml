@@ -161,6 +161,73 @@ jobs:
           echo "::error::PR 제목이 컨벤션 위반: $title — $reason"
           exit 1
 
+  check-doc-version:
+    # 버전 머리말이 있는 문서를 고쳤는데 `버전 :` 줄을 안 올린 PR 차단 — 위반 시 안내 코멘트 1건, 수정하면 자동 재검사
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check doc version bump
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repo="${{ github.repository }}"
+          pr_number="${{ github.event.pull_request.number }}"
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          marker="<!-- doc-version-check -->"
+
+          find_comment() {
+            gh api --paginate "repos/$repo/issues/$pr_number/comments" \
+              --jq ".[] | select(.body | startswith(\"$marker\")) | .id" 2>/dev/null | sed -n '1p' || true
+          }
+
+          # 변경된 docs/*.md 중 버전 머리말을 가진 파일만 검사
+          # quotePath=false — 한글 경로 이스케이프(\353\252\205…)되면 git show가 못 찾는다
+          stale=()
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            git show "$head:$f" 2>/dev/null | sed -n '1,6p' | grep -q "버전 :" || continue
+            # 머리말의 `버전 :` 줄이 이 PR에서 바뀌었는지
+            if ! git diff "$base" "$head" -- "$f" | grep -qE '^\+.*버전 :'; then
+              stale+=("$f")
+            fi
+          done < <(git -c core.quotePath=false diff --name-only --diff-filter=d "$base" "$head" -- 'docs/**/*.md')
+
+          # 코멘트 작성·삭제 실패가 검사 판정을 바꾸지 않게 || true
+          if [ ${#stale[@]} -eq 0 ]; then
+            comment_id="$(find_comment)"
+            if [ -n "$comment_id" ]; then
+              gh api -X DELETE "repos/$repo/issues/comments/$comment_id" >/dev/null || true
+            fi
+            echo "문서 버전 검사 통과"
+            exit 0
+          fi
+
+          list="$(printf -- '- `%s`\n' "${stale[@]}")"
+          if [ -z "$(find_comment)" ]; then
+            body="$(printf '%s\n' \
+              "$marker" \
+              "⚠️ 문서를 수정했는데 버전·수정일이 그대로입니다." \
+              "" \
+              "$list" \
+              "" \
+              "머리말의 \`버전 :\` 패치 번호와 \`수정일 :\`을 올려 주세요. 수정하면 검사가 자동으로 다시 실행됩니다.")"
+            gh api "repos/$repo/issues/$pr_number/comments" -f body="$body" >/dev/null || true
+          fi
+
+          echo "::error::문서 버전 미갱신: ${stale[*]}"
+          exit 1
+
   sync-issue:
     # 이슈의 타입 라벨·GitHub 이슈 타입·제목 형식을 팀 컨벤션(`type: 요약`)에 맞춘다.
     # 템플릿 밖에서 만든 이슈(CodeRabbit·자유 양식)와 기술 작업 이슈가 대상.
