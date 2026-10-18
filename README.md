@@ -20,6 +20,18 @@
 | API 문서 | OpenAPI · Swagger UI (springdoc) |
 | 개발·CI | Docker Compose, GitHub Actions |
 
+## 로컬 실행
+
+필요 — Java 21, Node 22, Docker 실행 중.
+
+```bash
+cp backend/.env.example backend/.env    # MYSQL_* 임의 값, 카카오 키는 콘솔 발급
+cd backend && ./gradlew bootRun         # MySQL 컨테이너·Flyway 자동
+cd frontend && npm install && npm run dev
+```
+
+http://localhost:5173 — `/api`·`/ws`는 백엔드 프록시로 동일 출처.
+
 ## 문서
 
 - [도메인 및 DB 설계](docs/erd/도메인%20및%20DB%20설계.md)
