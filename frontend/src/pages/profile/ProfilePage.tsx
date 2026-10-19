@@ -1,8 +1,3 @@
-import { useEffect, useState } from "react";
-import { getMyProfile, type ApiMyProfile } from "@/api/members";
-import { ApiError } from "@/api/client";
-import { ErrorState, Loading, Skeleton } from "@/components/ui/state";
-import { formatYearMonth } from "@/utils/itemView";
 import { useNavigate } from "react-router-dom";
 import { logout } from "@/stores/session";
 import { Button } from "@/components/ui/button";
@@ -10,7 +5,7 @@ import { Icon } from "@/components/ui/icon";
 import { Avatar } from "@/components/ui/avatar";
 import { useUi } from "@/components/overlay/UiContext";
 import { Photo } from "@/components/custom/items/ItemCard";
-import { LiveTrustLines } from "@/components/custom/profile/LiveTrustLines";
+import { TrustLines } from "@/components/custom/profile/OwnerCard";
 import styles from "@/pages/profile/ProfilePage.module.css";
 import { classes } from "@/utils/classes";
 import { PageHeader } from "@/components/layout/header";
@@ -19,22 +14,13 @@ import { objectParticle } from "@/utils/korean";
 
 const c = classes(styles);
 
+/** 프로토타입 목데이터 — 내 계정. API 연동 시 교체 */
+const MY_TRUST = { kept: 8, total: 8, done: 12, lent: 8, since: "2026년 4월" };
+
 export function ProfilePage() {
   const { confirm, toast } = useUi();
   const navigate = useNavigate();
   const myItems = useMyItems();
-  const [profile, setProfile] = useState<ApiMyProfile | null>(null);
-  const [profileError, setProfileError] = useState("");
-  const [retry, setRetry] = useState(0);
-  useEffect(() => {
-    let alive = true;
-    getMyProfile().then((value) => { if (alive) setProfile(value); }).catch((e: unknown) => {
-      if (!alive) return;
-      if (e instanceof ApiError && e.unauthenticated) { navigate("/login"); return; }
-      setProfileError(e instanceof ApiError ? e.message : "프로필을 불러오지 못했어요.");
-    });
-    return () => { alive = false; };
-  }, [retry, navigate]);
 
   /* 논리 삭제 — 진행 중 요청이 있으면 막음 (정책 및 상태.md DELETED) */
   const removeItem = (id: number, title: string, requests: number) => {
@@ -71,24 +57,22 @@ export function ProfilePage() {
       toast("다시 공개했어요");
     }
   };
-  if (profileError) return <ErrorState title="프로필을 불러오지 못했어요" onRetry={() => { setProfileError(""); setRetry((n) => n + 1); }}>{profileError}</ErrorState>;
-  if (!profile) return <Loading label="프로필 불러오는 중"><Skeleton /></Loading>;
   return (
     <div className={c("profile page-window")}>
       <PageHeader title="내 프로필" />
 
       <div className={c("profile-me")}>
-        <Avatar name={profile.member.displayName} size={56} />
+        <Avatar name="나" size={56} />
         <div>
-          <div className={c("t-title-lg")}>{profile.member.displayName}</div>
-          <div className={c("t-caption profile-muted")}>{formatYearMonth(profile.member.joinedAt)} 가입</div>
+          <div className={c("t-title-lg")}>나</div>
+          <div className={c("t-caption profile-muted")}>새솔마을 5단지 · 2026년 4월 가입 · 동네 인증됨</div>
         </div>
       </div>
 
       <section className={c("profile-section")}>
         <p className={c("t-label profile-muted profile-section-label")}>신뢰 지표</p>
         <div className={c("profile-card")}>
-          <LiveTrustLines memberId={profile.member.id} />
+          <TrustLines trust={MY_TRUST} />
         </div>
         <p className={c("t-caption profile-muted profile-note")}>점수나 별점 대신, 실제 거래 기록을 그대로 보여줘요.</p>
       </section>

@@ -19,13 +19,3 @@ export type ApiRentalDetail = {
     confirmedProposal?: { scheduledAt: string; place: { name: string } };
   }[];
 };
-
-export type ApiRentalCounts = {
-  requested: number; approved: number; active: number; overdue: number;
-  returned: number; rejected: number; canceled: number; expired: number;
-};
-export type ApiRentalSummary = {
-  borrowed: ApiRentalCounts;
-  lent: ApiRentalCounts;
-  nextRentals: ApiRental[];
-};

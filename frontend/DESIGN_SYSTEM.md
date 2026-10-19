@@ -381,7 +381,6 @@ export const STATUS_UI: Record<RentalStatus, { label: string; icon: string; toke
 | `@/components/custom/rentals` | `RentalCard`, `StatusBadge`, `Steps` |
 | `@/components/custom/chat` | `ChatRoom`, `ChatListItem`, `Bubble`, `Composer`, `ContextBar`, `AppointmentCard`, `AppointmentSheet` |
 | `@/components/custom/profile` | `OwnerCard`, `TrustLines` |
-| `@/components/custom/profile/LiveTrustLines` | `LiveTrustLines` (C_008 실거래 신뢰 지표·로딩·오류·재시도) |
 | `@/components/custom/community` | `CommunitySheet` (내 동네 설정) |
 | `@/components/overlay/UiContext` | `useUi()` → `confirm` · `reason` · `report` · `toast` |
 | `@/hooks/useScreenState` | `useScreenState()` → `?state=` 로 로딩·빈·오류 확인 |
@@ -559,5 +558,3 @@ KWCAG 2.2 / WCAG 2.2 AA 기준.
 ---
 
 **원본:** Claude 아티팩트 "BILLIM" 디자인 시스템(컴포넌트 미리보기·시안 포함). 토큰 값이 바뀌면 이 문서 §3과 `tokens.css`를 같은 PR에서 함께 고쳐 주세요.
-
-신뢰 지표는 C_008을 내 프로필·이웃 프로필·물건 상세에서 조회. 실패 시 고정값이나 0으로 대체하지 않고 해당 영역에서 재시도. 이웃 프로필은 memberId 쿼리로 실제 식별자 전달. 홈 대여 현황은 C_030의 lent.requested·borrowed.approved·borrowed.active와 nextRentals 사용. 상세 달력은 C_026 예약 구간·연체 차단 적용, 미조회·충돌·기간 오류 시 요청 비활성. 프로토타입의 예시 수치와 날짜는 실제 응답으로 대체.

@@ -1,4 +1,3 @@
-import { availabilityWindows } from "@/utils/rentalOverview";
 import { api } from "@/api/client";
 import type { ApiRentalDetail, ApiRentalPage, RentalRole } from "@/types/rental-api";
 
@@ -29,18 +28,4 @@ export function getAvailability(itemId: string, from: string, to: string): Promi
   overdueBlocked: boolean;
 }> {
   return api(`/items/${encodeURIComponent(itemId)}/availability`, { query: { from, to } });
-}
-
-export const getRentalSummary = () => api<import("@/types/rental-api").ApiRentalSummary>("/rentals/summary");
-
-/** 전체 가능 기간을 API의 최대 조회 범위에 맞춰 조회 */
-export async function getAvailabilityRange(itemId: string, from: string, to: string) {
-  const occupiedRanges: { startDate: string; endDate: string }[] = [];
-  let overdueBlocked = false;
-  for (const window of availabilityWindows(from, to)) {
-    const result = await getAvailability(itemId, window.from, window.to);
-    occupiedRanges.push(...result.occupiedRanges);
-    overdueBlocked ||= result.overdueBlocked;
-  }
-  return { occupiedRanges, overdueBlocked };
 }
