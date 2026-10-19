@@ -24,6 +24,7 @@ public class ChatWebSocketHandshakeInterceptor implements HandshakeInterceptor {
     public static final String ROOM_ID_ATTRIBUTE = "roomId";
     public static final String MEMBER_ID_ATTRIBUTE = "memberId";
     public static final String AUTH_SESSION_ID_ATTRIBUTE = "authSessionId";
+    public static final String REPLAY_AFTER_SEQUENCE_ATTRIBUTE = "replayAfterSequence";
 
     private final ChatRoomAccessService accessService;
     private final CurrentAuthSession currentAuthSession;
@@ -81,7 +82,10 @@ public class ChatWebSocketHandshakeInterceptor implements HandshakeInterceptor {
             return false;
         }
 
-        if (!accessService.isParticipant(roomId, member.memberId())) {
+        Long replayAfterSequence = accessService
+            .findLastSequenceForParticipant(roomId, member.memberId())
+            .orElse(null);
+        if (replayAfterSequence == null) {
             response.setStatusCode(HttpStatus.NOT_FOUND);
             return false;
         }
@@ -89,6 +93,7 @@ public class ChatWebSocketHandshakeInterceptor implements HandshakeInterceptor {
         attributes.put(ROOM_ID_ATTRIBUTE, roomId);
         attributes.put(MEMBER_ID_ATTRIBUTE, member.memberId());
         attributes.put(AUTH_SESSION_ID_ATTRIBUTE, authSession.getId());
+        attributes.put(REPLAY_AFTER_SEQUENCE_ATTRIBUTE, replayAfterSequence);
         return true;
     }
 
