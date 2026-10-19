@@ -38,24 +38,27 @@ public class AppointmentController {
     public ResponseEntity<AppointmentSlotResponse> propose(
             @PathVariable @Positive Long rentalId,
             @PathVariable AppointmentKind kind,
+            @RequestHeader("Idempotency-Key") String key,
             @Valid @RequestBody ProposeAppointmentRequest request,
             @AuthenticationPrincipal LoginMember member) {
-        return ResponseEntity.status(201).body(commands.propose(rentalId, kind, request, member));
+        return ResponseEntity.status(201).body(commands.propose(rentalId, kind, request, key, member));
     }
 
     @PostMapping("/appointments/{proposalId}/accept")
     public ResponseEntity<AppointmentSlotResponse> accept(
             @PathVariable @Positive Long proposalId,
+            @RequestHeader("Idempotency-Key") String key,
             @Valid @RequestBody AppointmentVersionRequest request,
             @AuthenticationPrincipal LoginMember member) {
-        return ResponseEntity.ok(commands.accept(proposalId, request, member));
+        return ResponseEntity.ok(commands.accept(proposalId, request, key, member));
     }
 
     @PostMapping("/appointments/{proposalId}/withdraw")
     public ResponseEntity<AppointmentSlotResponse> withdraw(
             @PathVariable @Positive Long proposalId,
+            @RequestHeader("Idempotency-Key") String key,
             @Valid @RequestBody AppointmentVersionRequest request,
             @AuthenticationPrincipal LoginMember member) {
-        return ResponseEntity.ok(commands.withdraw(proposalId, request, member));
+        return ResponseEntity.ok(commands.withdraw(proposalId, request, key, member));
     }
 }

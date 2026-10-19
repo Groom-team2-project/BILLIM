@@ -17,3 +17,15 @@ export function commandRental(id: string, action: RentalAction, expectedVersion:
     json: { expectedVersion, ...(reason === undefined ? {} : { reason }) },
   });
 }
+
+/** C_028 요청 생성 — 응답 유실 재시도 시 같은 키 유지 */
+export function createRental(body: { itemId: string; startDate: string; endDate: string }, idempotencyKey: string): Promise<ApiRentalDetail> {
+  return api("/rentals", { method: "POST", json: body, idempotencyKey });
+}
+
+export function getAvailability(itemId: string, from: string, to: string): Promise<{
+  occupiedRanges: { startDate: string; endDate: string }[];
+  overdueBlocked: boolean;
+}> {
+  return api(`/items/${encodeURIComponent(itemId)}/availability`, { query: { from, to } });
+}

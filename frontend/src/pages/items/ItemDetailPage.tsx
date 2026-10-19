@@ -126,7 +126,11 @@ export function ItemDetailPage() {
   // TODO(C_008): 거래 신뢰 지표 API 연동 전까지 가입 시기만 실제 값
   const trust = { kept: 0, total: 0, done: 0, since: formatYearMonth(item.owner.joinedAt) };
 
-  const onRequest = () => navigate(`/items/${item.id}/request`);
+  const onRequest = () => {
+    if (!selected) return;
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    navigate(`/items/${item.id}/request?${new URLSearchParams({ startDate: iso(selected[0]), endDate: iso(selected[1]) })}`);
+  };
   const onEdit = () => navigate(`/register?itemId=${item.id}`);
   const onChat = async () => {
     if (chatBusy) return;

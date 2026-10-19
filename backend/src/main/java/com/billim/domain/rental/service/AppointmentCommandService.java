@@ -33,11 +33,16 @@ public class AppointmentCommandService {
     private final AppointmentService queries;
     private final DomainEventPublisher events;
     private final Clock clock;
+    private final RentalRequestEffects effects;
 
     public AppointmentSlotResponse propose(Long rentalId, AppointmentKind kind,
-                                           ProposeAppointmentRequest request, LoginMember login) {
+                                           ProposeAppointmentRequest request, String key, LoginMember login) {
+        key = normalizeKey(key);
         long memberId = requireMember(login);
         Rental rental = lockRental(rentalId, memberId);
+        String operation = "POST /api/v1/rentals/" + rentalId + "/appointments/" + kind + "/proposals";
+        var replay = effects.findAppointmentReplay(memberId, operation, key, request, 201, clock.instant());
+        if (replay.isPresent()) return replay.get();
         AppointmentSlot slot = slots.findByRentalIdAndKind(rentalId, kind)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         checkVersion(slot, request.expectedVersion());
@@ -47,19 +52,22 @@ public class AppointmentCommandService {
                 .forEach(AppointmentProposal::supersede);
         AppointmentProposal proposal = proposals.saveAndFlush(AppointmentProposal.propose(slot.getId(), memberId,
                 place.getId(), request.scheduledAt(), place.getName()));
-        return complete(rental, slot, proposal, memberId, login, EventType.APPOINTMENT_PROPOSED);
+        var response = complete(rental, slot, proposal, memberId, login, EventType.APPOINTMENT_PROPOSED);
+        effects.recordAppointmentSuccess(memberId, operation, key, request, 201, response, clock.instant());
+        return response;
     }
 
-    public AppointmentSlotResponse accept(Long proposalId, AppointmentVersionRequest request, LoginMember login) {
-        return change(proposalId, request, login, true);
+    public AppointmentSlotResponse accept(Long proposalId, AppointmentVersionRequest request, String key, LoginMember login) {
+        return change(proposalId, request, key, login, true);
     }
 
-    public AppointmentSlotResponse withdraw(Long proposalId, AppointmentVersionRequest request, LoginMember login) {
-        return change(proposalId, request, login, false);
+    public AppointmentSlotResponse withdraw(Long proposalId, AppointmentVersionRequest request, String key, LoginMember login) {
+        return change(proposalId, request, key, login, false);
     }
 
-    private AppointmentSlotResponse change(Long proposalId, AppointmentVersionRequest request,
+    private AppointmentSlotResponse change(Long proposalId, AppointmentVersionRequest request, String key,
                                             LoginMember login, boolean accept) {
+        key = normalizeKey(key);
         long memberId = requireMember(login);
         // 잠금 전에는 불변 참조만 조회하고 상태는 거래 잠금 뒤 조회
         Long slotId = proposals.findSlotId(proposalId)
@@ -67,6 +75,9 @@ public class AppointmentCommandService {
         Long rentalId = slots.findRentalId(slotId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         Rental rental = lockRental(rentalId, memberId);
+        String operation = "POST /api/v1/appointments/" + proposalId + (accept ? "/accept" : "/withdraw");
+        var replay = effects.findAppointmentReplay(memberId, operation, key, request, 200, clock.instant());
+        if (replay.isPresent()) return replay.get();
         AppointmentSlot slot = slots.findByIdForUpdate(slotId).orElseThrow();
         AppointmentProposal proposal = proposals.findByIdForUpdate(proposalId).orElseThrow();
         checkVersion(slot, request.expectedVersion());
@@ -92,8 +103,10 @@ public class AppointmentCommandService {
         } else {
             proposal.withdraw();
         }
-        return complete(rental, slot, proposal, memberId, login,
+        var response = complete(rental, slot, proposal, memberId, login,
                 accept ? EventType.APPOINTMENT_CONFIRMED : EventType.APPOINTMENT_WITHDRAWN);
+        effects.recordAppointmentSuccess(memberId, operation, key, request, 200, response, clock.instant());
+        return response;
     }
 
     private AppointmentSlotResponse complete(Rental rental, AppointmentSlot slot, AppointmentProposal proposal,
@@ -110,6 +123,13 @@ public class AppointmentCommandService {
                         proposal.getPlaceNameSnapshot(), proposal.getScheduledAt()))));
         return queries.getAppointments(rental.getId(), login).items().stream()
                 .filter(response -> response.id().equals(slot.getId().toString())).findFirst().orElseThrow();
+    }
+
+    private String normalizeKey(String key) {
+        if (key == null || !key.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        return key.toLowerCase(java.util.Locale.ROOT);
     }
 
     private long requireMember(LoginMember login) {
