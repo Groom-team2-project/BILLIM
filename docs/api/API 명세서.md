@@ -1,6 +1,6 @@
 # API 명세서
 
-> 버전 : v0.1.10\
+> 버전 : v0.1.11\
 > 수정일 : 2026.10.19
 
 ## 0. 공통 규약
@@ -77,7 +77,7 @@
 | [A_006](#32-a_006-내-표시-이름-수정) | 이지은 | P1 | PATCH | /api/v1/members/me | 내 표시 이름 수정 |
 | [A_007](#33-a_007-이웃-공개-프로필) | 이지은 | P1 | GET | /api/v1/members/{memberId} | 이웃 공개 프로필 |
 | [C_008](#34-c_008-회원-거래-신뢰-지표) | 박소빈 | P1 | GET | /api/v1/members/{memberId}/trust | 회원 거래 신뢰 지표 |
-| [E_009](#41-e_009-동네-이름-검색) | 노현섭 | P0 | GET | /api/v1/communities | 동네 이름 검색 |
+| [E_009](#41-e_009-동네-검색) | 노현섭 | P0 | GET | /api/v1/communities | 동네 검색 |
 | [E_010](#42-e_010-동네-정보-조회) | 노현섭 | P0 | GET | /api/v1/communities/{communityId} | 동네 정보 조회 |
 | [E_011](#43-e_011-위치-인증-및-활성-동네-선택) | 노현섭 | P0 | POST | /api/v1/communities/{communityId}/verifications | 위치 인증 및 활성 동네 선택 |
 | [E_012](#44-e_012-공용-거래-장소-목록) | 노현섭 | P0 | GET | /api/v1/communities/{communityId}/places | 공용 거래 장소 목록 |
@@ -234,14 +234,14 @@
 
 > `communities`, `community_memberships`, `members`, `community_places`
 
-### 4.1 E_009 동네 이름 검색
+### 4.1 E_009 동네 검색
 
 - `GET /api/v1/communities` · 노현섭 · P0
-- 설명: 로그인 필요, 미인증 허용. 활성 커뮤니티 이름순,id순. 위치 없이 검색 가능.
+- 설명: 로그인 필요, 미인증 허용. 활성 커뮤니티 이름순,id순. 위치 없이 검색 가능. 검색어(2자 이상)에 해당하는 행정동이 아직 동네로 없으면 첫 페이지 조회에서 등록하므로 일부만 입력해도 전국 행정동이 후보에 나온다. 지도 연동이 없거나 실패하면 등록된 동네만 반환한다.
 
 | Query | 필수 | 타입 | 의미 |
 | --- | --- | --- | --- |
-| keyword | N | string | 이름 부분 검색; 생략하면 활성 동네 목록 |
+| keyword | N | string | 이름·공개 주소 부분 검색; 생략하면 활성 동네 목록 |
 | page | N | integer | 0부터 시작; 기본 0 |
 | size | N | integer | 기본 20; 최대 50 |
 
@@ -262,7 +262,7 @@
 ### 4.3 E_011 위치 인증 및 활성 동네 선택
 
 - `POST /api/v1/communities/{communityId}/verifications` · 노현섭 · P0
-- 설명: 현재 위치는 이 요청에서만 사용. 범위 밖 403 LOCATION_OUTSIDE, 정확도 초과 422 LOCATION_INACCURATE. 성공 시 이전 소속 LEFT, 선택 소속 ACTIVE, members.active_community_id 갱신. 좌표는 DB·로그·멱등 응답에 저장하지 않는다. 최초/재인증 모두 200.
+- 설명: 현재 위치는 이 요청에서만 사용. 판정은 행정동·반경 병행이다. 현재 좌표의 행정동이 동네의 행정동과 같으면 통과하고(정확도 상한 미적용), 다르거나 지도 연동이 응답하지 않으면 기존 반경 판정으로 다시 본다. 반경 판정에서 범위 밖 403 LOCATION_OUTSIDE, 정확도 초과 422 LOCATION_INACCURATE. 성공 시 이전 소속 LEFT, 선택 소속 ACTIVE, members.active_community_id 갱신. 좌표는 DB·로그·멱등 응답에 저장하지 않는다. 최초/재인증 모두 200.
 - 요청 본문: VerifyLocationRequest
 - 성공 응답: 200 Membership
 - 관련 테이블: members, communities, community_memberships
@@ -280,7 +280,7 @@
 ### 4.5 E_071 현재 위치로 주변 동네 찾기
 
 - `POST /api/v1/communities/nearby` · 노현섭 · P0
-- 설명: 로그인 필요·인증 전 허용. 요청 좌표와 활성 동네 중심의 거리를 계산해 가까운 순,id순으로 최대 20개 반환. 추가 후보가 있으면 truncated=true; 이름 검색으로 보완. 좌표와 정확도는 일시 사용하고 저장/로그 금지. 이 조회 자체는 소속 인증이 아니다.
+- 설명: 로그인 필요·인증 전 허용. 요청 좌표의 행정동이 아직 동네로 없으면 이 시점에 등록하므로 전국 어디서 불러도 최소한 자기 행정동은 후보에 나온다. 좌표 사각형(반경 20km)으로 후보를 줄인 뒤 거리를 계산해 가까운 순,id순으로 최대 20개 반환. 사각형 안에 추가 후보가 있으면 truncated=true; 이름 검색으로 보완. 좌표와 정확도는 일시 사용하고 저장/로그 금지. 이 조회 자체는 소속 인증이 아니다.
 - 요청 본문: VerifyLocationRequest
 - 성공 응답: 200 NearbyCommunities
 - 관련 테이블: communities
@@ -1119,7 +1119,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | --- | --- | --- | --- |
 | latitude | number | Y | 최소 -90; 최대 90 |
 | longitude | number | Y | 최소 -180; 최대 180 |
-| accuracyMeters | number | Y | 최소 0. 상한은 서버 설정(기본 5000)이며 초과는 422 LOCATION_INACCURATE |
+| accuracyMeters | number | Y | 최소 0. 상한은 서버 설정(기본 5000)이며 초과는 422 LOCATION_INACCURATE. 행정동이 일치해 통과하는 경우에는 보지 않는다 |
 ### Category
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |

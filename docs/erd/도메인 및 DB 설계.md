@@ -1,6 +1,6 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.4\
+> 버전 : v0.1.5\
 > 수정일 : 2026.10.19
 
 ## 1. 공통 규칙
@@ -174,6 +174,7 @@ erDiagram
 | id | bigint | N | PK · AUTO_INCREMENT | — |
 | name | varchar(100) | N | 동네/단지 이름 | — |
 | display_address | varchar(255) | N | 공개 커뮤니티 주소. 개인 집 주소 아님 | — |
+| region_code | char(10) | Y | 행정동 코드. 위치 인증 1차 판정 기준. NULL이면 반경만 판정 | — |
 | center_latitude | decimal(10,7) | N | -90~90 | — |
 | center_longitude | decimal(10,7) | N | -180~180 | — |
 | verification_radius_m | int | N | 양수 인증 반경 | — |
@@ -181,9 +182,10 @@ erDiagram
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
-인덱스: INDEX (status, name, id)
+인덱스: INDEX (status, name, id) · UNIQUE (region_code)
 
-- 운영 seed로 등록한다. 커뮤니티 생성·경계 편집 관리자 UI는 범위 밖.
+- 행정동 단위 동네는 주변 동네 조회에서 자동 등록된다. 좌표·주소·코드는 역지오코딩 응답 값이고, 유니크 키가 행 수를 전국 행정동 수로 묶는다. (결정 '행정동 위치 인증')
+- 행정동과 경계가 다른 동네(아파트 단지 등)는 운영 seed로 등록하고 region_code를 비운다. 이 경우 반경 판정만 쓴다. 커뮤니티 생성·경계 편집 관리자 UI는 범위 밖.
 
 #### community_memberships — 회원별 소속·인증 결과 · P0
 

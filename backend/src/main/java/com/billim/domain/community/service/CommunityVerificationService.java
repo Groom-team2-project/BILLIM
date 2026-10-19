@@ -24,7 +24,11 @@ import java.util.Optional;
  * <p>저장하는 것은 반경 확인 결과·동네·시점뿐이다. 요청 좌표와 정확도는 판정에만 쓰고
  * DB·로그에 남기지 않는다. (정책 및 상태 5 위치 인증)
  *
- * <p>위치 확인은 해당 반경 내 존재 확인이다. 실제 거주·재직 증명이 아니다.
+ * <p>판정은 두 기준을 병행한다. 현재 좌표의 행정동이 동네의 행정동과 같으면 통과하고,
+ * 아니면 기존 좌표 반경 판정으로 다시 본다. 행정동 쪽이 생활권과 더 잘 맞고, 지도 연동이
+ * 죽거나 코드가 없는 동네에서도 반경으로 가입이 계속된다. (도메인 가이드 결정 '행정동 위치 인증')
+ *
+ * <p>위치 확인은 해당 동네에 지금 있다는 확인이다. 실제 거주·재직 증명이 아니다.
  * (도메인 가이드 결정 '위치 인증의 의미')
  */
 @Service
@@ -35,6 +39,7 @@ public class CommunityVerificationService {
     private final CommunityQueryService communityQueryService;
     private final CommunityMembershipRepository membershipRepository;
     private final ActiveCommunityWriter activeCommunityWriter;
+    private final RegionResolver regionResolver;
     private final Clock clock;
 
     /** 허용 정확도 상한(m). 초과하면 422 LOCATION_INACCURATE (에러 코드 — community) */
@@ -47,12 +52,14 @@ public class CommunityVerificationService {
             CommunityQueryService communityQueryService,
             CommunityMembershipRepository membershipRepository,
             ActiveCommunityWriter activeCommunityWriter,
+            RegionResolver regionResolver,
             Clock clock,
             @Value("${billim.community.verification.max-accuracy-meters:5000}") double maxAccuracyMeters,
             @Value("${billim.community.verification.accuracy-tolerance:true}") boolean accuracyTolerance) {
         this.communityQueryService = communityQueryService;
         this.membershipRepository = membershipRepository;
         this.activeCommunityWriter = activeCommunityWriter;
+        this.regionResolver = regionResolver;
         this.clock = clock;
         this.maxAccuracyMeters = maxAccuracyMeters;
         this.accuracyTolerance = accuracyTolerance;
@@ -65,10 +72,8 @@ public class CommunityVerificationService {
      */
     @Transactional
     public MembershipResponse verify(long memberId, long communityId, VerifyLocationRequest location) {
-        requireAccurate(location);
-
         Community community = communityQueryService.requireActive(communityId);
-        requireWithinRadius(community, location);
+        Method method = requireVerified(community, location);
 
         activeCommunityWriter.lock(memberId);
         Instant now = clock.instant();
@@ -79,9 +84,39 @@ public class CommunityVerificationService {
 
         activeCommunityWriter.select(memberId, communityId, now);
 
-        // 좌표·정확도는 남기지 않는다. 어느 동네를 언제 확인했는지만 기록한다
-        log.info("동네 인증: memberId={} communityId={}", memberId, communityId);
+        // 좌표·정확도는 남기지 않는다. 어느 동네를 언제 어떤 기준으로 확인했는지만 기록한다
+        log.info("동네 인증: memberId={} communityId={} 판정={}", memberId, communityId, method);
         return MembershipResponse.of(membership, community, now);
+    }
+
+    /**
+     * 행정동이 같으면 통과시키고, 아니면 반경으로 다시 본다.
+     *
+     * <p>행정동 판정에는 정확도 상한을 걸지 않는다. 좌표 한 점이 어느 행정동에 있는지만 묻기 때문에
+     * 측위 오차와 무관하다. 정확도는 반경 판정을 신뢰할 수 있는지의 문제라 폴백 경로에서만 본다.
+     */
+    private Method requireVerified(Community community, VerifyLocationRequest location) {
+        if (matchesRegion(community, location)) {
+            return Method.REGION;
+        }
+        requireAccurate(location);
+        requireWithinRadius(community, location);
+        return Method.RADIUS;
+    }
+
+    /**
+     * 현재 좌표의 행정동이 이 동네의 행정동인지.
+     *
+     * <p>코드가 없는 동네는 지도를 부르지 않는다. 비교할 대상이 없어 결과가 정해져 있다.
+     * 지도 조회가 실패하면 빈 값이 와서 false가 되고 반경 판정으로 내려간다.
+     */
+    private boolean matchesRegion(Community community, VerifyLocationRequest location) {
+        if (community.getRegionCode() == null) {
+            return false;
+        }
+        return regionResolver.resolve(location.latitude(), location.longitude())
+                .map(region -> community.matchesRegion(region.code()))
+                .orElse(false);
     }
 
     /** 정확도가 낮으면 반경 판정을 신뢰할 수 없다 */
@@ -110,6 +145,11 @@ public class CommunityVerificationService {
         if (effective > community.getVerificationRadiusM()) {
             throw new BusinessException(ErrorCode.LOCATION_OUTSIDE);
         }
+    }
+
+    /** 어떤 기준으로 통과했는지. 운영 로그용이며 응답에는 담지 않는다 */
+    private enum Method {
+        REGION, RADIUS
     }
 
     private void leavePreviousMembership(long memberId, long communityId, Instant now) {

@@ -46,7 +46,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         "billim.notification.outbox.enabled=false",
         // 판정 기준을 테스트에서 고정한다. 운영 기본값이 바뀌어도 이 검증은 흔들리지 않는다
         "billim.community.verification.max-accuracy-meters=5000",
-        "billim.community.verification.accuracy-tolerance=true"
+        "billim.community.verification.accuracy-tolerance=true",
+        // 이 테스트는 반경 판정만 본다. 개발자 .env에 카카오 키가 있어도 외부를 부르지 않게 끈다
+        "billim.community.verification.region.enabled=false"
 })
 class CommunityFlowDbTest {
 

@@ -13,10 +13,14 @@ import { classes } from "@/utils/classes";
 
 const c = classes(styles);
 
-type Result =
-  | { state: "loading" }
+/** key는 이 결과가 어느 검색어의 것인지. 현재 검색어와 다르면 로딩이다 */
+type Result = { key: string } & (
   | { state: "error"; message: string }
-  | { state: "ok"; items: ApiCommunity[]; truncated: boolean };
+  | { state: "ok"; items: ApiCommunity[]; truncated: boolean }
+);
+
+/** 위치로 찾은 결과의 key. 어떤 검색어 key와도 겹치지 않는다 */
+const NEARBY_KEY = "nearby";
 
 /** 목록 문구: "표시 주소 · 이웃 N명" */
 function describe(community: ApiCommunity): string {
@@ -26,28 +30,41 @@ function describe(community: ApiCommunity): string {
 export function JoinPage() {
   const [keyword, setKeyword] = useState("");
   const [query, setQuery] = useState("");
-  const [result, setResult] = useState<Result>({ state: "loading" });
+  // 위치로 찾은 결과는 검색어와 무관하다. 이름 검색이 덮어쓰지 않게 출처를 구분한다
+  const [source, setSource] = useState<"search" | "nearby">("search");
+  const [result, setResult] = useState<Result | null>(null);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
 
-  // 이름 검색 — 처음에는 전체 활성 동네를 보여준다 (위치 없이 검색 가능, E_009)
-  // 로딩 표시는 요청을 일으킨 이벤트에서 세운다. 효과 안에서 setState하면 렌더가 한 번 더 돈다
+  // 입력이 멈춘 뒤 검색 (300ms). 일부만 입력해도 후보가 좁혀진다
   useEffect(() => {
+    const t = setTimeout(() => setQuery(keyword.trim()), 300);
+    return () => clearTimeout(t);
+  }, [keyword]);
+
+  // 로딩은 상태로 두지 않고 "결과가 현재 검색어의 것인지"로 가린다.
+  // 효과 안에서 setState하면 입력마다 렌더가 한 번 더 돈다
+  const key = `${retry}:${query}`;
+  const loading = source === "search" && result?.key !== key;
+
+  // 이름 검색 — 처음에는 전체 활성 동네를 보여준다 (위치 없이 검색 가능, E_009)
+  useEffect(() => {
+    if (source !== "search") return;
     let alive = true;
     searchCommunities(query || undefined)
       .then((page) => {
-        if (alive) setResult({ state: "ok", items: page.items, truncated: false });
+        if (alive) setResult({ key, state: "ok", items: page.items, truncated: false });
       })
       .catch((e: unknown) => {
         if (!alive) return;
         const message = e instanceof ApiError ? e.message : "동네를 불러오지 못했어요.";
-        setResult({ state: "error", message });
+        setResult({ key, state: "error", message });
       });
     return () => {
       alive = false;
     };
-  }, [query, retry]);
+  }, [key, query, source]);
 
   /** 현재 위치로 주변 동네 찾기 (E_071). 이 조회 자체는 인증이 아니다 */
   const onLocate = async () => {
@@ -56,9 +73,10 @@ export function JoinPage() {
     try {
       const coords = await getCurrentCoords();
       const nearby = await findNearbyCommunities(coords);
+      setSource("nearby");
       setKeyword("");
       setQuery("");
-      setResult({ state: "ok", items: nearby.items, truncated: nearby.truncated });
+      setResult({ key: NEARBY_KEY, state: "ok", items: nearby.items, truncated: nearby.truncated });
     } catch (e: unknown) {
       if (e instanceof GeoError) setLocateError(e.message);
       else if (e instanceof ApiError) setLocateError(e.message);
@@ -83,9 +101,13 @@ export function JoinPage() {
           placeholder="동네·단지 이름으로 검색"
           label="동네 검색"
           value={keyword}
-          onChange={setKeyword}
+          onChange={(value) => {
+            setSource("search");
+            setKeyword(value);
+          }}
           onSubmit={() => {
-            setResult({ state: "loading" });
+            // 디바운스를 기다리지 않고 지금 검색한다
+            setSource("search");
             setQuery(keyword.trim());
           }}
         />
@@ -103,7 +125,7 @@ export function JoinPage() {
 
         <p className={c("t-label join-results-label")}>검색 결과</p>
 
-        {result.state === "loading" && (
+        {loading && (
           <Loading label="동네를 불러오는 중">
             <div className={c("join-card")}>
               <SkeletonItem layout="row" />
@@ -112,24 +134,19 @@ export function JoinPage() {
           </Loading>
         )}
 
-        {result.state === "error" && (
-          <ErrorState
-            onRetry={() => {
-              setResult({ state: "loading" });
-              setRetry((n) => n + 1);
-            }}
-          >
+        {!loading && result?.state === "error" && (
+          <ErrorState onRetry={() => setRetry((n) => n + 1)}>
             {result.message}
           </ErrorState>
         )}
 
-        {result.state === "ok" && result.items.length === 0 && (
+        {!loading && result?.state === "ok" && result.items.length === 0 && (
           <EmptyState icon="search" title="찾는 동네가 없어요">
             이름을 다시 확인하거나 현재 위치로 찾아 주세요.
           </EmptyState>
         )}
 
-        {result.state === "ok" && result.items.length > 0 && (
+        {!loading && result?.state === "ok" && result.items.length > 0 && (
           <div className={c("join-card")}>
             {result.items.map((community) => (
               <Link
@@ -150,7 +167,7 @@ export function JoinPage() {
           </div>
         )}
 
-        {result.state === "ok" && result.truncated && (
+        {!loading && result?.state === "ok" && result.truncated && (
           <p className={c("t-caption join-muted")}>
             가까운 동네 20개만 보여줘요. 찾는 동네가 없으면 이름으로 검색해 주세요.
           </p>
