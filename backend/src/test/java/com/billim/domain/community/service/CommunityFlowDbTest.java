@@ -28,8 +28,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.mysql.MySQLContainer;
 
 import java.math.BigDecimal;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,7 +43,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @SpringBootTest(properties = {
         "spring.security.oauth2.client.registration.kakao.client-id=test-client-id",
         "spring.security.oauth2.client.registration.kakao.client-secret=test-client-secret",
-        "billim.notification.outbox.enabled=false"
+        "billim.notification.outbox.enabled=false",
+        // 판정 기준을 테스트에서 고정한다. 운영 기본값이 바뀌어도 이 검증은 흔들리지 않는다
+        "billim.community.verification.max-accuracy-meters=5000",
+        "billim.community.verification.accuracy-tolerance=true"
 })
 class CommunityFlowDbTest {
 
@@ -62,6 +63,9 @@ class CommunityFlowDbTest {
     private static final double CENTER_LAT = 37.5000000;
     private static final double CENTER_LON = 127.0000000;
     private static final int RADIUS_M = 500;
+
+    /** 위 properties로 고정한 정확도 상한 */
+    private static final double MAX_ACCURACY_M = 5000;
 
     @Autowired CommunityQueryService queryService;
     @Autowired CommunityVerificationService verificationService;
@@ -183,9 +187,10 @@ class CommunityFlowDbTest {
     }
 
     @Test
-    @DisplayName("정확도가 100m를 넘으면 422이고 반경 판정을 하지 않는다")
+    @DisplayName("정확도 상한을 넘으면 422이고 반경 판정을 하지 않는다")
     void inaccurateLocationIsRejected() {
-        assertThatThrownBy(() -> verify(me, homeId, CENTER_LAT, CENTER_LON, 101))
+        // 중심 좌표라 반경 안이지만 정확도만으로 거부된다
+        assertThatThrownBy(() -> verify(me, homeId, CENTER_LAT, CENTER_LON, MAX_ACCURACY_M + 1))
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.LOCATION_INACCURATE));
 
@@ -193,9 +198,25 @@ class CommunityFlowDbTest {
     }
 
     @Test
-    @DisplayName("정확도 100m는 허용한다")
+    @DisplayName("정확도 상한값은 허용한다")
     void accuracyAtLimitIsAllowed() {
-        assertThat(verify(me, homeId, CENTER_LAT, CENTER_LON, 100).isValid()).isTrue();
+        assertThat(verify(me, homeId, CENTER_LAT, CENTER_LON, MAX_ACCURACY_M).isValid()).isTrue();
+    }
+
+    @Test
+    @DisplayName("측위 오차가 크면 반경 경계 밖이어도 그 오차만큼 너그럽게 본다")
+    void accuracyWidensTheRadius() {
+        // 중심에서 약 1.1km. 반경 500m를 넘지만 오차 1km를 빼면 안으로 들어온다
+        assertThat(verify(me, homeId, CENTER_LAT + 0.01, CENTER_LON, 1000).isValid()).isTrue();
+    }
+
+    @Test
+    @DisplayName("오차를 빼도 반경 밖이면 거부한다")
+    void accuracyDoesNotForgiveFarAway() {
+        // 중심에서 약 11km. 오차 1km로는 반경 500m 안으로 들어오지 못한다
+        assertThatThrownBy(() -> verify(me, homeId, CENTER_LAT + 0.1, CENTER_LON, 1000))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.LOCATION_OUTSIDE));
     }
 
     @Test

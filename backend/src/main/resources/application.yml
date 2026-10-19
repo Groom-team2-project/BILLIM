@@ -49,6 +49,14 @@ billim:
   chat:
     rooms:
       enabled: true
+  community:
+    verification:
+      # 허용 정확도 상한. 넘으면 422 LOCATION_INACCURATE.
+      # 노트북 Wi-Fi 측위는 수백~수천 m라 100m로는 실내·PC에서 거의 통과하지 못한다
+      max-accuracy-meters: ${VERIFY_MAX_ACCURACY_M:5000}
+      # 반경 판정에 GPS 오차를 유리하게 반영한다.
+      # 켜면 (거리 - 정확도) <= 반경이면 통과. 끄면 거리만으로 판정
+      accuracy-tolerance: ${VERIFY_ACCURACY_TOLERANCE:true}
   notification:
     outbox:
       # 사건 소비 주기 실행 on/off. 테스트·부하 측정에서 끈다
