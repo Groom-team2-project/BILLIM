@@ -32,4 +32,22 @@ final class Distances {
         // asin 형태는 a가 1을 아주 조금 넘는 수치 오차에도 안전하다
         return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1.0, Math.sqrt(a)));
     }
+
+    /**
+     * 반경을 감싸는 위도 폭(도). 좌표 범위 선필터용이다.
+     *
+     * <p>선필터는 후보를 줄이는 용도라 넉넉하게 잡아도 된다. 실제 거리 판정은 하버사인이 다시 한다.
+     */
+    static double latitudeSpan(double radiusM) {
+        return Math.toDegrees(radiusM / EARTH_RADIUS_M);
+    }
+
+    /** 같은 반경의 경도 폭(도). 고위도로 갈수록 넓어진다 */
+    static double longitudeSpan(double radiusM, double latitude) {
+        double cos = Math.cos(Math.toRadians(latitude));
+        if (cos < 1e-6) {
+            return 180;   // 극지방에서는 경도로 좁히는 의미가 없다
+        }
+        return Math.min(180, latitudeSpan(radiusM) / cos);
+    }
 }
