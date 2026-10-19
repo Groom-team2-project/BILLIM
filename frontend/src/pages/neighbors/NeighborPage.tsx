@@ -3,8 +3,6 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ApiError } from "@/api/client";
 import {
   type ApiPublicProfile,
-  type ApiTrustMetrics,
-  getMemberTrust,
   getMyProfile,
   getNeighborItems,
   getPublicProfile,
@@ -16,12 +14,12 @@ import type { ApiItemSummary } from "@/api/items";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useUi } from "@/components/overlay/UiContext";
-import { TrustLines } from "@/components/custom/profile/OwnerCard";
+import { LiveTrustLines } from "@/components/custom/profile/LiveTrustLines";
 import { EmptyState, ErrorState } from "@/components/ui/state";
 import { PageHeader } from "@/components/layout/header";
 import { ProfileHeading, ProfileHeadingSkeleton } from "@/components/custom/profile/ProfileHeading";
 import { ProfileItemRow } from "@/components/custom/profile/ProfileItemRow";
-import { describeMembership, toTrust } from "@/utils/profileView";
+import { describeMembership } from "@/utils/profileView";
 import { toReasonCode, toReasonDetail } from "@/utils/reportReason";
 import shared from "@/components/custom/profile/profileBlocks.module.css";
 import styles from "@/pages/neighbors/NeighborPage.module.css";
@@ -31,7 +29,6 @@ const c = classes({ ...shared, ...styles });
 
 type Loaded = {
   profile: ApiPublicProfile;
-  trust: ApiTrustMetrics | null;
   items: ApiItemSummary[];
 };
 
@@ -58,21 +55,20 @@ export function NeighborPage() {
       return () => {};
     }
 
-    // 열람 권한 판정은 프로필 응답이 대표 — 지표·물건 실패는 무시
+    // 프로필 응답으로 열람 권한 판정. 신뢰 지표는 별도 영역에서 조회
     Promise.all([
       getPublicProfile(memberId),
-      getMemberTrust(memberId).catch(() => null),
       getNeighborItems(memberId).then((page) => page.items).catch(() => []),
       // 세션 캐시에 없을 때만 조회. 실패 시 이웃으로 간주 — 자기 신고·차단은 서버가 거부
       myId ?? getMyProfile().then((me) => me.member.id).catch(() => null),
     ])
-      .then(([profile, trust, items, resolvedMyId]) => {
+      .then(([profile, items, resolvedMyId]) => {
         if (canceled) return;
         if (resolvedMyId === memberId) {
           navigate("/profile", { replace: true });
           return;
         }
-        setState({ kind: "ok", data: { profile, trust, items } });
+        setState({ kind: "ok", data: { profile, items } });
       })
       .catch((e: unknown) => {
         if (canceled) return;
@@ -155,7 +151,7 @@ export function NeighborPage() {
     return shell(<ErrorState onRetry={load} />);
   }
 
-  const { profile, trust, items } = state.data;
+  const { profile, items } = state.data;
 
   return shell(
     <>
@@ -171,12 +167,10 @@ export function NeighborPage() {
       <section className={c("profile-section")}>
         <p className={c("t-label profile-muted profile-section-label")}>신뢰 지표</p>
         <div className={c("profile-card")}>
-          <TrustLines trust={toTrust(trust, profile.member.joinedAt)} />
+          <LiveTrustLines memberId={memberId} joinedAt={profile.member.joinedAt} />
         </div>
         <p className={c("t-caption profile-muted profile-note")}>
-          {trust === null
-            ? "거래 기록을 불러오지 못했어요."
-            : "초대 코드는 소속을 인증하지 않아요. 거래 기록으로만 판단해요."}
+          초대 코드는 소속을 인증하지 않아요. 거래 기록으로만 판단해요.
         </p>
       </section>
 

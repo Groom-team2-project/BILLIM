@@ -1,3 +1,4 @@
+import { availabilityWindows } from "@/utils/rentalAvailability";
 import { api } from "@/api/client";
 import type { ApiRentalDetail, ApiRentalPage, RentalRole } from "@/types/rental-api";
 
@@ -28,4 +29,16 @@ export function getAvailability(itemId: string, from: string, to: string): Promi
   overdueBlocked: boolean;
 }> {
   return api(`/items/${encodeURIComponent(itemId)}/availability`, { query: { from, to } });
+}
+
+/** C_026 조회 한도를 지키며 물건의 가능 기간 전체 예약 조회 */
+export async function getAvailabilityRange(itemId: string, from: string, to: string) {
+  const occupiedRanges: { startDate: string; endDate: string }[] = [];
+  let overdueBlocked = false;
+  for (const window of availabilityWindows(from, to)) {
+    const result = await getAvailability(itemId, window.from, window.to);
+    occupiedRanges.push(...result.occupiedRanges);
+    overdueBlocked ||= result.overdueBlocked;
+  }
+  return { occupiedRanges, overdueBlocked };
 }

@@ -8,7 +8,12 @@ import { DateRange } from "@/components/ui/date-range";
 import { Meta } from "@/components/ui/meta";
 import { SectionHead } from "@/components/ui/section-head";
 import { useUi } from "@/components/overlay/UiContext";
-import { md } from "@/utils/date";
+import { Alert } from "@/components/ui/alert";
+import { useItemAvailability } from "@/hooks/useItemAvailability";
+import { LiveTrustLines } from "@/components/custom/profile/LiveTrustLines";
+import { validateRequestRange } from "@/utils/requestRange";
+import { toIsoDate } from "@/utils/registerForm";
+import { todayInSeoul } from "@/utils/rentalAvailability";
 import { PhotoSlider } from "@/components/custom/items/PhotoSlider";
 import { OwnerCard } from "@/components/custom/profile/OwnerCard";
 import { ApiError } from "@/api/client";
@@ -24,7 +29,6 @@ import {
   formatDistance,
   formatMonthDay,
   fillPlace,
-  formatYearMonth,
   parseIsoDate,
   toCategoryId,
 } from "@/utils/itemView";
@@ -49,10 +53,11 @@ export function ItemDetailPage() {
   const [range, setRange] = useState<DayRange | null>(null);
   const [busy, setBusy] = useState(false);
   const [chatBusy, setChatBusy] = useState(false);
-  const [today] = useState(() => new Date());
+  const [today] = useState(() => todayInSeoul());
   // 불러온 상세는 공유 저장소에 둔다 (헤더 더보기 메뉴가 같은 값을 쓴다)
   const current = useCurrentItem(itemId);
   const places = useCommunityPlaces();
+  const availability = useItemAvailability(itemId, current ? (current.availableStartDate > toIsoDate(today) ? current.availableStartDate : toIsoDate(today)) : "", current?.availableEndDate ?? "");
 
   useEffect(() => {
     let alive = true;
@@ -123,12 +128,12 @@ export function ItemDetailPage() {
   const expired = dayN(availTo) < dayN(today);   // 대여 가능한 날짜가 모두 지남
   const own = item.allowedActions.includes("EDIT");
   const isPublic = item.visibility === "PUBLIC";
-  // TODO(C_008): 거래 신뢰 지표 API 연동 전까지 가입 시기만 실제 값
-  const trust = { kept: 0, total: 0, done: 0, since: formatYearMonth(item.owner.joinedAt) };
+  const { invalid, conflict } = validateRequestRange(selected, today, availFrom, availTo, availability.booked ?? []);
+  const canRequest = availability.ready && !availability.blocked && !invalid && !conflict && !own && isPublic;
 
   const onRequest = () => {
-    if (!selected) return;
-    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (!selected || !canRequest) return;
+    const iso = toIsoDate;
     navigate(`/items/${item.id}/request?${new URLSearchParams({ startDate: iso(selected[0]), endDate: iso(selected[1]) })}`);
   };
   const onEdit = () => navigate(`/register?itemId=${item.id}`);
@@ -200,16 +205,21 @@ export function ItemDetailPage() {
             <span className={c("t-caption detail-muted detail-cal-range")}>
               {`${availFrom.getMonth() + 1}/${availFrom.getDate()} – ${availTo.getMonth() + 1}/${availTo.getDate()}`}
             </span>
-            {/* TODO(C_026): 예약 구간(booked)은 대여 담당 달력 API 연동 후 표시 */}
-            <Calendar
+            {availability.loading ? <Loading label="예약 정보 불러오는 중"><Skeleton h={260} /></Loading> : availability.error ? (
+              <ErrorState title="예약 정보를 불러오지 못했어요" onRetry={availability.retry}>{availability.error}</ErrorState>
+            ) : <Calendar
               today={today}
+              booked={availability.booked}
               from={availFrom}
               to={availTo}
               value={selected}
               onChange={setRange}
               markAvailable
               initialMonth={dayN(availFrom) > dayN(today) ? availFrom : today}
-            />
+            />}
+            {conflict ? <Alert tone="warning" title="선택한 기간에 이미 예약된 날짜가 있어요">다른 날짜를 선택해 주세요.</Alert> : null}
+            {selected && invalid ? <Alert tone="warning" title="대여 기간을 다시 선택해 주세요">오늘부터 대여 가능 기간 내 최대 30일까지 요청할 수 있어요.</Alert> : null}
+            {availability.blocked ? <Alert tone="warning" title="반납이 지연된 물건이에요">반납이 확인된 후 요청할 수 있어요.</Alert> : null}
             <p className={c("t-caption detail-muted detail-cal-note")}>
               시작일과 반납일 모두 대여 기간에 포함돼요. 표시는 지금 기준이고, 승인할 때 다시 확인해요.
             </p>
@@ -235,14 +245,14 @@ export function ItemDetailPage() {
                 <>
                   <span className={c("t-micro detail-muted")}>선택한 기간</span>
                   {selected ? (
-                    <DateRange start={md(selected[0])} end={md(selected[1])} />
+                    <DateRange start={[selected[0].getMonth() + 1, selected[0].getDate(), selected[0].getFullYear()]} end={[selected[1].getMonth() + 1, selected[1].getDate(), selected[1].getFullYear()]} />
                   ) : (
                     <span className={c(expired ? "t-label detail-conflict" : "t-label detail-muted")}>
                       {expired ? "대여 가능한 날짜가 지났어요" : "달력에서 대여할 날짜를 선택해 주세요"}
                     </span>
                   )}
                   <Meta icon="pin">{place}</Meta>
-                  <Button size="lg" block disabled={!selected} onClick={onRequest}>대여 요청</Button>
+                  <Button size="lg" block disabled={!canRequest} onClick={onRequest}>대여 요청</Button>
                   <Button variant="secondary" block icon="chat" disabled={chatBusy} onClick={() => void onChat()}>
                     {owner} 님에게 채팅으로 물어보기
                   </Button>
@@ -253,7 +263,9 @@ export function ItemDetailPage() {
               )}
             </div>
           </div>
-          <OwnerCard owner={owner} ownerId={item.owner.id} own={own} trust={trust} />
+          <OwnerCard owner={owner} ownerId={item.owner.id} own={own}>
+            <LiveTrustLines memberId={item.owner.id} joinedAt={item.owner.joinedAt} />
+          </OwnerCard>
           {own ? null : (
           <button
             type="button"
@@ -280,7 +292,7 @@ export function ItemDetailPage() {
           <>
             <div className={c("detail-actionbar-info")}>
               {selected ? (
-                <DateRange start={md(selected[0])} end={md(selected[1])} icon={false} len={false} className={c("detail-actionbar-range")} />
+                <DateRange start={[selected[0].getMonth() + 1, selected[0].getDate(), selected[0].getFullYear()]} end={[selected[1].getMonth() + 1, selected[1].getDate(), selected[1].getFullYear()]} icon={false} len={false} className={c("detail-actionbar-range")} />
               ) : null}
               <span className={c("t-caption detail-muted")}>무료 · {place}</span>
             </div>
@@ -293,7 +305,7 @@ export function ItemDetailPage() {
             >
               <Icon name="chat" size={22} />
             </button>
-            <Button size="lg" disabled={!selected} onClick={onRequest}>대여 요청</Button>
+            <Button size="lg" disabled={!canRequest} onClick={onRequest}>대여 요청</Button>
           </>
         )}
       </div>
