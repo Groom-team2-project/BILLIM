@@ -102,6 +102,10 @@ server:
   shutdown: graceful            # 종료 시 처리 중인 요청을 마치고 종료
 
 management:
+  # 지표 전용 포트 — 서비스 포트 노출 시 요청 수·응답시간·DB 상태가 외부에 공개
+  server:
+    port: ${MANAGEMENT_PORT:9090}
+    address: ${MANAGEMENT_ADDRESS:127.0.0.1}   # 같은 호스트의 Prometheus만 수집. 원격 수집은 보안 그룹으로 허용
   endpoints:
     web:
       exposure:
