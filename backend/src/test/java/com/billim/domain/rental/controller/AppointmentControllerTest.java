@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AppointmentControllerTest {
     private final AppointmentCommandService commands = mock(AppointmentCommandService.class);
     private MockMvc mvc;
+    private static final String KEY = "4429a68a-0270-4c19-9c5f-427b08aaac87";
 
     @BeforeEach
     void setUp() {
@@ -29,16 +30,23 @@ class AppointmentControllerTest {
     @Test @DisplayName("제안 201과 수락·철회 200 및 슬롯 버전 전달")
     void routesCommands() throws Exception {
         mvc.perform(post("/api/v1/rentals/10/appointments/PICKUP/proposals")
-                .contentType(MediaType.APPLICATION_JSON)
+                .header("Idempotency-Key", KEY).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"expectedVersion\":0,\"scheduledAt\":\"2026-10-15T10:00:00Z\",\"placeId\":\"1\"}"))
                 .andExpect(status().isCreated());
-        verify(commands).propose(eq(10L), eq(AppointmentKind.PICKUP), any(), isNull());
+        verify(commands).propose(eq(10L), eq(AppointmentKind.PICKUP), any(), eq(KEY), isNull());
         for (String action : new String[]{"accept", "withdraw"}) {
-            mvc.perform(post("/api/v1/appointments/20/" + action).contentType(MediaType.APPLICATION_JSON)
+            mvc.perform(post("/api/v1/appointments/20/" + action).header("Idempotency-Key", KEY).contentType(MediaType.APPLICATION_JSON)
                     .content("{\"expectedVersion\":1}")).andExpect(status().isOk());
         }
-        verify(commands).accept(eq(20L), eq(new AppointmentVersionRequest(1L)), isNull());
-        verify(commands).withdraw(eq(20L), eq(new AppointmentVersionRequest(1L)), isNull());
+        verify(commands).accept(eq(20L), eq(new AppointmentVersionRequest(1L)), eq(KEY), isNull());
+        verify(commands).withdraw(eq(20L), eq(new AppointmentVersionRequest(1L)), eq(KEY), isNull());
+    }
+
+    @Test @DisplayName("멱등 키 헤더가 없으면 약속 변경 거부")
+    void rejectsMissingKey() throws Exception {
+        mvc.perform(post("/api/v1/appointments/20/accept").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"expectedVersion\":1}")).andExpect(status().isBadRequest());
+        verifyNoInteractions(commands);
     }
 
     @Test @DisplayName("잘못된 kind·음수 버전·누락 시각·숫자 범위 밖 장소 거부")
@@ -48,7 +56,7 @@ class AppointmentControllerTest {
                 "{\"expectedVersion\":0,\"placeId\":\"1\"}",
                 "{\"expectedVersion\":0,\"scheduledAt\":\"2026-10-15T10:00:00Z\",\"placeId\":\"9223372036854775808\"}"}) {
             mvc.perform(post("/api/v1/rentals/10/appointments/PICKUP/proposals")
-                    .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isBadRequest());
+                    .header("Idempotency-Key", KEY).contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isBadRequest());
         }
         verifyNoInteractions(commands);
     }

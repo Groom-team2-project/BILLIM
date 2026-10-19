@@ -69,6 +69,12 @@ public class Rental extends BaseTimeEntity {
         approvedAt = now;
     }
 
+    public boolean expire(Instant now) {
+        if (status != RentalStatus.REQUESTED || requestExpiresAt.isAfter(now)) return false;
+        status = RentalStatus.EXPIRED;
+        return true;
+    }
+
     public void reject(String reason) {
         requireStatus(RentalStatus.REQUESTED);
         requireReason(reason);

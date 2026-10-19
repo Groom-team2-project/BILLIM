@@ -18,6 +18,12 @@ import java.util.Optional;
 
 public interface RentalRepository extends JpaRepository<Rental, Long>, JpaSpecificationExecutor<Rental> {
 
+    @Query("""
+            select r.id from Rental r where r.status = com.billim.domain.rental.entity.RentalStatus.REQUESTED
+              and r.requestExpiresAt <= :now order by r.requestExpiresAt, r.id
+            """)
+    List<Long> findExpiredRequestIds(Instant now, Pageable pageable);
+
     // 물건 잠금 이후 최신 채팅방을 조회하는 대여 생성용 읽기 경계
     @Lock(LockModeType.PESSIMISTIC_READ)
     @Query("select room from ChatRoom room where room.itemId = :itemId and room.requesterId = :requesterId")

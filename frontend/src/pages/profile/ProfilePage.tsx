@@ -4,8 +4,6 @@ import { logout } from "@/stores/session";
 import { ApiError } from "@/api/client";
 import {
   type ApiMyProfile,
-  type ApiTrustMetrics,
-  getMemberTrust,
   getMyItems,
   getMyProfile,
   updateDisplayName,
@@ -16,13 +14,13 @@ import { type ApiItemSummary, changeItemVisibility, deleteItem } from "@/api/ite
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { useUi } from "@/components/overlay/UiContext";
-import { TrustLines } from "@/components/custom/profile/OwnerCard";
+import { LiveTrustLines } from "@/components/custom/profile/LiveTrustLines";
 import { ErrorState, Loading, Skeleton, SkeletonItem } from "@/components/ui/state";
 import { PageHeader } from "@/components/layout/header";
 import { ProfileHeading, ProfileHeadingSkeleton } from "@/components/custom/profile/ProfileHeading";
 import { ProfileItemRow } from "@/components/custom/profile/ProfileItemRow";
 import { ProfileLinkRow } from "@/components/custom/profile/ProfileLinkRow";
-import { describeMembership, toTrust } from "@/utils/profileView";
+import { describeMembership } from "@/utils/profileView";
 import shared from "@/components/custom/profile/profileBlocks.module.css";
 import styles from "@/pages/profile/ProfilePage.module.css";
 import { classes } from "@/utils/classes";
@@ -46,7 +44,6 @@ export function ProfilePage() {
   const [loadingMore, setLoadingMore] = useState(false);
   /** null은 하위 데이터 로딩 중 — 0건과 구분해야 빈 화면 오해 방지 */
   const [details, setDetails] = useState<{
-    trust: ApiTrustMetrics | null;
     blocks: number;
     reports: number;
   } | null>(null);
@@ -61,8 +58,7 @@ export function ProfilePage() {
         setProfile(loaded);
         setFailed(false);
 
-        const [loadedTrust, loadedItems, blocks, reports] = await Promise.all([
-          getMemberTrust(loaded.member.id).catch(() => null),
+        const [loadedItems, blocks, reports] = await Promise.all([
           getMyItems()
             .then((page) => ({ state: "ok" as const, rows: page.items, hasNext: page.hasNext }))
             .catch(() => ({ state: "error" as const })),
@@ -71,7 +67,7 @@ export function ProfilePage() {
         ]);
         if (canceled) return;
         setItemList(loadedItems);
-        setDetails({ trust: loadedTrust, blocks, reports });
+        setDetails({ blocks, reports });
       })
       .catch(() => {
         if (!canceled) setFailed(true);
@@ -117,7 +113,8 @@ export function ProfilePage() {
           setProfile(await updateDisplayName(next, current.version));
           toast("이름을 바꿨어요");
         } catch (e: unknown) {
-          if (e instanceof ApiError && e.currentVersion !== undefined) {
+          // 충돌 응답은 선검사·@Version 두 경로로 갈리고 후자는 currentVersion 미포함 — code로 판정
+          if (e instanceof ApiError && e.code === "VERSION_CONFLICT") {
             toast("다른 곳에서 먼저 수정되었어요. 새로 불러옵니다");
             load();
             return;
@@ -216,15 +213,9 @@ export function ProfilePage() {
       <section className={c("profile-section")}>
         <p className={c("t-label profile-muted profile-section-label")}>신뢰 지표</p>
         <div className={c("profile-card")}>
-          {details === null ? (
-            <Loading label="거래 기록을 불러오는 중">
-              <Skeleton w="70%" />
-              <Skeleton w="55%" />
-              <Skeleton w="45%" />
-            </Loading>
-          ) : (
-            <TrustLines trust={toTrust(details.trust, profile?.member.joinedAt ?? "")} />
-          )}
+          {profile ? <LiveTrustLines memberId={profile.member.id} joinedAt={profile.member.joinedAt} /> : failed ? (
+            <ErrorState title="프로필을 먼저 불러와 주세요" onRetry={load} />
+          ) : <Loading label="거래 기록 불러오는 중"><Skeleton w="70%" /></Loading>}
         </div>
         <p className={c("t-caption profile-muted profile-note")}>
           점수나 별점 대신, 실제 거래 기록을 그대로 보여줘요.

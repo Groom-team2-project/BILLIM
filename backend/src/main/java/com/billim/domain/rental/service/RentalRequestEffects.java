@@ -33,7 +33,7 @@ public class RentalRequestEffects {
 
     public Optional<RentalDetailStatusResponse> findReplay(long memberId, String key,
                                                           CreateRentalRequest request, Instant now) {
-        return replay(memberId, CREATE, key, createBody(request), 201, now);
+        return replay(memberId, CREATE, key, createBody(request), 201, now, RentalDetailStatusResponse.class);
     }
 
     public void recordSuccess(long memberId, String key, CreateRentalRequest request,
@@ -43,7 +43,7 @@ public class RentalRequestEffects {
 
     public Optional<RentalDetailStatusResponse> findCommandReplay(long memberId, String key,
                                                                   RentalCommand command, Instant now) {
-        return replay(memberId, operation(command), key, commandBody(command), 200, now);
+        return replay(memberId, operation(command), key, commandBody(command), 200, now, RentalDetailStatusResponse.class);
     }
 
     public void recordCommandSuccess(long memberId, String key, RentalCommand command,
@@ -58,8 +58,19 @@ public class RentalRequestEffects {
         record(memberId, operation(command), key, commandBody(command), 200, rental, response, type, now);
     }
 
-    private Optional<RentalDetailStatusResponse> replay(long memberId, String operation, String key,
-                                                         Object body, int status, Instant now) {
+    public Optional<AppointmentSlotResponse> findAppointmentReplay(long memberId, String operation,
+            String key, Object body, int status, Instant now) {
+        return replay(memberId, operation, key, body, status, now, AppointmentSlotResponse.class);
+    }
+
+    public void recordAppointmentSuccess(long memberId, String operation, String key, Object body,
+            int status, AppointmentSlotResponse response, Instant now) {
+        records.saveAndFlush(IdempotencyRecord.succeeded(memberId, operation, key, hash(body),
+                status, json.write(response), now.plus(Duration.ofHours(24))));
+    }
+
+    private <T> Optional<T> replay(long memberId, String operation, String key,
+                                   Object body, int status, Instant now, Class<T> responseType) {
         var found = records.findByMemberIdAndOperationKeyAndRequestKey(memberId, operation, key);
         if (found.isEmpty()) return Optional.empty();
         var record = found.get();
@@ -72,7 +83,7 @@ public class RentalRequestEffects {
             throw new BusinessException(ErrorCode.IDEMPOTENCY_KEY_REUSED);
         }
         if (record.getHttpStatus() != status) throw new IllegalStateException("저장된 성공 응답 코드 불일치");
-        return Optional.of(json.read(record.getResponseBody(), RentalDetailStatusResponse.class));
+        return Optional.of(json.read(record.getResponseBody(), responseType));
     }
 
     private void record(long memberId, String operation, String key, Object body, int status,
