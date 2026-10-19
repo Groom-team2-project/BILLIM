@@ -49,7 +49,7 @@ export type VerifyLocationBody = {
   accuracyMeters: number;
 };
 
-/** E_009 동네 이름 검색. keyword를 비우면 활성 동네 목록 */
+/** E_009 동네 검색. 이름·공개 주소 부분 검색. keyword를 비우면 활성 동네 목록 */
 export function searchCommunities(keyword?: string, page = 0, size = 20): Promise<ApiCommunityPage> {
   return api<ApiCommunityPage>("/communities", { query: { keyword, page, size } });
 }

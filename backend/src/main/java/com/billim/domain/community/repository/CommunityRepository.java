@@ -14,9 +14,22 @@ import java.util.Optional;
 
 public interface CommunityRepository extends JpaRepository<Community, Long> {
 
-    /** 동네 이름 검색. 활성 동네만 이름순·id순 (API 명세 E_009) */
-    Page<Community> findByStatusAndNameContainingOrderByNameAscIdAsc(
-            CommunityStatus status, String keyword, Pageable pageable);
+    /**
+     * 동네 검색. 활성 동네만 이름순·id순 (API 명세 E_009).
+     *
+     * <p>이름과 공개 주소를 함께 본다. 행정동 동네의 이름은 "역삼1동"이라 "강남구"처럼
+     * 상위 지역으로 찾으려면 주소도 봐야 한다.
+     */
+    @Query("""
+            select c from Community c
+            where c.status = :status
+              and (c.name like concat('%', :keyword, '%')
+                   or c.displayAddress like concat('%', :keyword, '%'))
+            order by c.name asc, c.id asc
+            """)
+    Page<Community> searchByKeyword(@Param("status") CommunityStatus status,
+                                    @Param("keyword") String keyword,
+                                    Pageable pageable);
 
     Page<Community> findByStatusOrderByNameAscIdAsc(CommunityStatus status, Pageable pageable);
 

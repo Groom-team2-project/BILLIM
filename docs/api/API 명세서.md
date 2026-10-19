@@ -77,7 +77,7 @@
 | [A_006](#32-a_006-내-표시-이름-수정) | 이지은 | P1 | PATCH | /api/v1/members/me | 내 표시 이름 수정 |
 | [A_007](#33-a_007-이웃-공개-프로필) | 이지은 | P1 | GET | /api/v1/members/{memberId} | 이웃 공개 프로필 |
 | [C_008](#34-c_008-회원-거래-신뢰-지표) | 박소빈 | P1 | GET | /api/v1/members/{memberId}/trust | 회원 거래 신뢰 지표 |
-| [E_009](#41-e_009-동네-이름-검색) | 노현섭 | P0 | GET | /api/v1/communities | 동네 이름 검색 |
+| [E_009](#41-e_009-동네-검색) | 노현섭 | P0 | GET | /api/v1/communities | 동네 검색 |
 | [E_010](#42-e_010-동네-정보-조회) | 노현섭 | P0 | GET | /api/v1/communities/{communityId} | 동네 정보 조회 |
 | [E_011](#43-e_011-위치-인증-및-활성-동네-선택) | 노현섭 | P0 | POST | /api/v1/communities/{communityId}/verifications | 위치 인증 및 활성 동네 선택 |
 | [E_012](#44-e_012-공용-거래-장소-목록) | 노현섭 | P0 | GET | /api/v1/communities/{communityId}/places | 공용 거래 장소 목록 |
@@ -234,14 +234,14 @@
 
 > `communities`, `community_memberships`, `members`, `community_places`
 
-### 4.1 E_009 동네 이름 검색
+### 4.1 E_009 동네 검색
 
 - `GET /api/v1/communities` · 노현섭 · P0
-- 설명: 로그인 필요, 미인증 허용. 활성 커뮤니티 이름순,id순. 위치 없이 검색 가능.
+- 설명: 로그인 필요, 미인증 허용. 활성 커뮤니티 이름순,id순. 위치 없이 검색 가능. 검색어(2자 이상)에 해당하는 행정동이 아직 동네로 없으면 첫 페이지 조회에서 등록하므로 일부만 입력해도 전국 행정동이 후보에 나온다. 지도 연동이 없거나 실패하면 등록된 동네만 반환한다.
 
 | Query | 필수 | 타입 | 의미 |
 | --- | --- | --- | --- |
-| keyword | N | string | 이름 부분 검색; 생략하면 활성 동네 목록 |
+| keyword | N | string | 이름·공개 주소 부분 검색; 생략하면 활성 동네 목록 |
 | page | N | integer | 0부터 시작; 기본 0 |
 | size | N | integer | 기본 20; 최대 50 |
 

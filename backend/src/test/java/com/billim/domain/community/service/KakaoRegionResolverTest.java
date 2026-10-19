@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -122,5 +123,92 @@ class KakaoRegionResolverTest {
 
         assertThat(resolver.resolve(37.5006, 127.0361))
                 .map(Region::code).contains("1168064000");
+    }
+    /** "역삼" 주소 검색. 같은 행정동이 여러 주소로 반복되고 도로명만 있는 결과가 섞인다 */
+    private static final String ADDRESS_SEARCH = """
+            {
+              "meta": {"total_count": 4},
+              "documents": [
+                {
+                  "address_name": "서울 강남구 역삼동 736",
+                  "address": {
+                    "address_name": "서울 강남구 역삼동 736",
+                    "region_1depth_name": "서울", "region_2depth_name": "강남구",
+                    "region_3depth_name": "역삼동", "region_3depth_h_name": "역삼1동",
+                    "h_code": "1168064000", "b_code": "1168010100",
+                    "x": 127.0361, "y": 37.5006
+                  },
+                  "road_address": null
+                },
+                {
+                  "address_name": "서울 강남구 역삼동 737",
+                  "address": {
+                    "address_name": "서울 강남구 역삼동 737",
+                    "region_1depth_name": "서울", "region_2depth_name": "강남구",
+                    "region_3depth_name": "역삼동", "region_3depth_h_name": "역삼1동",
+                    "h_code": "1168064000", "b_code": "1168010100",
+                    "x": 127.0371, "y": 37.5016
+                  },
+                  "road_address": null
+                },
+                {
+                  "address_name": "서울 강남구 역삼동 820",
+                  "address": {
+                    "address_name": "서울 강남구 역삼동 820",
+                    "region_1depth_name": "서울", "region_2depth_name": "강남구",
+                    "region_3depth_name": "역삼동", "region_3depth_h_name": "역삼2동",
+                    "h_code": "1168065000", "b_code": "1168010100",
+                    "x": 127.0421, "y": 37.4921
+                  },
+                  "road_address": null
+                },
+                {
+                  "address_name": "서울 강남구 테헤란로 123",
+                  "address": null,
+                  "road_address": {"address_name": "서울 강남구 테헤란로 123"}
+                }
+              ]
+            }
+            """;
+
+    @Test
+    @DisplayName("주소 검색 결과를 행정동 코드로 묶는다. 같은 동 중복과 주소 없는 결과는 빠진다")
+    void searchGroupsByAdminCode() {
+        server.expect(requestTo(containsString("/v2/local/search/address.json")))
+                .andRespond(withSuccess(ADDRESS_SEARCH, MediaType.APPLICATION_JSON));
+
+        List<Region> regions = resolver.search("역삼", 10);
+
+        assertThat(regions).extracting(Region::code).containsExactly("1168064000", "1168065000");
+        assertThat(regions).extracting(Region::name).containsExactly("역삼1동", "역삼2동");
+        assertThat(regions.getFirst().displayAddress()).isEqualTo("서울 강남구 역삼1동");
+        // 먼저 나온 주소의 좌표를 쓴다
+        assertThat(regions.getFirst().latitude()).isEqualTo(37.5006);
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("limit으로 후보 수를 자른다")
+    void searchRespectsLimit() {
+        server.expect(requestTo(containsString("address.json")))
+                .andRespond(withSuccess(ADDRESS_SEARCH, MediaType.APPLICATION_JSON));
+
+        assertThat(resolver.search("역삼", 1)).extracting(Region::code).containsExactly("1168064000");
+    }
+
+    @Test
+    @DisplayName("검색어가 비면 지도를 부르지 않는다")
+    void searchSkipsBlankKeyword() {
+        assertThat(resolver.search("  ", 10)).isEmpty();
+        server.verify();
+    }
+
+    @Test
+    @DisplayName("연동 오류는 빈 목록이다. 등록된 동네만 보여주면 된다")
+    void searchReturnsEmptyOnError() {
+        server.expect(requestTo(containsString("address.json")))
+                .andRespond(withServerError());
+
+        assertThat(resolver.search("역삼", 10)).isEmpty();
     }
 }

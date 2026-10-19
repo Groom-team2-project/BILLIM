@@ -27,7 +27,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 /**
  * 동네 검색·조회 (API 명세 E_009, E_010, E_071).
@@ -44,6 +43,12 @@ public class CommunityQueryService {
 
     /** 후보를 줄이는 좌표 사각형의 반경(m). 거리 정렬은 이 안에서 하버사인으로 한다 */
     private static final double NEARBY_BOX_RADIUS_M = 20_000;
+
+    /** 검색 한 번에 보충 등록할 행정동 수 상한 */
+    private static final int SUPPLEMENT_LIMIT = 10;
+
+    /** 이 길이 미만의 검색어로는 지도를 부르지 않는다. 한 글자는 후보가 너무 넓다 */
+    private static final int SUPPLEMENT_MIN_KEYWORD = 2;
 
     private final CommunityRepository communityRepository;
     private final CommunityMembershipRepository membershipRepository;
@@ -64,17 +69,34 @@ public class CommunityQueryService {
     }
 
     /**
-     * 동네 이름 검색 (E_009). 위치 없이 검색할 수 있다.
+     * 동네 검색 (E_009). 위치 없이 검색할 수 있다.
      *
-     * @param keyword 이름 부분 검색. 비우면 활성 동네 목록
+     * <p>검색어에 해당하는 행정동이 아직 동네로 없으면 먼저 등록한다. 그래서 일부만 입력해도
+     * 전국 행정동이 후보로 나온다. 등록은 첫 페이지에서만 하고, 다음 페이지는 등록된 결과를
+     * 넘겨 읽는다. (도메인 가이드 결정 '행정동 위치 인증')
+     *
+     * <p>트랜잭션을 걸지 않는다. 보충 등록이 자기 트랜잭션에서 커밋한 행을 이어지는 검색이
+     * 봐야 하는데, 하나의 읽기 스냅샷 안에서는 보이지 않는다.
+     *
+     * @param keyword 이름·공개 주소 부분 검색. 비우면 활성 동네 목록
      */
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public CommunityPageResponse search(String keyword, int page, int size) {
         PageRequest pageRequest = PageRequest.of(page, size);
-        Page<Community> communities = keyword == null || keyword.isBlank()
-                ? communityRepository.findByStatusOrderByNameAscIdAsc(CommunityStatus.ACTIVE, pageRequest)
-                : communityRepository.findByStatusAndNameContainingOrderByNameAscIdAsc(
-                        CommunityStatus.ACTIVE, keyword.strip(), pageRequest);
+        String trimmed = keyword == null ? "" : keyword.strip();
 
+        if (trimmed.isEmpty()) {
+            return toPage(communityRepository.findByStatusOrderByNameAscIdAsc(
+                    CommunityStatus.ACTIVE, pageRequest), page, size);
+        }
+        if (page == 0 && trimmed.length() >= SUPPLEMENT_MIN_KEYWORD) {
+            supplementRegions(trimmed);
+        }
+        return toPage(communityRepository.searchByKeyword(
+                CommunityStatus.ACTIVE, trimmed, pageRequest), page, size);
+    }
+
+    private CommunityPageResponse toPage(Page<Community> communities, int page, int size) {
         return new CommunityPageResponse(
                 toResponses(communities.getContent()),
                 page, size, communities.getTotalElements(), communities.hasNext());
@@ -121,26 +143,35 @@ public class CommunityQueryService {
                 toResponses(nearest), candidates.size() > NEARBY_LIMIT);
     }
 
+    /** 현재 좌표의 행정동을 동네로 확보한다. 지도 조회가 안 되면 아무것도 하지 않는다 */
+    private void ensureCurrentRegion(VerifyLocationRequest location) {
+        regionResolver.resolve(location.latitude(), location.longitude())
+                .ifPresent(this::ensureRegistered);
+    }
+
+    /** 검색어에 해당하는 행정동을 동네로 확보한다. 상한을 둬 한 번의 검색이 많은 행을 만들지 않게 한다 */
+    private void supplementRegions(String keyword) {
+        for (Region region : regionResolver.search(keyword, SUPPLEMENT_LIMIT)) {
+            ensureRegistered(region);
+        }
+    }
+
     /**
-     * 현재 좌표의 행정동을 동네로 확보한다. 지도 조회가 안 되면 아무것도 하지 않는다.
+     * 행정동 동네가 없으면 등록한다.
      *
      * <p>같은 행정동에서 동시에 들어오면 하나만 저장에 성공한다. 실패한 쪽은 먼저 커밋된 행을
-     * 다시 읽는다. 이 메서드는 결과를 쓰지 않고, 이어지는 사각형 조회가 등록된 행을 집어 간다.
+     * 그대로 쓰면 된다. 등록 결과를 돌려주지 않고, 이어지는 조회가 등록된 행을 집어 간다.
      */
-    private void ensureCurrentRegion(VerifyLocationRequest location) {
-        Optional<Region> region = regionResolver.resolve(location.latitude(), location.longitude());
-        if (region.isEmpty()) {
-            return;
-        }
-        String code = region.get().code();
-        if (communityRepository.findByRegionCodeAndStatus(code, CommunityStatus.ACTIVE).isPresent()) {
+    private void ensureRegistered(Region region) {
+        if (communityRepository.findByRegionCodeAndStatus(
+                region.code(), CommunityStatus.ACTIVE).isPresent()) {
             return;
         }
         try {
-            autoRegistrar.register(region.get());
+            autoRegistrar.register(region);
         } catch (DataIntegrityViolationException e) {
-            // 다른 요청이 같은 행정동을 먼저 등록했다. 그 행을 쓰면 된다
-            log.debug("행정동 동네가 이미 등록됨: regionCode={}", code);
+            // 다른 요청이 같은 행정동을 먼저 등록했다
+            log.debug("행정동 동네가 이미 등록됨: regionCode={}", region.code());
         }
     }
 

@@ -52,7 +52,7 @@ public class CommunityController {
         this.placeService = placeService;
     }
 
-    /** E_009 동네 이름 검색. 위치 없이 검색할 수 있다 */
+    /** E_009 동네 검색. 위치 없이 검색할 수 있다 */
     @GetMapping
     public CommunityPageResponse search(
             @RequestParam(required = false) @Size(max = 100) String keyword,

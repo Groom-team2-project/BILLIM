@@ -1,5 +1,6 @@
 package com.billim.domain.community.service;
 
+import com.billim.domain.community.entity.Region;
 import com.billim.global.json.JsonCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -38,7 +40,7 @@ public class RegionResolverConfig {
         if (!enabled || apiKey.isBlank()) {
             log.info("행정동 역지오코딩 미사용. 위치 인증은 반경 판정만 사용한다 (enabled={}, 키 설정={})",
                     enabled, !apiKey.isBlank());
-            return (latitude, longitude) -> Optional.empty();
+            return new NoRegionResolver();
         }
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
@@ -53,5 +55,19 @@ public class RegionResolverConfig {
 
         log.info("행정동 역지오코딩 사용. baseUrl={}", baseUrl);
         return new KakaoRegionResolver(restClient, jsonCodec);
+    }
+
+    /** 지도 연동을 쓰지 않을 때. 위치 인증은 반경 판정만, 동네 검색은 등록된 동네만 쓴다 */
+    private static class NoRegionResolver implements RegionResolver {
+
+        @Override
+        public Optional<Region> resolve(double latitude, double longitude) {
+            return Optional.empty();
+        }
+
+        @Override
+        public List<Region> search(String keyword, int limit) {
+            return List.of();
+        }
     }
 }
