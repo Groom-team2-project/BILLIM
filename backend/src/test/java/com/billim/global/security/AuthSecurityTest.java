@@ -80,11 +80,20 @@ class AuthSecurityTest {
                 .andExpect(jsonPath("$.requestId").isNotEmpty());
     }
 
+    /** 액추에이터는 관리 포트 전용 — 서비스 포트에 핸들러 없음. 보안 차단 시 401, 통과 시 404 */
     @Test
-    @DisplayName("상태 점검 경로는 로그인 없이 열려 있다")
-    void healthIsPublic() throws Exception {
+    @DisplayName("상태 점검 경로는 보안에 막히지 않는다")
+    void healthIsNotBlockedBySecurity() throws Exception {
         mockMvc.perform(get("/actuator/health"))
-                .andExpect(status().isOk());
+                .andExpect(status().isNotFound());
+    }
+
+    /** Prometheus 수집기는 로그인 불가 — 이 경로 차단 시 서버 지표 수집 불가 */
+    @Test
+    @DisplayName("지표 수집 경로는 보안에 막히지 않는다")
+    void prometheusIsNotBlockedBySecurity() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isNotFound());
     }
 
     /** 권한 부족(FORBIDDEN)과 구분 필요. 프론트엔드는 CSRF_INVALID일 때만 토큰 폐기 후 재시도 */

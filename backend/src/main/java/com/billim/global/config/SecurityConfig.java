@@ -27,6 +27,8 @@ public class SecurityConfig {
     private static final String[] PUBLIC_PATHS = {
             "/actuator/health",
             "/actuator/info",
+            // 관리 포트(127.0.0.1:9090) 전용 — 서비스 포트에서는 라우팅되지 않아 404
+            "/actuator/prometheus",
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs/**",

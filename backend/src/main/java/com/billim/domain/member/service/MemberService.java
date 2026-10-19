@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -66,8 +68,17 @@ public class MemberService {
      */
     @Transactional(readOnly = true)
     public PublicProfileResponse getPublicProfile(long viewerId, long targetId) {
-        requireActiveViewer(viewerId);
-        Member target = find(targetId);
+        // 조회자·대상 한 번에 읽기 — 분리 조회 시 왕복 2회. 본인 조회는 두 ID가 같아 Set으로 중복 제거
+        Map<Long, Member> loaded = memberRepository.findAllById(new LinkedHashSet<>(List.of(viewerId, targetId))).stream()
+                .collect(Collectors.toMap(Member::getId, member -> member));
+        Member viewer = loaded.get(viewerId);
+        if (viewer == null || !viewer.isActive()) {
+            throw new BusinessException(ErrorCode.UNAUTHENTICATED);
+        }
+        Member target = loaded.get(targetId);
+        if (target == null) {
+            throw notFound();
+        }
         boolean self = viewerId == targetId;
         MembershipResponse membership = membershipQuery.findActiveMembership(targetId).orElse(null);
 
@@ -90,12 +101,6 @@ public class MemberService {
                 .collect(Collectors.toMap(Member::getId, MemberSummaryResponse::from));
     }
 
-    /** 세션이 남은 탈퇴·삭제 회원 차단 — 인증 계층의 상태 미검사 (C_008과 같은 기준) */
-    private void requireActiveViewer(long viewerId) {
-        memberRepository.findById(viewerId).filter(Member::isActive)
-                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
-    }
-
     /** 호출부가 읽은 대상 소속의 communityId만 비교 — 같은 소속 중복 조회 방지 */
     private boolean inSameCommunity(long viewerId, MembershipResponse targetMembership) {
         if (targetMembership == null) {
@@ -110,6 +115,10 @@ public class MemberService {
     private MyProfileResponse toProfile(Member member) {
         return MyProfileResponse.from(member, sanctionService.isRestricted(member.getId()),
                 membershipQuery.findActiveMembership(member.getId()).orElse(null));
+    }
+
+    private static BusinessException notFound() {
+        return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
     }
 
     private Member find(Long memberId) {
