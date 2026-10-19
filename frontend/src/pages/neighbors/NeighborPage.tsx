@@ -1,19 +1,17 @@
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useUi } from "@/components/overlay/UiContext";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { Avatar } from "@/components/ui/avatar";
 import { Photo } from "@/components/custom/items/ItemCard";
 import { MOCK_ITEMS } from "@/data/items";
-import { TrustLines } from "@/components/custom/profile/OwnerCard";
+import { LiveTrustLines } from "@/components/custom/profile/LiveTrustLines";
+import { EmptyState } from "@/components/ui/state";
 import styles from "@/pages/neighbors/NeighborPage.module.css";
 import { classes } from "@/utils/classes";
 import { PageHeader } from "@/components/layout/header";
 
 const c = classes(styles);
-
-/** 목데이터에 물건이 없는 이웃의 기본 신뢰 지표 — 프로토타입 정우 값 */
-const FALLBACK_TRUST = { kept: 12, total: 12, done: 18, lent: 15, since: "2026년 3월" };
 
 export function NeighborPage() {
   const { name: raw } = useParams();
@@ -21,7 +19,9 @@ export function NeighborPage() {
   const { confirm, report, toast } = useUi();
   const navigate = useNavigate();
   const items = MOCK_ITEMS.filter((i) => i.owner === name);
-  const trust = items[0]?.trust ?? FALLBACK_TRUST;
+  const [params] = useSearchParams();
+  const memberId = params.get("memberId") ?? "";
+  if (!/^[1-9]\d*$/.test(memberId)) return <EmptyState icon="info" title="이웃 프로필을 열 수 없어요">물건 상세에서 소유자 프로필을 다시 열어 주세요.</EmptyState>;
 
   return (
     <div className={c("neighbor page-window")}>
@@ -32,7 +32,7 @@ export function NeighborPage() {
         <div>
           <div className={c("t-title-lg")}>{name}</div>
           <div className={c("t-caption neighbor-muted")}>
-            새솔마을 5단지 · {trust.since ?? "2026년"} 가입 · 동네 인증됨
+            거래 기록은 실제 완료된 대여를 기준으로 표시해요.
           </div>
         </div>
       </div>
@@ -40,7 +40,7 @@ export function NeighborPage() {
       <section className={c("neighbor-section")}>
         <p className={c("t-label neighbor-muted neighbor-section-label")}>신뢰 지표</p>
         <div className={c("neighbor-card")}>
-          <TrustLines trust={trust} />
+          <LiveTrustLines memberId={memberId} />
         </div>
         <p className={c("t-caption neighbor-muted neighbor-note")}>
           초대 코드는 소속을 인증하지 않아요. 거래 기록으로만 판단해요.

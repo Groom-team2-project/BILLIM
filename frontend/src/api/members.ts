@@ -1,3 +1,5 @@
+import type { ApiTrustMetrics } from "@/types/member-api";
+export type { ApiTrustMetrics } from "@/types/member-api";
 import { api } from "@/api/client";
 
 /** 회원 API (A_005~A_007). 필드명은 API 명세서 그대로 */
@@ -24,3 +26,7 @@ export function updateDisplayName(displayName: string, expectedVersion: number):
     json: { displayName, expectedVersion },
   });
 }
+
+
+export const getTrustMetrics = (memberId: string) =>
+  api<ApiTrustMetrics>(`/members/${encodeURIComponent(memberId)}/trust`);

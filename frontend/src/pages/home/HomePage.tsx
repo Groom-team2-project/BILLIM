@@ -4,7 +4,7 @@ import { Icon } from "@/components/ui/icon";
 import { SearchField } from "@/components/ui/search-field";
 import { StatusBadge } from "@/components/custom/rentals/StatusBadge";
 import { Alert } from "@/components/ui/alert";
-import { DDay } from "@/components/ui/d-day";
+
 import { Meta } from "@/components/ui/meta";
 import { SectionHead } from "@/components/ui/section-head";
 import { CommunitySheet } from "@/components/custom/community/CommunitySheet";
@@ -15,7 +15,11 @@ import { ApiError } from "@/api/client";
 import { type ApiItemSummary, searchItems } from "@/api/items";
 import { fillPlace, toCardItem } from "@/utils/itemView";
 import { useCommunityPlaces } from "@/hooks/useCommunityPlaces";
-import type { RentalStatusView } from "@/components/custom/rentals/status";
+import { getRentalSummary } from "@/api/rentals";
+import type { ApiRentalSummary } from "@/types/rental-api";
+import { summaryCells } from "@/utils/rentalOverview";
+import { toRental } from "@/utils/rentalView";
+import { Skeleton } from "@/components/ui/state";
 import { STATUS_UI } from "@/components/custom/rentals/status";
 import styles from "@/pages/home/HomePage.module.css";
 import { classes } from "@/utils/classes";
@@ -23,7 +27,7 @@ import { EmptyState, ErrorState, Loading, SkeletonItem } from "@/components/ui/s
 
 const c = classes(styles);
 
-/** 프로토타입 목데이터 — 이웃 수(E)·대여 요약(C). 해당 API 연동 시 교체 */
+/** 이웃 수(E) — 홈 조립 API 연동 시 교체 */
 const COMMUNITY = { neighbors: 128 };
 
 /** 홈 최신 물건 개수 */
@@ -34,12 +38,6 @@ type Latest =
   | { state: "error"; message: string }
   | { state: "ok"; items: ApiItemSummary[]; total: number };
 
-const RENTAL_SUMMARY: { label: string; count: number; note: string; status: RentalStatusView }[] = [
-  { label: "요청 대기", count: 2, note: "빌려준 물건", status: "requested" },
-  { label: "승인 완료", count: 1, note: "9/24 받기", status: "approved" },
-  { label: "대여 중", count: 1, note: "빌린 물건", status: "active" },
-];
-
 export function HomePage() {
   const navigate = useNavigate();
   const activeName = useActiveCommunity();
@@ -47,6 +45,20 @@ export function HomePage() {
   const [latest, setLatest] = useState<Latest>({ state: "loading" });
   const places = useCommunityPlaces();
   const [retry, setRetry] = useState(0);
+  const [summary, setSummary] = useState<ApiRentalSummary | null>(null);
+  const [summaryError, setSummaryError] = useState("");
+  const [summaryRetry, setSummaryRetry] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    getRentalSummary().then((value) => { if (alive) setSummary(value); }).catch((e: unknown) => {
+      if (!alive) return;
+      if (e instanceof ApiError && e.unauthenticated) { navigate("/login"); return; }
+      setSummaryError(e instanceof ApiError ? e.message : "대여 현황을 불러오지 못했어요.");
+    });
+    return () => { alive = false; };
+  }, [summaryRetry, navigate]);
+  const next = summary?.nextRentals[0];
+  const urgent = next ? toRental(next) : null;
 
   // 최신 물건 (B_017 LATEST). TODO(B_027): 홈 조립 API가 생기면 교체
   useEffect(() => {
@@ -137,26 +149,29 @@ export function HomePage() {
         <div className={c("home-aside")}>
           <section className={c("home-card")} aria-labelledby="my-rentals">
             <SectionHead id="my-rentals" title="내 대여 현황" more="전체 보기" moreTo="/rentals" />
+            {summaryError ? <ErrorState title="대여 현황을 불러오지 못했어요" onRetry={() => { setSummaryError(""); setSummaryRetry((n) => n + 1); }}>{summaryError}</ErrorState>
+              : !summary ? <Loading label="대여 현황 불러오는 중"><Skeleton h={64} /></Loading>
+              : <>
             <div className={c("home-summary")}>
-              {RENTAL_SUMMARY.map((cell) => (
+              {summaryCells(summary).map((cell) => (
                 <Link key={cell.status} to="/rentals" className={c(`home-summary-cell home-summary-cell--${cell.status}`)}>
                   <span className={c("t-micro home-summary-label")}>
-                    <Icon name={STATUS_UI[cell.status].icon} size={13} />
-                    {cell.label}
+                    <Icon name={STATUS_UI[cell.status].icon} size={13} />{cell.label}
                   </span>
                   <span className={c("home-summary-count")}>{cell.count}</span>
                   <span className={c("t-micro home-muted")}>{cell.note}</span>
                 </Link>
               ))}
             </div>
-            <div className={c("home-urgent")}>
-              <StatusBadge status="active" />
+            {next && urgent ? <Link to={`/rentals?rentalId=${encodeURIComponent(next.id)}`} className={c("home-urgent")}>
+              <StatusBadge status={urgent.status} />
               <div className={c("home-urgent-body")}>
-                <div className={c("t-label")}>캠핑 의자 2개 세트 · 내일 반납</div>
-                <Meta icon="pin">9/23(수)까지 B동 커뮤니티센터 입구</Meta>
+                <div className={c("t-label")}>{next.itemTitle} · {urgent.dday}</div>
+                <Meta icon="pin">{next.placeName}</Meta>
               </div>
-              <DDay>D-1</DDay>
-            </div>
+            </Link> : <p className={c("t-caption home-muted")}>{Object.values(summary.borrowed).every((count) => count === 0) && Object.values(summary.lent).every((count) => count === 0) ? "아직 빌리거나 빌려준 물건이 없어요." : "예정된 전달·반납이 없어요."}</p>}
+            </>}
+
           </section>
 
           <Alert tone="info" title="거래는 공용 장소에서">

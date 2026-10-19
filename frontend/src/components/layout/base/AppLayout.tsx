@@ -92,7 +92,7 @@ export function AppLayout() {
           },
         ]
       : [
-          { label: "소유자 프로필", onSelect: () => navigate(`/neighbors/${moreItem.owner.displayName ?? UNKNOWN_OWNER}`) },
+          { label: "소유자 프로필", onSelect: () => navigate(`/neighbors/${encodeURIComponent(moreItem.owner.displayName ?? UNKNOWN_OWNER)}?memberId=${encodeURIComponent(moreItem.owner.id)}`) },
           {
             label: "이 물건 신고하기",
             danger: true,
