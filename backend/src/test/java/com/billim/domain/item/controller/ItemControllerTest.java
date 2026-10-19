@@ -1,6 +1,8 @@
 package com.billim.domain.item.controller;
 
+import com.billim.domain.community.dto.CommunityResponse;
 import com.billim.domain.item.dto.CategoryResponse;
+import com.billim.domain.item.dto.HomeResponse;
 import com.billim.domain.item.dto.ImageResponse;
 import com.billim.domain.item.dto.ItemDetailResponse;
 import com.billim.domain.item.dto.ItemMapCondition;
@@ -10,18 +12,23 @@ import com.billim.domain.item.dto.ItemSort;
 import com.billim.domain.item.dto.MapResultsResponse;
 import com.billim.domain.item.dto.PlaceResponse;
 import com.billim.domain.item.service.CategoryService;
+import com.billim.domain.item.service.HomeService;
 import com.billim.domain.item.service.ItemService;
 import com.billim.domain.member.dto.MemberSummaryResponse;
 import com.billim.domain.item.service.MediaService;
+import com.billim.domain.member.entity.MemberRole;
+import com.billim.domain.rental.dto.RentalCountStatusResponse;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import com.billim.global.exception.VersionConflictException;
+import com.billim.global.security.LoginMember;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -42,6 +49,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -60,7 +68,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 // OAuth2 client-id/secret은 실제 환경변수 없이도 컨텍스트가 뜨도록 테스트 값을 주입 (BillimApplicationTests와 같은 방식)
 @WebMvcTest(controllers = {ItemController.class, MediaController.class, CategoryController.class,
-        MemberItemController.class}, properties = {
+        MemberItemController.class, HomeController.class}, properties = {
         "spring.security.oauth2.client.registration.kakao.client-id=test-client-id",
         "spring.security.oauth2.client.registration.kakao.client-secret=test-client-secret"
 })
@@ -79,6 +87,7 @@ class ItemControllerTest {
     @MockitoBean ItemService itemService;
     @MockitoBean MediaService mediaService;
     @MockitoBean CategoryService categoryService;
+    @MockitoBean HomeService homeService;
 
     private static ItemDetailResponse detail() {
         return new ItemDetailResponse("7", "전동드릴", "설명",
@@ -551,5 +560,35 @@ class ItemControllerTest {
     void neighborItemsWithMalformedIdReturns400() throws Exception {
         mvc.perform(get("/api/v1/members/abc/items")).andExpect(status().isBadRequest());
         verify(itemService, never()).listNeighbor(anyLong(), anyLong(), anyInt(), anyInt());
+    }
+
+    // ───── 홈 화면 조립 (B_027) ─────
+
+    @Test
+    @DisplayName("홈 조립은 로그인 회원으로 서비스에 위임하고 응답을 그대로 내려준다")
+    void homeReturnsAssembledResponse() throws Exception {
+        LoginMember member = new LoginMember(1L, MemberRole.USER);
+        RentalCountStatusResponse.RentalCounts zero = new RentalCountStatusResponse.RentalCounts(0, 0, 0, 0, 0, 0, 0, 0);
+        when(homeService.home(member)).thenReturn(new HomeResponse(
+                new CommunityResponse("100", "강남역 생활권", "서울 강남구", new BigDecimal("37.4979420"),
+                        new BigDecimal("127.0276210"), 1000, 12),
+                37, List.of(), List.of(), new RentalCountStatusResponse(zero, zero, List.of()), 4, 0));
+
+        mvc.perform(get("/api/v1/home")
+                        .with(authentication(new UsernamePasswordAuthenticationToken(member, null, member.getAuthorities()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.community.name").value("강남역 생활권"))
+                .andExpect(jsonPath("$.community.verifiedMemberCount").value(12))
+                .andExpect(jsonPath("$.itemCount").value(37))
+                .andExpect(jsonPath("$.myRentals.lent.requested").value(0))
+                .andExpect(jsonPath("$.unreadNotificationCount").value(4))
+                .andExpect(jsonPath("$.unreadChatCount").value(0));
+    }
+
+    @Test
+    @DisplayName("로그인 회원 정보가 없으면 홈 조립은 401이다")
+    void homeWithoutLoginMemberReturns401() throws Exception {
+        mvc.perform(get("/api/v1/home")).andExpect(status().isUnauthorized());
+        verify(homeService, never()).home(any());
     }
 }
