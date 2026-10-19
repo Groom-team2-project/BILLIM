@@ -1,0 +1,49 @@
+name: billim-perf
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: billim_perf
+      MYSQL_USER: billim_perf
+      MYSQL_PASSWORD: local_perf_only
+      MYSQL_ROOT_PASSWORD: local_perf_root_only
+    healthcheck:
+      test: [CMD-SHELL, "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - perf-mysql:/var/lib/mysql
+
+  backend:
+    build:
+      context: ../backend
+    ports:
+      - "127.0.0.1:18080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: perf
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/billim_perf
+      SPRING_DATASOURCE_USERNAME: billim_perf
+      SPRING_DATASOURCE_PASSWORD: local_perf_only
+      KAKAO_CLIENT_ID: local-perf-id
+      KAKAO_CLIENT_SECRET: local-perf-secret
+      OUTBOX_ENABLED: ${PERF_OUTBOX_ENABLED:-false}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    mem_limit: 1g
+
+  k6:
+    image: grafana/k6:0.54.0
+    profiles: [load]
+    working_dir: /scripts
+    volumes:
+      - ./:/scripts:ro
+    environment:
+      BASE_URL: http://backend:8080
+    depends_on:
+      - backend
+
+volumes:
+  perf-mysql:
