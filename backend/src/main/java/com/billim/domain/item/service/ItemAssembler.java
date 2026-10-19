@@ -77,6 +77,11 @@ public class ItemAssembler {
 
     // 입력 순서 유지
     public List<ItemSummaryResponse> summaries(List<Item> items) {
+        return summaries(items, null);
+    }
+
+    // availableForRange: 기간 검색이면 true, 기간 없이 조회하면 null(응답에서 생략)
+    public List<ItemSummaryResponse> summaries(List<Item> items, Boolean availableForRange) {
         if (items.isEmpty()) {
             return List.of();
         }
@@ -119,7 +124,7 @@ public class ItemAssembler {
                     owner, place(i, place),
                     thumb == null ? null : MediaFileResponse.contentUrl(thumb),
                     i.getVisibility().name(), distance, distance == null ? null : DISTANCE_BASIS,
-                    null, i.getCreatedAt(), null, i.getVersion());
+                    availableForRange, i.getCreatedAt(), null, i.getVersion());
         }).toList();
     }
 
