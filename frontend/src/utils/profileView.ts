@@ -20,10 +20,9 @@ export function describeMembership(opts: {
   return parts.filter(Boolean).join(" · ");
 }
 
-/** TrustMetrics → TrustLines 입력. 지표 조회 실패 시 가입 시점만 */
-export function toTrust(metrics: ApiTrustMetrics | null, joinedAt: string): Trust {
+/** 성공한 TrustMetrics만 표시 모델로 변환. 실패는 화면의 오류 상태로 처리 */
+export function toTrust(metrics: ApiTrustMetrics, joinedAt: string): Trust {
   const since = formatYearMonth(joinedAt);
-  if (metrics === null) return { kept: 0, total: 0, done: 0, since };
   return {
     kept: metrics.returnPromiseKept,
     total: metrics.returnPromiseTotal,

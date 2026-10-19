@@ -31,7 +31,7 @@ import static org.mockito.Mockito.*;
 import static org.mockito.ArgumentMatchers.*;
 
 @DataJpaTest(properties = "spring.jpa.hibernate.ddl-auto=validate")
-@Import({RentalFlowDbTest.Config.class, JpaAuditingConfig.class, RentalService.class, RentalQueryService.class, AppointmentService.class, AppointmentCommandService.class, RentalRequestEffects.class,
+@Import({RentalFlowDbTest.Config.class, JpaAuditingConfig.class, RentalService.class, RentalQueryService.class, AppointmentService.class, AppointmentCommandService.class, RentalRequestEffects.class, RentalExpirationJob.class,
         com.billim.domain.notification.service.OutboxEventPublisher.class, com.billim.global.json.JsonCodec.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class RentalFlowDbTest {
@@ -46,10 +46,13 @@ class RentalFlowDbTest {
 
     @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
     com.billim.global.repository.IdempotencyRecordRepository records;
+    @org.springframework.test.context.bean.override.mockito.MockitoSpyBean
+    com.billim.domain.rental.repository.RentalStatusHistoryRepository histories;
     @MockitoBean RentalRequestPolicy policy;
     @Autowired RentalService service;
     @Autowired RentalQueryService queries;
     @Autowired AppointmentCommandService appointments;
+    @Autowired RentalExpirationJob expiration;
     @Autowired DataSource dataSource;
     @Autowired PlatformTransactionManager transactionManager;
     @Autowired ItemRepository items;
@@ -342,6 +345,145 @@ class RentalFlowDbTest {
         }
     }
 
+    @Test
+    @DisplayName("약속 제안·수락·철회 재전송은 최초 응답과 사건 수 유지")
+    void replaysAppointmentCommands() {
+        prepareAppointments();
+        String proposalKey = key();
+        var request = new ProposeAppointmentRequest(0L, NOW.plusSeconds(3600), "9101");
+        var proposed = appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
+                request, proposalKey, BORROWER);
+        String acceptKey = key();
+        long id = Long.parseLong(proposed.pendingProposal().id());
+        var accepted = appointments.accept(id, new AppointmentVersionRequest(1L), acceptKey, OWNER);
+        assertThat(appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
+                request, proposalKey.toUpperCase(), BORROWER)).usingRecursiveComparison().withComparatorForType(java.math.BigDecimal::compareTo, java.math.BigDecimal.class).isEqualTo(proposed);
+        assertThat(appointments.accept(id, new AppointmentVersionRequest(1L), acceptKey, OWNER)).usingRecursiveComparison().withComparatorForType(java.math.BigDecimal::compareTo, java.math.BigDecimal.class).isEqualTo(accepted);
+        assertThatThrownBy(() -> appointments.accept(id, new AppointmentVersionRequest(2L), acceptKey, OWNER))
+                .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.IDEMPOTENCY_KEY_REUSED));
+        var changed = appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
+                new ProposeAppointmentRequest(2L, NOW.plusSeconds(7200), "9101"), key(), BORROWER);
+        long changedId = Long.parseLong(changed.pendingProposal().id());
+        String withdrawKey = key();
+        var withdrawn = appointments.withdraw(changedId, new AppointmentVersionRequest(3L), withdrawKey, BORROWER);
+        assertThat(appointments.withdraw(changedId, new AppointmentVersionRequest(3L), withdrawKey, BORROWER)).usingRecursiveComparison().withComparatorForType(java.math.BigDecimal::compareTo, java.math.BigDecimal.class).isEqualTo(withdrawn);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM outbox_events WHERE aggregate_type='APPOINTMENT_SLOT'", Long.class)).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("만료 경계의 요청만 시스템 이력·양측 알림과 함께 한 번 만료")
+    void expiresRequestsOnce() {
+        jdbc.update("UPDATE rentals SET request_expires_at=? WHERE id=9101", LocalDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        expiration.expireRequests();
+        expiration.expireRequests();
+        assertThat(jdbc.queryForObject("SELECT status FROM rentals WHERE id=9101", String.class)).isEqualTo("EXPIRED");
+        assertThat(jdbc.queryForObject("SELECT version FROM rentals WHERE id=9101", Long.class)).isEqualTo(1L);
+        assertThat(jdbc.queryForObject("SELECT status FROM rentals WHERE id=9102", String.class)).isEqualTo("REQUESTED");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM rental_status_histories WHERE rental_id=9101 AND to_status='EXPIRED' AND actor_id IS NULL AND rental_version=1", Long.class)).isEqualTo(1L);
+        String payload = jdbc.queryForObject("SELECT payload FROM outbox_events WHERE event_type='RENTAL_EXPIRED'", String.class);
+        assertThat(payload).contains("9101", "9102");
+    }
+
+    @Test
+    @DisplayName("같은 멱등 키의 동시 약속 요청은 한 번만 반영")
+    void concurrentAppointmentReplay() throws Exception {
+        prepareAppointments();
+        String requestKey = key();
+        var request = new ProposeAppointmentRequest(0L, NOW.plusSeconds(3600), "9101");
+        var start = new CountDownLatch(1);
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            Callable<AppointmentSlotResponse> task = () -> {
+                start.await();
+                return appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
+                        request, requestKey, BORROWER);
+            };
+            var first = executor.submit(task);
+            var second = executor.submit(task);
+            start.countDown();
+            assertThat(first.get(20, TimeUnit.SECONDS)).usingRecursiveComparison()
+                    .withComparatorForType(java.math.BigDecimal::compareTo, java.math.BigDecimal.class)
+                    .isEqualTo(second.get(20, TimeUnit.SECONDS));
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM appointment_proposals", Long.class)).isEqualTo(1L);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM outbox_events WHERE aggregate_type='APPOINTMENT_SLOT'", Long.class)).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("약속 성공 기록 저장 실패 시 제안·사건 모두 롤백")
+    void rollsBackAppointmentWhenRecordFails() {
+        prepareAppointments();
+        doThrow(new IllegalStateException("기록 저장 실패")).when(records).saveAndFlush(any());
+        assertThatThrownBy(() -> appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
+                new ProposeAppointmentRequest(0L, NOW.plusSeconds(3600), "9101"), key(), BORROWER))
+                .isInstanceOf(IllegalStateException.class);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM appointment_proposals", Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM outbox_events WHERE aggregate_type='APPOINTMENT_SLOT'", Long.class)).isZero();
+    }
+
+    @Test
+    @DisplayName("승인·취소된 거래는 마감이 지나도 만료하지 않음")
+    void preservesCompletedCommandsOnExpiry() {
+        service.approveRental(9101L, key(), new RentalVersionRequest(0L), OWNER);
+        service.cancelRental(9102L, key(), new CancelRentalRequest(0L, "취소"), BORROWER);
+        jdbc.update("UPDATE rentals SET request_expires_at=? WHERE item_id=9101", LocalDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        expiration.expireRequests();
+        assertThat(jdbc.queryForObject("SELECT status FROM rentals WHERE id=9101", String.class)).isEqualTo("APPROVED");
+        assertThat(jdbc.queryForObject("SELECT status FROM rentals WHERE id=9102", String.class)).isEqualTo("CANCELED");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM outbox_events WHERE event_type='RENTAL_EXPIRED'", Long.class)).isZero();
+    }
+
+    @Test
+    @DisplayName("동시 만료 작업은 상태·버전·시스템 이력·사건을 한 번만 저장")
+    void concurrentExpiration() throws Exception {
+        jdbc.update("UPDATE rentals SET request_expires_at=? WHERE id=9101", LocalDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            var start = new CountDownLatch(1);
+            Runnable task = () -> {
+                try { start.await(); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                expiration.expireRequests();
+            };
+            var first = executor.submit(task);
+            var second = executor.submit(task);
+            start.countDown();
+            first.get(20, TimeUnit.SECONDS);
+            second.get(20, TimeUnit.SECONDS);
+        }
+        assertThat(jdbc.queryForObject("SELECT version FROM rentals WHERE id=9101", Long.class)).isEqualTo(1L);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM rental_status_histories WHERE rental_id=9101 AND to_status='EXPIRED'", Long.class)).isEqualTo(1L);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM outbox_events WHERE event_type='RENTAL_EXPIRED'", Long.class)).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("약속 키 만료 시 최초 응답 대신 현재 버전 검사, 실패 요청은 기록하지 않음")
+    void appointmentKeyExpiryAndInvalidKeys() {
+        prepareAppointments();
+        var request = new ProposeAppointmentRequest(0L, NOW.plusSeconds(3600), "9101");
+        for (String invalid : List.of("", "bad-key")) {
+            assertThatThrownBy(() -> appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
+                    request, invalid, BORROWER)).isInstanceOf(BusinessException.class);
+        }
+        String requestKey = key();
+        appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP, request, requestKey, BORROWER);
+        jdbc.update("UPDATE idempotency_records SET expires_at=? WHERE request_key=?", LocalDateTime.ofInstant(NOW, ZoneOffset.UTC), requestKey);
+        assertThatThrownBy(() -> appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
+                request, requestKey, BORROWER)).isInstanceOf(com.billim.global.exception.VersionConflictException.class);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM appointment_proposals", Long.class)).isEqualTo(1L);
+    }
+
+    @Test
+    @DisplayName("만료 이력 저장 실패는 상태도 롤백하고 다음 실행에서 재시도")
+    void retriesFailedExpirationAtomically() {
+        jdbc.update("UPDATE rentals SET request_expires_at=? WHERE id=9101", LocalDateTime.ofInstant(NOW, ZoneOffset.UTC));
+        doThrow(new IllegalStateException("이력 저장 실패")).when(histories).saveAndFlush(any());
+        expiration.expireRequests();
+        assertThat(jdbc.queryForObject("SELECT status FROM rentals WHERE id=9101", String.class)).isEqualTo("REQUESTED");
+        assertThat(jdbc.queryForObject("SELECT version FROM rentals WHERE id=9101", Long.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM outbox_events WHERE event_type='RENTAL_EXPIRED'", Long.class)).isZero();
+        reset(histories);
+        expiration.expireRequests();
+        assertThat(jdbc.queryForObject("SELECT status FROM rentals WHERE id=9101", String.class)).isEqualTo("EXPIRED");
+    }
+
     private String key() { return UUID.randomUUID().toString(); }
 
     @Test
@@ -349,18 +491,18 @@ class RentalFlowDbTest {
     void appointmentLifecycle() {
         prepareAppointments();
         var proposed = appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
-                new ProposeAppointmentRequest(0L, NOW.plusSeconds(3600), "9101"), BORROWER);
+                new ProposeAppointmentRequest(0L, NOW.plusSeconds(3600), "9101"), key(), BORROWER);
         assertThat(proposed.version()).isEqualTo(1);
         long first = Long.parseLong(proposed.pendingProposal().id());
-        var confirmed = appointments.accept(first, new AppointmentVersionRequest(1L), OWNER);
+        var confirmed = appointments.accept(first, new AppointmentVersionRequest(1L), key(), OWNER);
         assertThat(confirmed.version()).isEqualTo(2);
         assertThat(confirmed.confirmedProposal().id()).isEqualTo(Long.toString(first));
         assertThat(confirmed.pendingProposal()).isNull();
         var changed = appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
-                new ProposeAppointmentRequest(2L, NOW.plusSeconds(7200), "9101"), OWNER);
+                new ProposeAppointmentRequest(2L, NOW.plusSeconds(7200), "9101"), key(), OWNER);
         assertThat(changed.confirmedProposal().id()).isEqualTo(Long.toString(first));
         long second = Long.parseLong(changed.pendingProposal().id());
-        var withdrawn = appointments.withdraw(second, new AppointmentVersionRequest(3L), OWNER);
+        var withdrawn = appointments.withdraw(second, new AppointmentVersionRequest(3L), key(), OWNER);
         assertThat(withdrawn.version()).isEqualTo(4);
         assertThat(withdrawn.pendingProposal()).isNull();
         assertThat(withdrawn.confirmedProposal().id()).isEqualTo(Long.toString(first));
@@ -373,15 +515,15 @@ class RentalFlowDbTest {
     void replacesPendingAndConfirmed() {
         prepareAppointments();
         var first = appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
-                new ProposeAppointmentRequest(0L, NOW.plusSeconds(3600), "9101"), BORROWER);
+                new ProposeAppointmentRequest(0L, NOW.plusSeconds(3600), "9101"), key(), BORROWER);
         var second = appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
-                new ProposeAppointmentRequest(1L, NOW.plusSeconds(7200), "9101"), BORROWER);
+                new ProposeAppointmentRequest(1L, NOW.plusSeconds(7200), "9101"), key(), BORROWER);
         assertThat(jdbc.queryForObject("SELECT status FROM appointment_proposals WHERE id=?", String.class,
                 first.pendingProposal().id())).isEqualTo("SUPERSEDED");
-        appointments.accept(Long.parseLong(second.pendingProposal().id()), new AppointmentVersionRequest(2L), OWNER);
+        appointments.accept(Long.parseLong(second.pendingProposal().id()), new AppointmentVersionRequest(2L), key(), OWNER);
         var third = appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
-                new ProposeAppointmentRequest(3L, NOW.plusSeconds(10800), "9101"), OWNER);
-        appointments.accept(Long.parseLong(third.pendingProposal().id()), new AppointmentVersionRequest(4L), BORROWER);
+                new ProposeAppointmentRequest(3L, NOW.plusSeconds(10800), "9101"), key(), OWNER);
+        appointments.accept(Long.parseLong(third.pendingProposal().id()), new AppointmentVersionRequest(4L), key(), BORROWER);
         assertThat(jdbc.queryForObject("SELECT status FROM appointment_proposals WHERE id=?", String.class,
                 second.pendingProposal().id())).isEqualTo("SUPERSEDED");
     }
@@ -391,18 +533,18 @@ class RentalFlowDbTest {
     void rejectsInvalidAppointmentCommands() {
         prepareAppointments();
         var proposed = appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
-                new ProposeAppointmentRequest(0L, NOW.plusSeconds(3600), "9101"), BORROWER);
+                new ProposeAppointmentRequest(0L, NOW.plusSeconds(3600), "9101"), key(), BORROWER);
         long id = Long.parseLong(proposed.pendingProposal().id());
-        assertThatThrownBy(() -> appointments.accept(id, new AppointmentVersionRequest(1L), BORROWER))
+        assertThatThrownBy(() -> appointments.accept(id, new AppointmentVersionRequest(1L), key(), BORROWER))
                 .isInstanceOfSatisfying(BusinessException.class, e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.FORBIDDEN));
-        assertThatThrownBy(() -> appointments.withdraw(id, new AppointmentVersionRequest(1L), OWNER))
+        assertThatThrownBy(() -> appointments.withdraw(id, new AppointmentVersionRequest(1L), key(), OWNER))
                 .isInstanceOf(BusinessException.class);
         for (Instant at : List.of(NOW, NOW.plus(Duration.ofDays(1)))) {
             assertThatThrownBy(() -> appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
-                    new ProposeAppointmentRequest(1L, at, "9101"), BORROWER)).isInstanceOf(BusinessException.class);
+                    new ProposeAppointmentRequest(1L, at, "9101"), key(), BORROWER)).isInstanceOf(BusinessException.class);
         }
         jdbc.update("UPDATE community_places SET active=false WHERE id=9101");
-        assertThatThrownBy(() -> appointments.accept(id, new AppointmentVersionRequest(1L), OWNER))
+        assertThatThrownBy(() -> appointments.accept(id, new AppointmentVersionRequest(1L), key(), OWNER))
                 .isInstanceOf(BusinessException.class);
         assertThat(jdbc.queryForObject("SELECT status FROM appointment_proposals WHERE id=?", String.class, id)).isEqualTo("PROPOSED");
     }
@@ -417,7 +559,7 @@ class RentalFlowDbTest {
             start.await();
             try {
                 appointments.propose(9101L, com.billim.domain.rental.entity.AppointmentKind.PICKUP,
-                        new ProposeAppointmentRequest(0L, NOW.plusSeconds(3600), "9101"), BORROWER);
+                        new ProposeAppointmentRequest(0L, NOW.plusSeconds(3600), "9101"), key(), BORROWER);
                 return true;
             } catch (com.billim.global.exception.VersionConflictException e) { return false; }
         };
