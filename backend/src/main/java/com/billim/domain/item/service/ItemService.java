@@ -227,7 +227,8 @@ public class ItemService {
                         ItemSpecifications.orderByPlaceDistance(placeDistances(communityId))),
                         PageRequest.of(cond.page(), cond.size()))
                 : itemRepository.findAll(filter, PageRequest.of(cond.page(), cond.size(), LATEST));
-        return toPage(page, cond.page(), cond.size());
+        // 기간을 골랐으면 결과는 모두 그 기간에 대여 가능 (availableForRange = true)
+        return toPage(page, cond.page(), cond.size(), cond.startDate() != null ? Boolean.TRUE : null);
     }
 
     // ───────── 지도 집계 (B_018) ─────────
@@ -292,8 +293,7 @@ public class ItemService {
                                              Long placeId, LocalDate startDate, LocalDate endDate) {
         // 차단 관계(양방향) 소유자는 페이지 수가 맞도록 조회 전에 조건으로 제외
         Set<Long> blockedOwners = accessPolicy.findBlockedOwners(memberId, itemRepository.findPublicOwnerIds(communityId));
-        // TODO(C): 선택 기간에 승인·진행 중인 대여가 있는 물건 제외, availableForRange 채움.
-        //          연동 전에는 물건의 대여 가능 기간이 선택 기간을 포함하는지만 확인
+        // 기간을 고르면 물건의 대여 가능 기간 안이면서, 그 기간에 대여가 점유되지 않은 물건만
         return ItemSpecifications.allOf(
                 ItemSpecifications.community(communityId),
                 ItemSpecifications.publicOnly(),
@@ -301,7 +301,8 @@ public class ItemService {
                 ItemSpecifications.category(categoryId),
                 ItemSpecifications.place(placeId),
                 ItemSpecifications.titleContains(keyword),
-                ItemSpecifications.availableCovers(startDate, endDate));
+                ItemSpecifications.availableCovers(startDate, endDate),
+                ItemSpecifications.availableForRental(startDate, endDate, clock.instant()));
     }
 
     // 동네의 운영 중인 공용 장소별 동네 중심 거리(m)
@@ -323,7 +324,11 @@ public class ItemService {
     }
 
     private ItemPageResponse toPage(Page<Item> page, int pageNo, int size) {
-        return new ItemPageResponse(assembler.summaries(page.getContent()), pageNo, size,
+        return toPage(page, pageNo, size, null);
+    }
+
+    private ItemPageResponse toPage(Page<Item> page, int pageNo, int size, Boolean availableForRange) {
+        return new ItemPageResponse(assembler.summaries(page.getContent(), availableForRange), pageNo, size,
                 page.getTotalElements(), page.hasNext());
     }
 

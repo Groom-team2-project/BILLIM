@@ -13,6 +13,7 @@ import { changeItemVisibility } from "@/api/items";
 import { setCurrentItem, useCurrentItem } from "@/stores/currentItem";
 import { UNKNOWN_OWNER } from "@/utils/itemView";
 import { objectParticle } from "@/utils/korean";
+import { ownerProfilePath } from "@/utils/profileRoute";
 
 const c = classes(styles);
 
@@ -92,7 +93,7 @@ export function AppLayout() {
           },
         ]
       : [
-          { label: "소유자 프로필", onSelect: () => navigate(`/members/${moreItem.owner.id}`) },
+          { label: "소유자 프로필", onSelect: () => navigate(ownerProfilePath(moreItem.owner.id, false)) },
           {
             label: "이 물건 신고하기",
             danger: true,

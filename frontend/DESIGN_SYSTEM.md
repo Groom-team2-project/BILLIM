@@ -381,6 +381,7 @@ export const STATUS_UI: Record<RentalStatus, { label: string; icon: string; toke
 | `@/components/custom/rentals` | `RentalCard`, `StatusBadge`, `Steps` |
 | `@/components/custom/chat` | `ChatRoom`, `ChatListItem`, `Bubble`, `Composer`, `ContextBar`, `AppointmentCard`, `AppointmentSheet` |
 | `@/components/custom/profile` | `OwnerCard`, `TrustLines` |
+| `@/components/custom/profile/LiveTrustLines` | `LiveTrustLines` (C_008 조회·로딩·오류·재시도) |
 | `@/components/custom/community` | `CommunitySheet` (내 동네 설정) |
 | `@/components/overlay/UiContext` | `useUi()` → `confirm` · `reason` · `report` · `toast` |
 | `@/hooks/useScreenState` | `useScreenState()` → `?state=` 로 로딩·빈·오류 확인 |
@@ -487,6 +488,8 @@ export const STATUS_UI: Record<RentalStatus, { label: string; icon: string; toke
 
 실제 라우트는 `src/app/App.tsx`가 원본이다.
 
+대여 요청은 B_020 물건 상세·C_026 예약 구간·C_028 요청 생성 사용. 상세에서 선택한 날짜를 쿼리로 전달하고 직접 진입 시 날짜 선택 필요. KST 오늘·가능 기간·양끝 포함 최대 30일·예약 겹침 검증. 예약 조회 실패 시 재시도 안내, 생성 실패 시 선택값 유지. 응답 유실 재시도는 동일 멱등 키 사용. 성공 시 생성 거래로 이동. 프로토타입의 고정 예약 경고는 실제 충돌 시에만 표시.
+
 내 대여는 C_029 목록과 C_031 상세 사용. `?rentalId=` 진입 시 거래 당사자 역할에 맞는 탭을 선택하고 해당 카드로 스크롤·포커스 이동. 목록 밖 거래는 상세 응답으로 보완하고 중복 제거. 상세 조회 실패는 목록과 별도 안내·재시도 제공. 연체는 ACTIVE의 파생 표시, EXPIRED는 완료·거절 필터에 포함하고 “요청 만료”로 표시. 거래 응답에 사진·카테고리가 없어 기타 아이콘 사용. 승인·거절·취소·전달·반납은 서버 허용 행동과 버전을 사용하고, 거절·취소 사유는 API 명세의 필수 조건 적용.
 
 ---
@@ -556,3 +559,5 @@ KWCAG 2.2 / WCAG 2.2 AA 기준.
 ---
 
 **원본:** Claude 아티팩트 "BILLIM" 디자인 시스템(컴포넌트 미리보기·시안 포함). 토큰 값이 바뀌면 이 문서 §3과 `tokens.css`를 같은 PR에서 함께 고쳐 주세요.
+
+신뢰 지표는 기존 getMemberTrust·toTrust와 LiveTrustLines로 내 프로필·이웃 프로필·상세에서 조회. 조회 실패는 0건으로 대체하지 않고 영역별 재시도. 회원 ID 기반 /members/:memberId 경로와 홈 통합 API 유지. 상세 달력은 C_026 예약 구간·반납 지연을 반영하고 조회 실패·겹침·30일 초과 시 요청 비활성. 프로토타입의 고정 수치·날짜는 실제 조회값과 실패·충돌 상태로 대체.

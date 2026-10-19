@@ -62,6 +62,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -887,5 +889,29 @@ class ItemServiceTest {
         service.listNeighbor(ME, OTHER, 0, 20);
 
         verify(itemRepository).findAll(any(Specification.class), any(Pageable.class));
+    }
+
+    // ───── 기간 검색 결과 표시 ─────
+
+    @Test
+    @DisplayName("기간을 고른 검색 결과는 모두 그 기간에 대여 가능(availableForRange=true)으로 표시한다")
+    void rangedSearchMarksAvailableForRange() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+
+        service.search(ME, cond(START, END, ItemSort.LATEST, 0, 20));
+
+        verify(assembler).summaries(anyList(), eq(Boolean.TRUE));
+    }
+
+    @Test
+    @DisplayName("기간 없이 검색하면 availableForRange를 표시하지 않는다")
+    void searchWithoutRangeOmitsAvailableForRange() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+
+        service.search(ME, cond(null, null, ItemSort.LATEST, 0, 20));
+
+        verify(assembler).summaries(anyList(), isNull());
     }
 }

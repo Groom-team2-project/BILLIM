@@ -27,7 +27,7 @@ public class RentalStatusHistory extends BaseTimeEntity {
         return history;
     }
 
-    public static RentalStatusHistory changed(Rental rental, RentalStatus fromStatus, long actorId) {
+    public static RentalStatusHistory changed(Rental rental, RentalStatus fromStatus, Long actorId) {
         RentalStatusHistory history = new RentalStatusHistory();
         history.rentalId = rental.getId();
         history.actorId = actorId;

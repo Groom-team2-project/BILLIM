@@ -5,6 +5,9 @@ import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemImage;
 import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.item.entity.MediaFile;
+import com.billim.domain.member.entity.Member;
+import com.billim.domain.rental.entity.Rental;
+import com.billim.domain.rental.entity.RentalStatus;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -18,6 +21,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -289,5 +293,62 @@ class ItemRepositoryTest {
         assertThat(page.getContent()).extracting(Item::getId)
                 .containsExactly(nearNew.getId(), nearOld.getId(), far.getId(), unknown.getId());
         assertThat(page.getTotalElements()).isEqualTo(4);
+    }
+
+    // ───── 기간 검색: 대여 점유 제외 ─────
+
+    private long member(String name) {
+        Member m = Member.register(name);
+        em.persist(m);
+        return m.getId();
+    }
+
+    private void rental(Item item, long owner, long borrower, RentalStatus status,
+                        LocalDate start, LocalDate end, Instant dueAt) {
+        Rental r = Rental.request(item.getId(), owner, borrower, COMMUNITY, start, end,
+                NOW.plusSeconds(86400), dueAt, item.getTitle(), 10L, "정문");
+        ReflectionTestUtils.setField(r, "status", status);
+        em.persist(r);
+    }
+
+    @Test
+    @DisplayName("기간 검색은 승인·대여 중·반납 완료와 겹치는 물건, 연체 중인 물건을 빼고 요청 대기 겹침은 허용한다")
+    void rentalRangeExcludesOccupiedAndOverdueItems() {
+        long owner = member("소유자");
+        long borrower = member("이웃");
+        LocalDate from = LocalDate.of(2026, 10, 10);
+        LocalDate to = LocalDate.of(2026, 10, 12);
+        Instant later = NOW.plusSeconds(30L * 86400);
+
+        Item approved = itemOf(owner, COMMUNITY, "승인 겹침", ItemVisibility.PUBLIC);
+        Item boundary = itemOf(owner, COMMUNITY, "경계 겹침", ItemVisibility.PUBLIC);
+        Item returned = itemOf(owner, COMMUNITY, "반납 완료 겹침", ItemVisibility.PUBLIC);
+        Item overdue = itemOf(owner, COMMUNITY, "연체 중", ItemVisibility.PUBLIC);
+        Item requested = itemOf(owner, COMMUNITY, "요청 대기 겹침", ItemVisibility.PUBLIC);
+        Item afterRange = itemOf(owner, COMMUNITY, "기간 뒤 승인", ItemVisibility.PUBLIC);
+        Item free = itemOf(owner, COMMUNITY, "대여 없음", ItemVisibility.PUBLIC);
+        em.flush();
+
+        rental(approved, owner, borrower, RentalStatus.APPROVED, LocalDate.of(2026, 10, 11), LocalDate.of(2026, 10, 11), later);
+        rental(boundary, owner, borrower, RentalStatus.APPROVED, LocalDate.of(2026, 10, 8), from, later);   // 끝날 = 시작일 (양끝 포함)
+        rental(returned, owner, borrower, RentalStatus.RETURNED, LocalDate.of(2026, 10, 12), LocalDate.of(2026, 10, 13), later);
+        rental(overdue, owner, borrower, RentalStatus.ACTIVE, LocalDate.of(2026, 9, 25), LocalDate.of(2026, 9, 30), NOW.minusSeconds(60));
+        rental(requested, owner, borrower, RentalStatus.REQUESTED, from, to, later);
+        rental(afterRange, owner, borrower, RentalStatus.APPROVED, LocalDate.of(2026, 10, 13), LocalDate.of(2026, 10, 14), later);
+        em.flush();
+
+        List<String> titles = itemRepository.findAll(ItemSpecifications.allOf(
+                        ItemSpecifications.community(COMMUNITY),
+                        ItemSpecifications.publicOnly(),
+                        ItemSpecifications.availableForRental(from, to, NOW)))
+                .stream().map(Item::getTitle).toList();
+
+        assertThat(titles).containsExactlyInAnyOrder(requested.getTitle(), afterRange.getTitle(), free.getTitle());
+    }
+
+    @Test
+    @DisplayName("기간을 고르지 않으면 대여 점유 조건을 붙이지 않는다")
+    void noRangeMeansNoRentalCondition() {
+        assertThat(ItemSpecifications.availableForRental(null, null, NOW)).isNull();
     }
 }
