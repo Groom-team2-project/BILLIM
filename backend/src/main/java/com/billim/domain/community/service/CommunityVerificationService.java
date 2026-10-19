@@ -10,6 +10,7 @@ import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,9 +30,6 @@ import java.util.Optional;
 @Service
 public class CommunityVerificationService {
 
-    /** 허용 정확도 상한(m). 초과하면 422 LOCATION_INACCURATE (에러 코드 — community) */
-    static final double MAX_ACCURACY_METERS = 100;
-
     private static final Logger log = LoggerFactory.getLogger(CommunityVerificationService.class);
 
     private final CommunityQueryService communityQueryService;
@@ -39,14 +37,25 @@ public class CommunityVerificationService {
     private final ActiveCommunityWriter activeCommunityWriter;
     private final Clock clock;
 
-    public CommunityVerificationService(CommunityQueryService communityQueryService,
-                                        CommunityMembershipRepository membershipRepository,
-                                        ActiveCommunityWriter activeCommunityWriter,
-                                        Clock clock) {
+    /** 허용 정확도 상한(m). 초과하면 422 LOCATION_INACCURATE (에러 코드 — community) */
+    private final double maxAccuracyMeters;
+
+    /** 반경 판정에 정확도를 유리하게 반영할지 */
+    private final boolean accuracyTolerance;
+
+    public CommunityVerificationService(
+            CommunityQueryService communityQueryService,
+            CommunityMembershipRepository membershipRepository,
+            ActiveCommunityWriter activeCommunityWriter,
+            Clock clock,
+            @Value("${billim.community.verification.max-accuracy-meters:5000}") double maxAccuracyMeters,
+            @Value("${billim.community.verification.accuracy-tolerance:true}") boolean accuracyTolerance) {
         this.communityQueryService = communityQueryService;
         this.membershipRepository = membershipRepository;
         this.activeCommunityWriter = activeCommunityWriter;
         this.clock = clock;
+        this.maxAccuracyMeters = maxAccuracyMeters;
+        this.accuracyTolerance = accuracyTolerance;
     }
 
     /**
@@ -77,18 +86,28 @@ public class CommunityVerificationService {
 
     /** 정확도가 낮으면 반경 판정을 신뢰할 수 없다 */
     private void requireAccurate(VerifyLocationRequest location) {
-        if (location.accuracyMeters() > MAX_ACCURACY_METERS) {
+        if (location.accuracyMeters() > maxAccuracyMeters) {
             throw new BusinessException(ErrorCode.LOCATION_INACCURATE);
         }
     }
 
-    /** 반경 밖이면 인증되지 않는다. 거리 값은 응답·로그에 담지 않는다 */
+    /**
+     * 반경 밖이면 인증되지 않는다. 거리 값은 응답·로그에 담지 않는다.
+     *
+     * <p>정확도 보정을 켜면 측위 오차만큼 너그럽게 본다. 기기가 "이 좌표에서 오차 R" 이라고
+     * 알려준 것이므로, 반경 경계 근처에서 실제로는 안에 있는 사람을 밖으로 몰지 않는다.
+     * 오차가 클수록 느슨해지므로 정확도 상한이 함께 걸려 있어야 의미가 있다.
+     */
     private void requireWithinRadius(Community community, VerifyLocationRequest location) {
         double meters = Distances.metersBetween(
                 location.latitude(), location.longitude(),
                 community.centerLatitudeValue(), community.centerLongitudeValue());
 
-        if (meters > community.getVerificationRadiusM()) {
+        double effective = accuracyTolerance
+                ? Math.max(0, meters - location.accuracyMeters())
+                : meters;
+
+        if (effective > community.getVerificationRadiusM()) {
             throw new BusinessException(ErrorCode.LOCATION_OUTSIDE);
         }
     }

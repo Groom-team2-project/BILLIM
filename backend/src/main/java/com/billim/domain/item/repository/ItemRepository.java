@@ -11,7 +11,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-public interface ItemRepository extends JpaRepository<Item, Long>, JpaSpecificationExecutor<Item> {
+public interface ItemRepository extends JpaRepository<Item, Long>, JpaSpecificationExecutor<Item>, ItemRepositoryCustom {
 
     @Query("select i.ownerId from Item i where i.id = :id")
     Optional<Long> findOwnerId(@Param("id") Long id);

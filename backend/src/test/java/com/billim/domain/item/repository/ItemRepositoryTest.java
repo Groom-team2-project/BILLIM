@@ -5,6 +5,9 @@ import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemImage;
 import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.item.entity.MediaFile;
+import com.billim.domain.member.entity.Member;
+import com.billim.domain.rental.entity.Rental;
+import com.billim.domain.rental.entity.RentalStatus;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,13 +18,17 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -240,5 +247,108 @@ class ItemRepositoryTest {
                         ItemSpecifications.ownerNotIn(Set.of(3L))),
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))).stream().map(Item::getId).toList();
         assertThat(visible).containsExactly(fromTwo.getId());
+    }
+
+    private Item itemAtPlace(long placeId, String title, ItemVisibility visibility) {
+        MediaFile m = media(OWNER);
+        m.attach(OWNER, NOW);
+        Item item = Item.create(OWNER, COMMUNITY, categoryId(), placeId, title, null, START, END, NOW.plusSeconds(++seq));
+        item.replaceImages(List.of(m.getId()), NOW);
+        if (visibility == ItemVisibility.HIDDEN) {
+            item.changeVisibility(ItemVisibility.HIDDEN, NOW);
+        }
+        em.persist(item);
+        return item;
+    }
+
+    @Test
+    @DisplayName("지도 집계는 검색 조건에 맞는 물건 수를 장소별로 센다 (숨김 제외)")
+    void countByPlaceGroupsMatchingItems() {
+        itemAtPlace(10L, "드릴", ItemVisibility.PUBLIC);
+        itemAtPlace(10L, "텐트", ItemVisibility.PUBLIC);
+        itemAtPlace(20L, "의자", ItemVisibility.PUBLIC);
+        itemAtPlace(20L, "숨김", ItemVisibility.HIDDEN);
+        em.flush();
+
+        Map<Long, Long> counts = itemRepository.countByPlace(ItemSpecifications.allOf(
+                ItemSpecifications.community(COMMUNITY), ItemSpecifications.publicOnly()));
+
+        assertThat(counts).containsExactlyInAnyOrderEntriesOf(Map.of(10L, 2L, 20L, 1L));
+    }
+
+    @Test
+    @DisplayName("가까운 순은 장소 거리 오름차순, 같은 거리는 id 내림차순, 거리를 모르는 장소는 맨 뒤다")
+    void orderByPlaceDistanceSortsNearestFirst() {
+        Item far = itemAtPlace(10L, "먼 곳", ItemVisibility.PUBLIC);
+        Item nearOld = itemAtPlace(20L, "가까운 곳 1", ItemVisibility.PUBLIC);
+        Item nearNew = itemAtPlace(20L, "가까운 곳 2", ItemVisibility.PUBLIC);
+        Item unknown = itemAtPlace(30L, "거리 모름", ItemVisibility.PUBLIC);
+        em.flush();
+
+        Page<Item> page = itemRepository.findAll(ItemSpecifications.allOf(
+                        ItemSpecifications.community(COMMUNITY), ItemSpecifications.publicOnly(),
+                        ItemSpecifications.orderByPlaceDistance(Map.of(10L, 300, 20L, 100))),
+                PageRequest.of(0, 10));
+
+        assertThat(page.getContent()).extracting(Item::getId)
+                .containsExactly(nearNew.getId(), nearOld.getId(), far.getId(), unknown.getId());
+        assertThat(page.getTotalElements()).isEqualTo(4);
+    }
+
+    // ───── 기간 검색: 대여 점유 제외 ─────
+
+    private long member(String name) {
+        Member m = Member.register(name);
+        em.persist(m);
+        return m.getId();
+    }
+
+    private void rental(Item item, long owner, long borrower, RentalStatus status,
+                        LocalDate start, LocalDate end, Instant dueAt) {
+        Rental r = Rental.request(item.getId(), owner, borrower, COMMUNITY, start, end,
+                NOW.plusSeconds(86400), dueAt, item.getTitle(), 10L, "정문");
+        ReflectionTestUtils.setField(r, "status", status);
+        em.persist(r);
+    }
+
+    @Test
+    @DisplayName("기간 검색은 승인·대여 중·반납 완료와 겹치는 물건, 연체 중인 물건을 빼고 요청 대기 겹침은 허용한다")
+    void rentalRangeExcludesOccupiedAndOverdueItems() {
+        long owner = member("소유자");
+        long borrower = member("이웃");
+        LocalDate from = LocalDate.of(2026, 10, 10);
+        LocalDate to = LocalDate.of(2026, 10, 12);
+        Instant later = NOW.plusSeconds(30L * 86400);
+
+        Item approved = itemOf(owner, COMMUNITY, "승인 겹침", ItemVisibility.PUBLIC);
+        Item boundary = itemOf(owner, COMMUNITY, "경계 겹침", ItemVisibility.PUBLIC);
+        Item returned = itemOf(owner, COMMUNITY, "반납 완료 겹침", ItemVisibility.PUBLIC);
+        Item overdue = itemOf(owner, COMMUNITY, "연체 중", ItemVisibility.PUBLIC);
+        Item requested = itemOf(owner, COMMUNITY, "요청 대기 겹침", ItemVisibility.PUBLIC);
+        Item afterRange = itemOf(owner, COMMUNITY, "기간 뒤 승인", ItemVisibility.PUBLIC);
+        Item free = itemOf(owner, COMMUNITY, "대여 없음", ItemVisibility.PUBLIC);
+        em.flush();
+
+        rental(approved, owner, borrower, RentalStatus.APPROVED, LocalDate.of(2026, 10, 11), LocalDate.of(2026, 10, 11), later);
+        rental(boundary, owner, borrower, RentalStatus.APPROVED, LocalDate.of(2026, 10, 8), from, later);   // 끝날 = 시작일 (양끝 포함)
+        rental(returned, owner, borrower, RentalStatus.RETURNED, LocalDate.of(2026, 10, 12), LocalDate.of(2026, 10, 13), later);
+        rental(overdue, owner, borrower, RentalStatus.ACTIVE, LocalDate.of(2026, 9, 25), LocalDate.of(2026, 9, 30), NOW.minusSeconds(60));
+        rental(requested, owner, borrower, RentalStatus.REQUESTED, from, to, later);
+        rental(afterRange, owner, borrower, RentalStatus.APPROVED, LocalDate.of(2026, 10, 13), LocalDate.of(2026, 10, 14), later);
+        em.flush();
+
+        List<String> titles = itemRepository.findAll(ItemSpecifications.allOf(
+                        ItemSpecifications.community(COMMUNITY),
+                        ItemSpecifications.publicOnly(),
+                        ItemSpecifications.availableForRental(from, to, NOW)))
+                .stream().map(Item::getTitle).toList();
+
+        assertThat(titles).containsExactlyInAnyOrder(requested.getTitle(), afterRange.getTitle(), free.getTitle());
+    }
+
+    @Test
+    @DisplayName("기간을 고르지 않으면 대여 점유 조건을 붙이지 않는다")
+    void noRangeMeansNoRentalCondition() {
+        assertThat(ItemSpecifications.availableForRental(null, null, NOW)).isNull();
     }
 }

@@ -2,9 +2,11 @@ package com.billim.domain.item.controller;
 
 import com.billim.domain.item.dto.CreateItemRequest;
 import com.billim.domain.item.dto.ItemDetailResponse;
+import com.billim.domain.item.dto.ItemMapCondition;
 import com.billim.domain.item.dto.ItemPageResponse;
 import com.billim.domain.item.dto.ItemSearchCondition;
 import com.billim.domain.item.dto.ItemSort;
+import com.billim.domain.item.dto.MapResultsResponse;
 import com.billim.domain.item.dto.UpdateItemRequest;
 import com.billim.domain.item.dto.VisibilityChangeRequest;
 import com.billim.domain.item.service.IdParser;
@@ -28,11 +30,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
-// TODO: B_018 지도 집계(GET /api/v1/items/map) 미구현. 동네(E) 공용 장소 좌표 연동 후 구현, 구현 시 이 줄 삭제
-// TODO: B_024 내 등록 물건 목록(GET /api/v1/members/me/items) 미구현 (P1). 구현 시 이 줄 삭제
-// TODO: B_025 이웃 공개 물건 목록(GET /api/v1/members/{memberId}/items) 미구현 (P1). 동네(E) 연동 필요, 구현 시 이 줄 삭제
 @RestController
 @RequestMapping("/api/v1/items")
 public class ItemController {
@@ -63,6 +63,25 @@ public class ItemController {
                 placeId == null ? null : IdParser.parse(placeId),
                 ItemSort.parse(sort), page, size);
         return itemService.search(memberId, cond);
+    }
+
+    /** B_018 지도 집계. 검색과 같은 노출·기간 규칙, 지도 범위 안 장소별 물건 수 최대 200곳(초과 시 truncated) */
+    @GetMapping("/map")
+    public MapResultsResponse map(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String categoryId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) BigDecimal minLat,
+            @RequestParam(required = false) BigDecimal maxLat,
+            @RequestParam(required = false) BigDecimal minLng,
+            @RequestParam(required = false) BigDecimal maxLng,
+            Authentication authentication) {
+        long memberId = AuthenticatedMember.id(authentication);
+        ItemMapCondition cond = new ItemMapCondition(keyword,
+                categoryId == null ? null : IdParser.parse(categoryId),
+                startDate, endDate, minLat, maxLat, minLng, maxLng);
+        return itemService.map(memberId, cond);
     }
 
     /** B_019 물건 등록. Idempotency-Key 필수. 사진 1~5장, 첫 사진이 대표(sort_order 0) */

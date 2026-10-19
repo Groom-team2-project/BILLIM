@@ -31,7 +31,7 @@ import java.util.List;
 
 @Service
 @Transactional(readOnly = true)
-public class RentalQueryService {
+public class RentalQueryService implements RentalPartyQuery {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final List<RentalStatus> OCCUPYING_STATUSES =
             List.of(RentalStatus.APPROVED, RentalStatus.ACTIVE, RentalStatus.RETURNED);
@@ -218,5 +218,10 @@ public class RentalQueryService {
                 Math.toIntExact(rentals.countOverdue(memberId, owner, now)),
                 totals.getOrDefault(RentalStatus.RETURNED, 0), totals.getOrDefault(RentalStatus.REJECTED, 0),
                 totals.getOrDefault(RentalStatus.CANCELED, 0), totals.getOrDefault(RentalStatus.EXPIRED, 0));
+    }
+
+    @Override
+    public boolean hasTraded(long memberId, long otherMemberId) {
+        return rentals.hasTraded(memberId, otherMemberId);
     }
 }

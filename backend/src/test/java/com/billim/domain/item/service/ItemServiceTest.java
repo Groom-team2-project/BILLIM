@@ -1,12 +1,17 @@
 package com.billim.domain.item.service;
 
+import com.billim.domain.community.entity.Community;
 import com.billim.domain.community.entity.CommunityPlace;
+import com.billim.domain.community.entity.CommunityStatus;
 import com.billim.domain.community.repository.CommunityPlaceRepository;
+import com.billim.domain.community.repository.CommunityRepository;
 import com.billim.domain.item.dto.CreateItemRequest;
 import com.billim.domain.item.dto.ItemDetailResponse;
+import com.billim.domain.item.dto.ItemMapCondition;
 import com.billim.domain.item.dto.ItemPageResponse;
 import com.billim.domain.item.dto.ItemSearchCondition;
 import com.billim.domain.item.dto.ItemSort;
+import com.billim.domain.item.dto.MapResultsResponse;
 import com.billim.domain.item.dto.UpdateItemRequest;
 import com.billim.domain.item.dto.VisibilityChangeRequest;
 import com.billim.domain.item.entity.Category;
@@ -18,6 +23,8 @@ import com.billim.domain.item.entity.MediaStatus;
 import com.billim.domain.item.repository.CategoryRepository;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.repository.MediaFileRepository;
+import com.billim.domain.member.dto.MemberSummaryResponse;
+import com.billim.domain.member.service.MemberService;
 import com.billim.domain.safety.service.MemberRowLock;
 import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
@@ -45,7 +52,9 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -53,6 +62,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -82,6 +93,8 @@ class ItemServiceTest {
     @Mock ItemAssembler assembler;
     @Mock ItemAccessPolicy accessPolicy;   // 동네 소속·차단 판정은 Mock
     @Mock CommunityPlaceRepository placeRepository;
+    @Mock CommunityRepository communityRepository;
+    @Mock MemberService memberService;
     @Mock MemberRowLock memberRowLock;
     @Mock SanctionService sanctions;
     @Mock ItemIdempotency idempotency;
@@ -93,7 +106,7 @@ class ItemServiceTest {
     void setUp() {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
         service = new ItemService(itemRepository, mediaFileRepository, categoryRepository, assembler,
-                accessPolicy, placeRepository, memberRowLock, sanctions, idempotency, clock);
+                accessPolicy, placeRepository, communityRepository, memberService, memberRowLock, sanctions, idempotency, clock);
         lenient().when(assembler.detail(any(), anyLong())).thenReturn(null);
     }
 
@@ -665,11 +678,33 @@ class ItemServiceTest {
         verify(itemRepository).findAll(any(Specification.class), any(Pageable.class));
     }
 
+    private Community community() {
+        Community c = Community.of("강남역 생활권", "서울 강남구 강남대로 396 일대",
+                new BigDecimal("37.4979420"), new BigDecimal("127.0276210"), 1000, CommunityStatus.ACTIVE);
+        ReflectionTestUtils.setField(c, "id", COMMUNITY);
+        return c;
+    }
+
+    private static CommunityPlace placeAt(long id, String lat, String lng) {
+        CommunityPlace p = CommunityPlace.of(COMMUNITY, "장소" + id, new BigDecimal(lat), new BigDecimal(lng), null, true);
+        ReflectionTestUtils.setField(p, "id", id);
+        return p;
+    }
+
     @Test
-    @DisplayName("거리순 정렬은 동네 연동 전에는 다른 정렬로 바꾸지 않고 503으로 거부한다 (TODO(E))")
-    void searchNearestIsUnavailableUntilCommunityIsLinked() {
-        assertCode(() -> service.search(ME, cond(null, null, ItemSort.NEAREST, 0, 20)), ErrorCode.DEPENDENCY_UNAVAILABLE);
-        verify(itemRepository, never()).findAll(any(Specification.class), any(Pageable.class));
+    @DisplayName("가까운 순은 장소별 동네 중심 거리로 정렬하고 Pageable에는 정렬을 넣지 않는다")
+    void searchNearestOrdersByPlaceDistance() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(communityRepository.findById(COMMUNITY)).thenReturn(Optional.of(community()));
+        when(placeRepository.findByCommunityIdAndActiveTrueOrderByNameAscIdAsc(COMMUNITY))
+                .thenReturn(List.of(placeAt(10, "37.4987000", "127.0280000"), placeAt(11, "37.5016000", "127.0262000")));
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+
+        service.search(ME, cond(null, null, ItemSort.NEAREST, 0, 20));
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(itemRepository).findAll(any(Specification.class), pageable.capture());
+        assertThat(pageable.getValue().getSort().isUnsorted()).isTrue();
     }
 
     @Test
@@ -740,5 +775,143 @@ class ItemServiceTest {
         assertCode(() -> service.changeVisibility(ME, 7, new VisibilityChangeRequest(0L, ItemVisibility.PUBLIC)),
                 ErrorCode.MEMBER_RESTRICTED);
         assertThat(item.getVisibility()).isEqualTo(ItemVisibility.HIDDEN);
+    }
+
+    // ───── 지도 집계 (B_018) ─────
+
+    private ItemMapCondition mapCond(String minLat, String maxLat, String minLng, String maxLng) {
+        return new ItemMapCondition(null, null, null, null,
+                minLat == null ? null : new BigDecimal(minLat), maxLat == null ? null : new BigDecimal(maxLat),
+                minLng == null ? null : new BigDecimal(minLng), maxLng == null ? null : new BigDecimal(maxLng));
+    }
+
+    @Test
+    @DisplayName("지도 범위는 4개를 함께 주거나 모두 생략해야 하고, 최소가 최대보다 크면 400이다")
+    void mapRejectsPartialOrReversedBounds() {
+        assertCode(() -> service.map(ME, mapCond("37.49", null, null, null)), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.map(ME, mapCond("37.50", "37.49", "127.02", "127.03")), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.map(ME, mapCond("91", "92", "127.02", "127.03")), ErrorCode.INVALID_REQUEST);
+        verify(accessPolicy, never()).requireActiveCommunityId(anyLong());
+    }
+
+    @Test
+    @DisplayName("지도 집계는 범위 안 장소만 장소별 물건 수와 함께 가까운 순으로 돌려준다")
+    void mapAggregatesPlacesInsideBoundsByDistance() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(itemRepository.countByPlace(any())).thenReturn(Map.of(10L, 3L, 11L, 1L, 12L, 2L));
+        when(communityRepository.findById(COMMUNITY)).thenReturn(Optional.of(community()));
+        when(placeRepository.findAllById(anyCollection())).thenReturn(List.of(
+                placeAt(10, "37.4987000", "127.0280000"),     // 중심에서 약 90m
+                placeAt(11, "37.5016000", "127.0262000"),     // 약 430m
+                placeAt(12, "37.6000000", "127.1000000")));   // 범위 밖
+
+        MapResultsResponse res = service.map(ME, mapCond("37.49", "37.51", "127.02", "127.04"));
+
+        assertThat(res.items()).extracting(m -> m.place().id()).containsExactly("10", "11");
+        assertThat(res.items()).extracting(MapResultsResponse.MapPlace::matchingItemCount).containsExactly(3, 1);
+        assertThat(res.items().get(0).distanceMeters()).isLessThan(res.items().get(1).distanceMeters());
+        assertThat(res.truncated()).isFalse();
+        assertThat(res.distanceBasis()).isEqualTo("COMMUNITY_CENTER");
+    }
+
+    @Test
+    @DisplayName("장소가 200곳을 넘으면 가까운 200곳만 돌려주고 truncated다")
+    void mapTruncatesOver200Places() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        Map<Long, Long> counts = new HashMap<>();
+        List<CommunityPlace> places = new ArrayList<>();
+        for (long id = 1; id <= 201; id++) {
+            counts.put(id, 1L);
+            places.add(placeAt(id, "37.49" + String.format("%03d", id), "127.0276210"));
+        }
+        when(itemRepository.countByPlace(any())).thenReturn(counts);
+        when(communityRepository.findById(COMMUNITY)).thenReturn(Optional.of(community()));
+        when(placeRepository.findAllById(anyCollection())).thenReturn(places);
+
+        MapResultsResponse res = service.map(ME, mapCond(null, null, null, null));
+
+        assertThat(res.items()).hasSize(200);
+        assertThat(res.truncated()).isTrue();
+    }
+
+    // ───── 회원별 물건 목록 (B_024·B_025) ─────
+
+    @Test
+    @DisplayName("내 물건 목록은 최신순으로 조회하고 페이지 조건을 검증한다")
+    void listMineUsesLatestOrderAndValidatesPage() {
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+
+        service.listMine(ME, 1, 10);
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(itemRepository).findAll(any(Specification.class), pageable.capture());
+        assertThat(pageable.getValue().getPageNumber()).isEqualTo(1);
+        assertThat(pageable.getValue().getSort().toString()).isEqualTo("createdAt: DESC,id: DESC");
+        assertCode(() -> service.listMine(ME, -1, 10), ErrorCode.INVALID_REQUEST);
+        assertCode(() -> service.listMine(ME, 0, 51), ErrorCode.INVALID_REQUEST);
+    }
+
+    @Test
+    @DisplayName("내 물건 목록은 동네 소속을 확인하지 않는다 (소속 변경 전 물건도 조회)")
+    void listMineDoesNotRequireMembership() {
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+        service.listMine(ME, 0, 20);
+        verify(accessPolicy, never()).requireActiveCommunityId(anyLong());
+    }
+
+    @Test
+    @DisplayName("이웃 물건 목록은 내 동네 소속이 필요하다 (403)")
+    void listNeighborRequiresMembership() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenThrow(new BusinessException(ErrorCode.COMMUNITY_VERIFICATION_REQUIRED));
+        assertCode(() -> service.listNeighbor(ME, OTHER, 0, 20), ErrorCode.COMMUNITY_VERIFICATION_REQUIRED);
+    }
+
+    @Test
+    @DisplayName("없는 회원이거나 차단 관계인 이웃의 물건 목록은 404다")
+    void listNeighborHidesMissingOrBlockedMember() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(memberService.getSummaries(Set.of(OTHER))).thenReturn(Map.of());
+        assertCode(() -> service.listNeighbor(ME, OTHER, 0, 20), ErrorCode.RESOURCE_NOT_FOUND);
+
+        when(memberService.getSummaries(Set.of(OTHER))).thenReturn(Map.of(OTHER, mock(MemberSummaryResponse.class)));
+        when(accessPolicy.isBlocked(ME, OTHER)).thenReturn(true);
+        assertCode(() -> service.listNeighbor(ME, OTHER, 0, 20), ErrorCode.RESOURCE_NOT_FOUND);
+        verify(itemRepository, never()).findAll(any(Specification.class), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("이웃 물건 목록은 조건을 통과하면 최신순으로 조회한다")
+    void listNeighborQueriesLatest() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(memberService.getSummaries(Set.of(OTHER))).thenReturn(Map.of(OTHER, mock(MemberSummaryResponse.class)));
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+
+        service.listNeighbor(ME, OTHER, 0, 20);
+
+        verify(itemRepository).findAll(any(Specification.class), any(Pageable.class));
+    }
+
+    // ───── 기간 검색 결과 표시 ─────
+
+    @Test
+    @DisplayName("기간을 고른 검색 결과는 모두 그 기간에 대여 가능(availableForRange=true)으로 표시한다")
+    void rangedSearchMarksAvailableForRange() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+
+        service.search(ME, cond(START, END, ItemSort.LATEST, 0, 20));
+
+        verify(assembler).summaries(anyList(), eq(Boolean.TRUE));
+    }
+
+    @Test
+    @DisplayName("기간 없이 검색하면 availableForRange를 표시하지 않는다")
+    void searchWithoutRangeOmitsAvailableForRange() {
+        when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
+        when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+
+        service.search(ME, cond(null, null, ItemSort.LATEST, 0, 20));
+
+        verify(assembler).summaries(anyList(), isNull());
     }
 }

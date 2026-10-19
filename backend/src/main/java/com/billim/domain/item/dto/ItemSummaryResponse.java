@@ -14,9 +14,9 @@ public record ItemSummaryResponse(
         PlaceResponse place,
         String thumbnailUrl,
         String visibility,
-        Integer distanceMeters,   // TODO(E): 동네 중심·장소 좌표 연동 전에는 null(생략)
+        Integer distanceMeters,   // 동네 중심 기준 거리(m). 좌표가 없으면 생략
         String distanceBasis,
-        Boolean availableForRange,   // TODO(C): 대여 점유 연동 전에는 null(생략)
+        Boolean availableForRange,   // 기간 검색일 때만 true, 그 외 생략
         Instant createdAt,
         Integer pendingRequestCount,   // TODO(C): 대기 요청 수 연동 전에는 null(생략)
         long version
