@@ -40,6 +40,8 @@ export function SearchPage() {
   const [query, setQuery] = useState(keyword);
   const [categoryId, setCategoryId] = useState<string | null>(params.get("categoryId"));
   const [period, setPeriod] = useState<DayRange | null>(null);
+  // 기간 창에서 고르는 중인 값. '적용'을 눌러야 period(검색 조건)에 반영
+  const [draftPeriod, setDraftPeriod] = useState<DayRange | null>(null);
   const [picker, setPicker] = useState<"period" | "category" | null>(null);
   const [view, setView] = useState<"list" | "map">("list");
   const [sort, setSort] = useState<"new" | "near">("new");
@@ -111,6 +113,11 @@ export function SearchPage() {
   const dateLabel = period ? `${formatMonthDay(period[0])} – ${formatMonthDay(period[1])}` : "대여 기간";
   const catLabel = selectedCategory ? selectedCategory.name : "카테고리";
 
+  const openPeriod = () => {
+    setDraftPeriod(period);
+    setPicker("period");
+  };
+
   const clearAll = () => {
     setCategoryId(null);
     setPeriod(null);
@@ -120,7 +127,7 @@ export function SearchPage() {
     <aside className={c("search-filters")} aria-label="필터">
       <div className={c("search-filter-group")}>
         <span className={c("t-label")}>대여 기간</span>
-        <Chip icon="calendar" selected={!!period} caret onClick={() => setPicker("period")}>
+        <Chip icon="calendar" selected={!!period} caret onClick={openPeriod}>
           {dateLabel}
         </Chip>
         {period ? <span className={c("t-caption search-muted")}>이 기간에 비어 있는 물건만 보여요</span> : null}
@@ -156,7 +163,7 @@ export function SearchPage() {
               <SearchField />
             </div>
             <ChipScroller label="필터">
-              <Chip icon="calendar" selected={!!period} caret onClick={() => setPicker("period")}>
+              <Chip icon="calendar" selected={!!period} caret onClick={openPeriod}>
                 {dateLabel}
               </Chip>
               <Chip selected={!!categoryId} caret onClick={() => setPicker("category")}>
@@ -263,18 +270,29 @@ export function SearchPage() {
           <div className={c("ui-modal ui-modal--wide")} role="dialog" aria-modal="true" aria-label="대여 기간 선택" onClick={(e) => e.stopPropagation()}>
             <h3 className={c("ui-modal-title")}>대여 기간</h3>
             <p className={c("ui-modal-body")}>시작일과 반납일을 골라 주세요. 두 날 모두 대여 기간에 포함돼요.</p>
-            <Calendar today={today} value={period} onChange={setPeriod} />
+            {/* 검색에서는 특정 물건의 예약 상태가 없어 범례(대여 가능·예약됨)를 숨김 */}
+            <Calendar today={today} value={draftPeriod} onChange={setDraftPeriod} hideLegend />
             <div className={c("ui-modal-actions")}>
+              {draftPeriod || period ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setDraftPeriod(null);
+                    setPeriod(null);
+                    setPicker(null);
+                  }}
+                >
+                  기간 지우기
+                </Button>
+              ) : null}
               <Button
-                variant="secondary"
                 onClick={() => {
-                  setPeriod(null);
+                  setPeriod(draftPeriod);
                   setPicker(null);
                 }}
               >
-                기간 지우기
+                적용
               </Button>
-              <Button onClick={() => setPicker(null)}>적용</Button>
             </div>
           </div>
         </div>
