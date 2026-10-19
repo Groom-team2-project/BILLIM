@@ -14,6 +14,7 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -28,6 +29,26 @@ class ChatRoomAccessServiceTest {
     private final Clock clock = Clock.fixed(Instant.parse("2026-10-11T00:00:00Z"), ZoneOffset.UTC);
     private final ChatRoomAccessService accessService =
         new ChatRoomAccessService(roomRepository, authSessionRepository, clock);
+
+    @Test
+    @DisplayName("참여자의 마지막 저장 순번을 조회한다")
+    void participantCanReadLastSequence() {
+        ChatRoom room = mock(ChatRoom.class);
+        when(roomRepository.findById(901L)).thenReturn(Optional.of(room));
+        when(room.isParticipant(2L)).thenReturn(true);
+        when(room.getNextSequence()).thenReturn(12L);
+
+        assertEquals(Optional.of(11L), accessService.findLastSequenceForParticipant(901L, 2L));
+    }
+
+    @Test
+    @DisplayName("비참여자에게는 마지막 순번을 제공하지 않는다")
+    void nonParticipantCannotReadLastSequence() {
+        ChatRoom room = mock(ChatRoom.class);
+        when(roomRepository.findById(901L)).thenReturn(Optional.of(room));
+
+        assertEquals(Optional.empty(), accessService.findLastSequenceForParticipant(901L, 2L));
+    }
 
     @Test
     @DisplayName("유효한 로그인 세션의 방 참여자는 메시지를 받을 수 있다")
