@@ -1,7 +1,7 @@
 # API 명세서
 
-> 버전 : v0.1.8\
-> 수정일 : 2026.10.18
+> 버전 : v0.1.9\
+> 수정일 : 2026.10.19
 
 ## 0. 공통 규약
 
@@ -1117,7 +1117,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | --- | --- | --- | --- |
 | latitude | number | Y | 최소 -90; 최대 90 |
 | longitude | number | Y | 최소 -180; 최대 180 |
-| accuracyMeters | number | Y | 최소 0; 최대 100 |
+| accuracyMeters | number | Y | 최소 0. 상한은 서버 설정(기본 5000)이며 초과는 422 LOCATION_INACCURATE |
 ### Category
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
