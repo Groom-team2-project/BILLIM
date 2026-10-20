@@ -10,6 +10,8 @@ const vus = Number(__ENV.VUS || 2);
 const duration = __ENV.DURATION || '15s';
 const failures = new Rate('app_failures');
 const deliveryFailures = new Rate('chat_delivery_failures');
+const connectionFailures = new Rate('chat_websocket_connection_failures');
+const incompleteIterations = new Rate('chat_websocket_incomplete_iterations');
 const firstDeliveryFailures = new Rate('chat_first_delivery_failures');
 const laterDeliveryFailures = new Rate('chat_later_delivery_failures');
 const deliveryMs = new Trend('chat_delivery_ms', true);
@@ -27,8 +29,12 @@ export const options = {
     ...(testCase === 'chat-websocket' || stableSocket ? {
       chat_delivery_ms: ['p(95)<2000'],
       chat_delivery_failures: ['rate<0.01'],
+      chat_websocket_connection_failures: ['rate<0.01'],
     } : {}),
-    ...(stableSocket ? { chat_first_delivery_failures: ['rate<0.01'] } : {}),
+    ...(stableSocket ? {
+      chat_first_delivery_failures: ['rate<0.01'],
+      chat_websocket_incomplete_iterations: ['rate<0.01'],
+    } : {}),
   },
 };
 
@@ -93,11 +99,12 @@ export default function () {
     const wsUrl = baseUrl.replace(/^http/, 'ws') + `/ws/chat?roomId=${current.roomId}`;
     let received = false;
     let sentAt = 0;
+    let sendSucceeded = false;
     const result = ws.connect(wsUrl, { headers: headers(user), tags: { endpoint: 'chat-websocket' } }, (socket) => {
       socket.on('open', () => {
         const sendAfterOpen = () => {
           sentAt = Date.now();
-          verify(send(current.roomId, user, clientMessageId), 201);
+          sendSucceeded = verify(send(current.roomId, user, clientMessageId), 201);
         };
         const delay = Number(__ENV.WS_SEND_DELAY_MS || 0);
         if (delay > 0) socket.setTimeout(sendAfterOpen, delay);
@@ -107,16 +114,21 @@ export default function () {
         try {
           if (JSON.parse(raw).clientMessageId === clientMessageId) {
             received = true;
-            deliveryMs.add(Date.now() - sentAt);
+            if (sendSucceeded) deliveryMs.add(Date.now() - sentAt);
             socket.close();
           }
         } catch (_) { /* Invalid payload is counted as a delivery failure below. */ }
       });
       socket.setTimeout(() => socket.close(), 5000);
     });
-    const deliveryFailed = !received || result.status !== 101;
-    deliveryFailures.add(deliveryFailed);
-    failures.add(deliveryFailed);
+    const connectionFailed = result.status !== 101;
+    connectionFailures.add(connectionFailed);
+    failures.add(connectionFailed);
+    if (sendSucceeded) {
+      const deliveryFailed = !received;
+      deliveryFailures.add(deliveryFailed);
+      failures.add(deliveryFailed);
+    }
   } else if (stableSocket) {
     const wsUrl = baseUrl.replace(/^http/, 'ws') + `/ws/chat?roomId=${current.roomId}`;
     const sent = new Map();
@@ -125,9 +137,10 @@ export default function () {
     const sendNext = () => {
       if (count >= 10) return;
       const id = uuid();
-      sent.set(id, { index: count, at: Date.now() });
+      const detail = { index: count, at: Date.now(), succeeded: false };
+      sent.set(id, detail);
       count += 1;
-      verify(send(current.roomId, user, id), 201);
+      detail.succeeded = verify(send(current.roomId, user, id), 201);
     };
     const result = ws.connect(wsUrl, { headers: headers(user), tags: { endpoint: 'chat-websocket-stable' } }, (socket) => {
       socket.on('open', () => {
@@ -137,7 +150,7 @@ export default function () {
       socket.on('message', (raw) => {
         try {
           const id = JSON.parse(raw).clientMessageId;
-          if (sent.has(id) && !received.has(id)) {
+          if (sent.get(id)?.succeeded && !received.has(id)) {
             received.add(id);
             deliveryMs.add(Date.now() - sent.get(id).at);
             if (received.size === 10) socket.close();
@@ -146,8 +159,15 @@ export default function () {
       });
       socket.setTimeout(() => socket.close(), 5000);
     });
+    const connectionFailed = result.status !== 101;
+    connectionFailures.add(connectionFailed);
+    const successfulSends = [...sent.values()].filter((detail) => detail.succeeded).length;
+    const incomplete = successfulSends !== 10;
+    incompleteIterations.add(incomplete);
+    failures.add(connectionFailed || incomplete);
     for (const [id, detail] of sent) {
-      const missed = !received.has(id) || result.status !== 101;
+      if (!detail.succeeded) continue;
+      const missed = !received.has(id);
       deliveryFailures.add(missed);
       if (detail.index === 0) firstDeliveryFailures.add(missed);
       else laterDeliveryFailures.add(missed);

@@ -8,7 +8,7 @@
 2. 현재 소스의 백엔드 JAR을 만듭니다. Windows에서 Gradle loopback 오류가 나면 WSL을 사용합니다.
 
    ```powershell
-   wsl bash -lc 'cd /mnt/c/Users/ParkSunWoo/Bootcamp/BILLIM/backend && ./gradlew bootJar --no-daemon'
+   wsl -e sh -lc 'cd backend && ./gradlew bootJar --no-daemon'
    ```
 
 3. 독립 스택을 띄웁니다. `http://localhost:18080/actuator/health`가 `UP`일 때까지 기다립니다.
@@ -46,9 +46,9 @@ docker compose -f performance/compose.yaml run --rm -e CASE=notification-read -e
 
 고부하 시 `VUS`를 16 → 32 → 64 순서로 올리되, 오류율 1% 이상·HTTP p95 2초 이상·백엔드 메모리 1GiB 근접 시 멈춥니다. `-e HOT_ROOM=true`를 추가하면 모든 가상 사용자가 한 방에 요청해 순번 할당 잠금 경합을 측정합니다. 기존 8개 방 분산 결과와 구분해서 기록하세요.
 
-WebSocket 시나리오는 연결 직후 전송을 기본으로 합니다. `-e WS_SEND_DELAY_MS=50` 또는 `100`을 추가하면 연결 후 지정한 시간만큼 기다렸다가 전송합니다. `chat_delivery_failures`는 실제 실시간 수신 실패 비율이며, HTTP 요청 실패와 별도로 확인해야 합니다. 이 시나리오는 매 반복마다 소켓을 새로 여므로 장기 연결 시험과 구분하세요.
+WebSocket 시나리오는 연결 직후 전송을 기본으로 합니다. `-e WS_SEND_DELAY_MS=50` 또는 `100`을 추가하면 연결 후 지정한 시간만큼 기다렸다가 전송합니다. `chat_delivery_failures`는 HTTP 201에 성공한 메시지 중 실시간 미수신 비율입니다. HTTP 전송 실패는 `app_failures`, 소켓 연결 실패는 `chat_websocket_connection_failures`로 확인하세요. 이 시나리오는 매 반복마다 소켓을 새로 여므로 장기 연결 시험과 구분하세요.
 
-실제 채팅 화면에 가까운 유지 연결 진단은 `-e CASE=chat-websocket-stable -e VUS=64`로 실행합니다. VU마다 소켓 한 개를 유지하고 메시지 10건을 보냅니다. `chat_first_delivery_failures`와 `chat_later_delivery_failures`를 비교해 연결 직후에만 놓치는지 확인합니다.
+실제 채팅 화면에 가까운 유지 연결 진단은 `-e CASE=chat-websocket-stable -e VUS=64`로 실행합니다. VU마다 소켓 한 개를 유지하고 메시지 10건을 보냅니다. `chat_first_delivery_failures`와 `chat_later_delivery_failures`를 비교해 연결 직후에만 놓치는지 확인합니다. 연결 실패나 HTTP 전송 실패로 10건을 채우지 못한 반복은 `chat_websocket_incomplete_iterations`에 기록합니다. 전달 실패율의 분모에는 HTTP 201인 메시지만 포함합니다.
 
 ### 알림 outbox 처리
 
