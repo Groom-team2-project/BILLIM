@@ -28,8 +28,10 @@ def main():
         raise SystemExit(f"Fixture already exists: {OUTPUT}. Reset the isolated stack before reseeding.")
 
     if refresh_only:
+        if not OUTPUT.exists():
+            raise SystemExit(f"Fixture does not exist: {OUTPUT}. Seed the isolated stack first.")
         fixtures = json.loads(OUTPUT.read_text(encoding="utf-8"))["pairs"]
-        save_fixture(fixtures)
+        refresh_and_save_csrf(fixtures)
         return
 
     statements = ["START TRANSACTION;"]
@@ -71,10 +73,27 @@ def main():
     command = ["docker", "compose", "-f", str(COMPOSE), "exec", "-T", "mysql", "sh", "-c", 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot billim_perf']
     subprocess.run(command, input="\n".join(statements), text=True, check=True)
     save_fixture(fixtures)
+    refresh_and_save_csrf(fixtures)
     print(f"Seeded {PAIRS} chat rooms and {PAIRS * NOTIFICATIONS_PER_MEMBER} notifications. Fixture saved to ignored {OUTPUT}.")
 
 
 def save_fixture(fixtures):
+    OUTPUT.parent.mkdir(exist_ok=True)
+    OUTPUT.write_text(json.dumps({"pairs": fixtures}, indent=2), encoding="utf-8")
+
+
+def refresh_and_save_csrf(fixtures):
+    try:
+        refresh_csrf(fixtures)
+    except (OSError, ValueError, KeyError) as exc:
+        raise SystemExit(
+            f"Fixture is saved at {OUTPUT}, but CSRF verification failed. "
+            "Start the backend and retry with: python performance/seed.py --refresh-csrf"
+        ) from exc
+    save_fixture(fixtures)
+
+
+def refresh_csrf(fixtures):
     for pair in fixtures:
         for user in (pair["owner"], pair["requester"]):
             request = urllib.request.Request(
@@ -83,8 +102,6 @@ def save_fixture(fixtures):
             )
             with urllib.request.urlopen(request, timeout=10) as response:
                 user["csrf"] = json.load(response)["csrfToken"]
-    OUTPUT.parent.mkdir(exist_ok=True)
-    OUTPUT.write_text(json.dumps({"pairs": fixtures}, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":

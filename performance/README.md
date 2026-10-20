@@ -11,7 +11,7 @@
    wsl -e sh -lc 'cd backend && ./gradlew bootJar --no-daemon'
    ```
 
-3. 독립 스택을 띄웁니다. `http://localhost:18080/actuator/health`가 `UP`일 때까지 기다립니다.
+3. 독립 스택을 띄웁니다. `http://localhost:18080/api/v1/auth/csrf`가 HTTP 200을 반환할 때까지 기다립니다.
 
    ```powershell
    docker compose -f performance/compose.yaml up -d --build mysql backend
@@ -21,6 +21,12 @@
 
    ```powershell
    python performance/seed.py
+   ```
+
+   DB 저장 후 CSRF 확인만 실패해도 `performance/local/fixtures.json`에는 생성한 세션 원문이 남습니다. 백엔드가 준비된 뒤 아래 명령으로 확인을 다시 실행하세요. DB 초기화나 전체 시드 재실행은 필요하지 않습니다.
+
+   ```powershell
+   python performance/seed.py --refresh-csrf
    ```
 
 ## 실행
