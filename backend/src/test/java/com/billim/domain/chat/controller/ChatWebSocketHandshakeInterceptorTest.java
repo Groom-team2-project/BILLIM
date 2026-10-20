@@ -40,7 +40,8 @@ class ChatWebSocketHandshakeInterceptorTest {
     @DisplayName("채팅방 참여자는 연결할 수 있고 검증된 ID가 세션에 전달된다")
     void participantCanConnect() {
         HttpServletRequest servletRequest = authenticatedRequest("901");
-        when(accessService.isParticipant(901L, 2L)).thenReturn(true);
+        when(accessService.findLastSequenceForParticipant(901L, 2L))
+            .thenReturn(Optional.of(12L));
         Map<String, Object> attributes = new HashMap<>();
 
         boolean allowed = interceptor.beforeHandshake(
@@ -50,7 +51,8 @@ class ChatWebSocketHandshakeInterceptorTest {
         assertEquals(901L, attributes.get(ChatWebSocketHandshakeInterceptor.ROOM_ID_ATTRIBUTE));
         assertEquals(2L, attributes.get(ChatWebSocketHandshakeInterceptor.MEMBER_ID_ATTRIBUTE));
         assertEquals(55L, attributes.get(ChatWebSocketHandshakeInterceptor.AUTH_SESSION_ID_ATTRIBUTE));
-        verify(accessService).isParticipant(901L, 2L);
+        assertEquals(12L, attributes.get(ChatWebSocketHandshakeInterceptor.REPLAY_AFTER_SEQUENCE_ATTRIBUTE));
+        verify(accessService).findLastSequenceForParticipant(901L, 2L);
     }
 
     @Test
@@ -63,7 +65,7 @@ class ChatWebSocketHandshakeInterceptorTest {
 
         assertFalse(allowed);
         verify(response).setStatusCode(HttpStatus.UNAUTHORIZED);
-        verify(accessService, never()).isParticipant(901L, 2L);
+        verify(accessService, never()).findLastSequenceForParticipant(901L, 2L);
     }
 
     @Test
@@ -76,14 +78,15 @@ class ChatWebSocketHandshakeInterceptorTest {
 
         assertFalse(allowed);
         verify(response).setStatusCode(HttpStatus.BAD_REQUEST);
-        verify(accessService, never()).isParticipant(901L, 2L);
+        verify(accessService, never()).findLastSequenceForParticipant(901L, 2L);
     }
 
     @Test
     @DisplayName("채팅방 참여자가 아니면 연결을 거부한다")
     void nonParticipantIsRejected() {
         HttpServletRequest servletRequest = authenticatedRequest("901");
-        when(accessService.isParticipant(901L, 2L)).thenReturn(false);
+        when(accessService.findLastSequenceForParticipant(901L, 2L))
+            .thenReturn(Optional.empty());
 
         boolean allowed = interceptor.beforeHandshake(
             new ServletServerHttpRequest(servletRequest), response, handler, new HashMap<>());

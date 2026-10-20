@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +28,17 @@ public class ChatRoomAccessService {
         return roomRepository.findById(roomId)
             .map(room -> room.isParticipant(memberId))
             .orElse(false);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Long> findLastSequenceForParticipant(Long roomId, Long memberId) {
+        if (roomId == null || memberId == null) {
+            return Optional.empty();
+        }
+
+        return roomRepository.findById(roomId)
+            .filter(room -> room.isParticipant(memberId))
+            .map(room -> room.getNextSequence() - 1);
     }
 
     @Transactional(readOnly = true)
