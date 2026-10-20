@@ -145,8 +145,11 @@ class ChatRoomViewFlowDbTest {
 
         when(blockQuery.isBlockedBetween(requesterId, ownerId)).thenReturn(false);
         when(sanctionService.isRestricted(requesterId)).thenReturn(true);
-        assertThat(viewService.get(roomId, requesterId).access().reason())
-            .isEqualTo("EXISTING_RENTAL_ONLY");
+        ChatRoomResponse sanctioned = viewService.get(roomId, requesterId);
+        assertThat(sanctioned.access().canSend()).isTrue();
+        assertThat(sanctioned.access().allowedRentalIds())
+            .containsExactly(String.valueOf(rentalId));
+        assertThat(sanctioned.access().reason()).isEqualTo("EXISTING_RENTAL_ONLY");
 
         when(membershipQuery.findActiveCommunityId(requesterId))
             .thenReturn(Optional.empty());
@@ -155,6 +158,7 @@ class ChatRoomViewFlowDbTest {
         assertThat(changed.access().allowedRentalIds()).isEmpty();
         assertThat(changed.access().reason()).isEqualTo("COMMUNITY_CHANGED");
 
+        when(sanctionService.isRestricted(requesterId)).thenReturn(false);
         when(membershipQuery.findActiveCommunityId(requesterId))
             .thenReturn(Optional.of(COMMUNITY_ID));
         Item item = itemRepository.findById(itemId).orElseThrow();
@@ -162,6 +166,7 @@ class ChatRoomViewFlowDbTest {
         itemRepository.save(item);
         ChatRoomResponse hidden = viewService.get(roomId, requesterId);
         assertThat(hidden.access().canSend()).isFalse();
+        assertThat(hidden.access().allowedRentalIds()).isEmpty();
         assertThat(hidden.access().reason()).isEqualTo("ITEM_UNAVAILABLE");
     }
 
