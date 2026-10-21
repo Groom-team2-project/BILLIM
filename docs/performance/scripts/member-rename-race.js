@@ -8,6 +8,8 @@ import { Counter } from "k6/metrics";
  */
 const BASE = __ENV.BASE || "http://localhost:8080/api/v1";
 const VERSION = Number(__ENV.VERSION);
+// 저장된 이름과 같으면 변경 없음으로 처리되어 UPDATE가 발생하지 않는다 — 실행마다 다른 이름
+const RUN = __ENV.RUN || Date.now() % 100000;
 
 const ok = new Counter("ok_200");
 const conflictWithVersion = new Counter("conflict_with_currentVersion");
@@ -19,7 +21,7 @@ export const options = { vus: 20, iterations: 20 };
 export default function () {
   const res = http.patch(
     `${BASE}/members/me`,
-    JSON.stringify({ displayName: `경합${__VU}`, expectedVersion: VERSION }),
+    JSON.stringify({ displayName: `경합${RUN}-${__VU}`, expectedVersion: VERSION }),
     {
       headers: {
         "Content-Type": "application/json",
