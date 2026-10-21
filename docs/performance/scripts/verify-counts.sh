@@ -1,6 +1,6 @@
 #!/bin/bash
 # 환경 무관 근거 재확인 — 요청당 쿼리 수, 인증 고정 비용, 삭제 조건 색인.
-# 응답시간·처리량은 머신에 좌우되므로 여기서 다루지 않는다.
+# 응답시간·처리량은 머신 의존이라 제외.
 #
 #   사전: docker compose up -d · SQL 로그를 켠 상태로 앱 기동(local 프로필 기본값)
 #   실행: bash docs/performance/scripts/verify-counts.sh <앱 로그 경로>
@@ -20,11 +20,18 @@ check() { # 이름 기대값 실측값
 }
 
 echo "1. 삭제 조건 색인 — 정리 배치가 읽는 행"
-PLAN=$($DB -e "explain select id from auth_sessions where absolute_expires_at < now() - interval 7 day;" 2>/dev/null)
+# 정리 배치의 실제 문장은 DELETE — SELECT 계획과 옵티마이저 선택이 다를 수 있어 DELETE를 직접 검사
+PLAN=$($DB -e "explain delete from auth_sessions where absolute_expires_at < now() - interval 7 day;" 2>/dev/null)
+[ -n "$PLAN" ] || { echo "  EXPLAIN 실패 — DB 접속 확인"; exit 1; }
 check "EXPLAIN type" "range" "$(echo "$PLAN" | awk '{print $5}')"
 check "사용 색인" "ix_auth_sessions_absolute_expires" "$(echo "$PLAN" | awk '{print $7}')"
 
 echo "2. 요청당 쿼리 수 · 인증 고정 비용"
+# 전제 — 테스트 대상 회원이 없으면 이후 검사가 전부 무의미하므로 중단
+for id in 3 4; do
+  [ "$($DB -e "select count(*) from members where id=$id and status='ACTIVE';" 2>/dev/null)" = "1" ] \
+    || { echo "  회원 $id(ACTIVE) 없음 — 시드 적재 후 다시 실행"; exit 2; }
+done
 TOKEN=$(openssl rand -hex 32)
 HASH=$(printf '%s' "$TOKEN" | shasum -a 256 | cut -d' ' -f1)
 $DB -e "delete from auth_sessions where csrf_token='verify';
@@ -40,7 +47,7 @@ while IFS='|' read -r name path want; do
     before=$(wc -l < "$LOG")
     code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 -H "Cookie: BILLIM_SESSION=$TOKEN" "localhost:8080$path")
     sleep 2
-    # format_sql=true면 SQL이 여러 줄로 찍힌다 — 로거 줄부터 다음 로그 줄까지를 한 문장으로 묶어 센다
+    # format_sql=true면 SQL이 여러 줄 출력 — 로거 줄부터 다음 로그 줄까지를 한 문장으로 묶어 집계
     counts=$(tail -n +$((before+1)) "$LOG" | awk '
       /^[0-9]{4}-[0-9]{2}-[0-9]{2}/ {
         if (inStmt) { total++; if (buf ~ /auth_sessions/) auth++ }
@@ -54,7 +61,9 @@ while IFS='|' read -r name path want; do
     auth=${counts#* }
     [ "$total" -gt 0 ] && break
   done
-  [ "$code" = "200" ] || { printf '  SKIP %-28s HTTP %s\n' "$name" "$code"; continue; }
+  if [ "$code" != "200" ]; then
+    printf '  FAIL %-28s HTTP %s (200 기대)\n' "$name" "$code"; FAIL=$((FAIL+1)); continue
+  fi
   check "$name 전체" "$want" "$total"
   check "$name 인증" "1" "$auth"
 done <<'LIST'

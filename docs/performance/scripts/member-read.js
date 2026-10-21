@@ -6,7 +6,7 @@ import { Trend } from "k6/metrics";
  * A 파트 조회 API 부하 — A_005 내 프로필, A_007 이웃 공개 프로필.
  * 세션 쿠키는 카카오 로그인으로만 발급 — 환경변수로 주입.
  *   k6 run -e SESSION=... -e TARGET=4 docs/performance/scripts/member-read.js
- * 처리량·응답시간 측정 시에는 SQL 로그를 끈다 — 로그 비용이 결과를 가린다.
+ * 처리량·응답시간 측정 시 SQL 로그 off — 로그 비용이 결과를 가림.
  */
 const BASE = __ENV.BASE || "http://localhost:8080/api/v1";
 const SESSION = __ENV.SESSION;
@@ -24,7 +24,7 @@ export const options = {
     { duration: STEADY, target: VUS },
     { duration: "10s", target: 0 },
   ],
-  // 기본 요약에는 p99가 없다 — 명시해야 출력
+  // 기본 요약에 p99 미포함 — 명시해야 출력
   summaryTrendStats: ["avg", "min", "med", "p(90)", "p(95)", "p(99)", "max"],
   thresholds: {
     // 포화 구간에서는 넘기는 게 정상 — 중단시키지 않고 기록만
