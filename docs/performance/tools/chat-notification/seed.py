@@ -92,7 +92,7 @@ def refresh_and_save_csrf(fixtures):
     except (OSError, ValueError, KeyError) as exc:
         raise SystemExit(
             f"Fixture is saved at {OUTPUT}, but CSRF verification failed. "
-            "Start the backend and retry with: python docs/performance/chat-notification/seed.py --refresh-csrf"
+            "Start the backend and retry with: python docs/performance/tools/chat-notification/seed.py --refresh-csrf"
         ) from exc
     save_fixture(fixtures)
 

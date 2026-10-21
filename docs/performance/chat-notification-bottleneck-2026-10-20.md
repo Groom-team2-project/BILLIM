@@ -1,6 +1,6 @@
 # 채팅·알림 성능 지표와 병목 분석
 
-> 버전: v0.1.5 · 수정일: 2026.10.21
+> 버전: v0.1.6 · 수정일: 2026.10.21
 
 ## 범위와 완료 기준
 
@@ -16,13 +16,13 @@
 ## 환경과 방법
 
 - Windows 11 Pro, Ryzen 5 5600X, RAM 32GB. Docker Desktop에 보이는 메모리 약 16GiB.
-- `docs/performance/chat-notification/compose.yaml`의 독립 `billim-perf` 프로젝트: 백엔드 1개(메모리 상한 1GiB), MySQL 8.4, k6 0.54.0. DB 볼륨 초기화 후 회원 16명·채팅방 8개·알림 800건 생성.
+- `docs/performance/tools/chat-notification/compose.yaml`의 독립 `billim-perf` 프로젝트: 백엔드 1개(메모리 상한 1GiB), MySQL 8.4, k6 0.54.0. DB 볼륨 초기화 후 회원 16명·채팅방 8개·알림 800건 생성.
 - HTTP 시나리오는 128 VU, 각 반복 뒤 0.2초 대기. 방 분산은 8개 방을 순환하고 집중은 1개 방을 공유. 같은 테스트 회원을 여러 VU가 재사용함.
 - WebSocket은 VU마다 연결을 유지하며 메시지 10건을 전송. 알림 조회·채팅방 목록 시나리오는 반복마다 HTTP 요청 2개를 실행하므로 표의 처리 수는 요청 건수.
 - WebSocket 행은 `3376b37` 백엔드 코드의 별도 실행 결과. 이 커밋에는 연결 공백 재전달 수정 `bb3c291`이 포함된다. `chat-websocket-stable`에서 128 VU가 소켓을 각각 1개 열고 `open` 직후 첫 메시지, 이후 200ms 간격으로 총 10건을 전송했다. 소켓 대기 한도는 5초, 별도 연결 완료 대기는 0ms. 10월 19일 문서의 수정 전 미수신 실행 및 수정 직후 재측정과 실행 시점·DB 상태가 달라 각각 별개 결과다.
 - 처리량은 `성공 HTTP ÷ 설정 기간`이 아니라 k6 `http_reqs.rate`를 사용한다. 실제 요청 집계 구간에는 20초 부하 종료 뒤 진행 중인 요청의 완료 시간이 포함될 수 있다. 표의 `20초`는 설정 부하 기간이며 처리량 분모가 아니다.
 - Prometheus는 관리 포트 `backend:9090`에서 5초 간격으로 수집. 관리 포트는 호스트에 공개하지 않음. MySQL `Innodb_row_lock_*`는 부하 전후의 전역 누적값 비교.
-- 원본 k6 요약은 Git 제외 디렉터리 `docs/performance/chat-notification/local/*2026-10-20.json`에 보관. DB·Prometheus 볼륨은 이후 초기화할 수 있으므로 이 표가 영속 측정 기록.
+- 원본 k6 요약은 Git 제외 디렉터리 `docs/performance/tools/chat-notification/local/*2026-10-20.json`에 보관. DB·Prometheus 볼륨은 이후 초기화할 수 있으므로 이 표가 영속 측정 기록.
 
 ## 측정 결과
 
@@ -42,7 +42,7 @@
 
 ### 한 방 집중 p99 추가 측정
 
-`billim-perf` MySQL 볼륨만 초기화하고 같은 16명·8개 방을 다시 생성했다. 128 VU·20초·한 방 집중 조건으로 연속 3회 실행했다. k6 `--summary-trend-stats`에 `p(99)`를 추가했으며 원본 요약은 Git 제외 `docs/performance/chat-notification/local/chat-hot-room-p99-2026-10-20*.json`에 보관한다. 2·3회차는 DB를 다시 초기화하지 않았으므로 메시지 증가와 JVM 예열의 영향이 포함될 수 있다.
+`billim-perf` MySQL 볼륨만 초기화하고 같은 16명·8개 방을 다시 생성했다. 128 VU·20초·한 방 집중 조건으로 연속 3회 실행했다. k6 `--summary-trend-stats`에 `p(99)`를 추가했으며 원본 요약은 Git 제외 `docs/performance/tools/chat-notification/local/chat-hot-room-p99-2026-10-20*.json`에 보관한다. 2·3회차는 DB를 다시 초기화하지 않았으므로 메시지 증가와 JVM 예열의 영향이 포함될 수 있다.
 
 | 실행 | 성공 HTTP | 처리량 | 평균 | HTTP p95 | HTTP p99 | 실패 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -57,7 +57,7 @@
 
 - 같은 로컬 PC와 `billim-perf` 단일 백엔드에서 `3376b37`의 백엔드 JAR을 실행했다. 이 변경에 포함된 `chat-realistic` 측정 스크립트를 사용했다. 이전 성능 실행과 별도로 독립 MySQL 볼륨을 초기화하고 64개 방·128명·각각 다른 세션을 생성했다. 1개 방에서 5건을 보내는 사전 점검 후 64 VU 측정을 연속 3회 실행했으며 회차 사이 DB 초기화는 하지 않았다.
 - VU 하나가 서로 겹치지 않는 방 하나를 담당한다. 각 방의 소유자는 HTTP로 메시지를 2초 간격으로 5건 전송하고 요청자는 WebSocket 연결을 유지하며 수신한다. 첫 전송은 소켓 연결 1초 뒤 시작한다. 총 64개 송신 세션과 64개 수신 세션, WebSocket 연결 64개, 회차당 메시지 320건이다. 전송 응답은 HTTP 201, 수신은 `clientMessageId` 일치로 검증한다. 수신 지연은 송신 직전부터 다른 계정의 소켓 수신까지 k6 내부 시계로 측정한다.
-- 아래 처리량은 k6 `http_reqs.rate`의 실제 집계 구간 기준이다. 설정된 메시지 간격을 포함하므로 기존의 대기 0.2초 전송 집중 부하와 직접적인 처리 용량 비교값이 아니다. 원본 요약은 Git 제외 `docs/performance/chat-notification/local/chat-realistic-64-2026-10-21-run*.json`에 보관한다.
+- 아래 처리량은 k6 `http_reqs.rate`의 실제 집계 구간 기준이다. 설정된 메시지 간격을 포함하므로 기존의 대기 0.2초 전송 집중 부하와 직접적인 처리 용량 비교값이 아니다. 원본 요약은 Git 제외 `docs/performance/tools/chat-notification/local/chat-realistic-64-2026-10-21-run*.json`에 보관한다.
 
 | 실행 | 전송·수신 | HTTP 평균 | HTTP p95 | HTTP p99 | 상대방 수신 p95 | 상대방 수신 p99 | 처리량 | 실패 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -80,9 +80,9 @@
 | 3회차 | 640/640 | 137.1ms | 183.4ms | 174.0ms | 204.4ms | 56.0건/s | 0 |
 
 - **상대방 수신 p95 174.0~432.0ms, p99 204.4~514.9ms.** 첫 회차가 가장 느렸으나 JVM 예열, DB 상태, 호스트 자원 중 어느 원인인지 분리하지 못했다. 이전 1방향 테스트는 방마다 송신 VU 한 개만 사용했으므로 직접 비교에 주의한다. 이 수치는 브라우저 표시와 인터넷 구간을 제외한 단일 인스턴스 결과다.
-- 원본 요약은 Git 제외 `docs/performance/chat-notification/local/chat-paired-128-2026-10-21-run*.json`에 보관한다. 각 회차 전 DB 초기화는 하지 않았으므로 메시지 누적의 영향을 받을 수 있다.
+- 원본 요약은 Git 제외 `docs/performance/tools/chat-notification/local/chat-paired-128-2026-10-21-run*.json`에 보관한다. 각 회차 전 DB 초기화는 하지 않았으므로 메시지 누적의 영향을 받을 수 있다.
 
-128개 방·256명·256 VU로 독립 DB를 다시 생성한 뒤 동일한 양방향 조건을 3회 반복했다. 각 방에 2 VU, 회차당 HTTP 전송 1,280건·상대방 수신 1,280건이다. 3회 모두 HTTP 전송 실패, WebSocket 연결 실패, 전송 미완료, 상대방 미수신이 0이었다. 원본 요약은 Git 제외 `docs/performance/chat-notification/local/chat-paired-256-2026-10-21-run*.json`에 보관한다.
+128개 방·256명·256 VU로 독립 DB를 다시 생성한 뒤 동일한 양방향 조건을 3회 반복했다. 각 방에 2 VU, 회차당 HTTP 전송 1,280건·상대방 수신 1,280건이다. 3회 모두 HTTP 전송 실패, WebSocket 연결 실패, 전송 미완료, 상대방 미수신이 0이었다. 원본 요약은 Git 제외 `docs/performance/tools/chat-notification/local/chat-paired-256-2026-10-21-run*.json`에 보관한다.
 
 | 실행 | 전송·상대방 수신 | HTTP p95 | HTTP p99 | 상대방 수신 p95 | 상대방 수신 p99 | 처리량 | 실패 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
