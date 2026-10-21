@@ -1,6 +1,6 @@
 # 채팅·알림 로컬 성능 측정 (2026-10-19)
 
-> 버전: v0.1.1 · 수정일: 2026.10.20
+> 버전: v0.1.2 · 수정일: 2026.10.21
 
 ## 문제
 
@@ -16,7 +16,7 @@
 
 ## 변경
 
-`performance/`에 독립 Compose, 테스트 데이터 생성기, k6 시나리오, outbox 측정기를 추가했다. 운영 서버와 기존 개발 DB 설정은 변경하지 않았다.
+`docs/performance/chat-notification/`에 독립 Compose, 테스트 데이터 생성기, k6 시나리오, outbox 측정기를 추가했다. 운영 서버와 기존 개발 DB 설정은 변경하지 않았다.
 
 ## 결과
 
@@ -48,7 +48,7 @@ Outbox worker를 켠 뒤 합성 `REPORT_RESOLVED` 사건을 100건씩 넣었다.
 - WebSocket 첫 4 VU 실행의 미수신 4건은 재현 조건과 서버 로그를 추가로 추적할 필요가 있다.
 - 배포 모니터링을 하려면 Prometheus 수집 대상의 인증·네트워크 접근, 보존 기간, 자원 비용, 계측 항목을 팀과 합의한 뒤 적용한다. 현재 `/actuator/prometheus`는 인증이 필요한 경로이며, 이번 작업은 이를 변경하지 않았다.
 
-재현 명령과 초기화 방법은 `performance/README.md`에 있다.
+재현 명령과 초기화 방법은 `docs/performance/chat-notification/README.md`에 있다.
 
 ## 추가 고부하 측정 (동일 날짜)
 

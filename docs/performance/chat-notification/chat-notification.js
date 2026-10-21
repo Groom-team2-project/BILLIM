@@ -14,31 +14,41 @@ const connectionFailures = new Rate('chat_websocket_connection_failures');
 const incompleteIterations = new Rate('chat_websocket_incomplete_iterations');
 const firstDeliveryFailures = new Rate('chat_first_delivery_failures');
 const laterDeliveryFailures = new Rate('chat_later_delivery_failures');
+const peerReceiptFailures = new Rate('chat_peer_receipt_failures');
 const deliveryMs = new Trend('chat_delivery_ms', true);
 const stableSocket = testCase === 'chat-websocket-stable';
+const realisticSocket = testCase === 'chat-realistic';
+const pairedSocket = testCase === 'chat-paired';
 
 export const options = {
   scenarios: testCase === 'notification-read'
     ? { selected: { executor: 'shared-iterations', vus, iterations: 80, maxDuration: '1m' } }
-    : stableSocket
+    : stableSocket || realisticSocket || pairedSocket
       ? { selected: { executor: 'per-vu-iterations', vus, iterations: 1, maxDuration: '30s' } }
       : { selected: { executor: 'constant-vus', vus, duration } },
   thresholds: {
     app_failures: ['rate<0.01'],
     http_req_duration: ['p(95)<2000'],
-    ...(testCase === 'chat-websocket' || stableSocket ? {
+    ...(testCase === 'chat-websocket' || stableSocket || realisticSocket || pairedSocket ? {
       chat_delivery_ms: ['p(95)<2000'],
-      chat_delivery_failures: ['rate<0.01'],
       chat_websocket_connection_failures: ['rate<0.01'],
     } : {}),
-    ...(stableSocket ? {
+    ...(!pairedSocket && (testCase === 'chat-websocket' || stableSocket || realisticSocket) ? {
+      chat_delivery_failures: ['rate<0.01'],
+    } : {}),
+    ...(stableSocket || realisticSocket ? {
       chat_first_delivery_failures: ['rate<0.01'],
+      chat_websocket_incomplete_iterations: ['rate<0.01'],
+    } : {}),
+    ...(pairedSocket ? {
+      chat_peer_receipt_failures: ['rate<0.01'],
       chat_websocket_incomplete_iterations: ['rate<0.01'],
     } : {}),
   },
 };
 
 function pair() {
+  if (pairedSocket) return data.pairs[Math.floor((__VU - 1) / 2)];
   return data.pairs[__ENV.HOT_ROOM === 'true' ? 0 : (__VU - 1) % data.pairs.length];
 }
 
@@ -63,15 +73,22 @@ function uuid() {
   });
 }
 
-function send(room, user, clientMessageId) {
+function send(room, user, clientMessageId, body = 'Local performance test message') {
   return http.post(
     `${baseUrl}/api/v1/chat/rooms/${room}/messages`,
-    JSON.stringify({ clientMessageId, body: 'Local performance test message' }),
+    JSON.stringify({ clientMessageId, body }),
     { headers: headers(user, true), tags: { endpoint: 'chat-send' } },
   );
 }
 
-export default function () {
+export function setup() {
+  return { runId: uuid() };
+}
+
+export default function (context) {
+  if (pairedSocket && (vus % 2 !== 0 || vus > data.pairs.length * 2)) {
+    throw new Error('chat-paired needs an even VUS and one unique room per two VUs');
+  }
   const current = pair();
   const user = current.requester;
 
@@ -173,9 +190,109 @@ export default function () {
       else laterDeliveryFailures.add(missed);
       failures.add(missed);
     }
+  } else if (realisticSocket) {
+    if (__VU > data.pairs.length) throw new Error('chat-realistic needs at least one unique pair per VU');
+    const receiver = current.requester;
+    const sender = current.owner;
+    const wsUrl = baseUrl.replace(/^http/, 'ws') + `/ws/chat?roomId=${current.roomId}`;
+    const sent = new Map();
+    const received = new Set();
+    let count = 0;
+    const sendNext = () => {
+      if (count >= 5) return;
+      const id = uuid();
+      const detail = { index: count, at: Date.now(), succeeded: false };
+      sent.set(id, detail);
+      count += 1;
+      detail.succeeded = verify(send(current.roomId, sender, id), 201);
+    };
+    const result = ws.connect(wsUrl, { headers: headers(receiver), tags: { endpoint: 'chat-realistic' } }, (socket) => {
+      socket.on('open', () => {
+        socket.setTimeout(() => {
+          sendNext();
+          socket.setInterval(sendNext, 2000);
+        }, 1000);
+      });
+      socket.on('message', (raw) => {
+        try {
+          const id = JSON.parse(raw).clientMessageId;
+          if (sent.get(id)?.succeeded && !received.has(id)) {
+            received.add(id);
+            deliveryMs.add(Date.now() - sent.get(id).at);
+            if (received.size === 5) socket.close();
+          }
+        } catch (_) { /* 수신 종료 후 성공한 전송 중 누락 건수를 집계. */ }
+      });
+      socket.setTimeout(() => socket.close(), 15000);
+    });
+    const connectionFailed = result.status !== 101;
+    connectionFailures.add(connectionFailed);
+    const successfulSends = [...sent.values()].filter((detail) => detail.succeeded).length;
+    const incomplete = successfulSends !== 5;
+    incompleteIterations.add(incomplete);
+    failures.add(connectionFailed || incomplete);
+    for (const [id, detail] of sent) {
+      if (!detail.succeeded) continue;
+      const missed = !received.has(id);
+      deliveryFailures.add(missed);
+      if (detail.index === 0) firstDeliveryFailures.add(missed);
+      else laterDeliveryFailures.add(missed);
+      failures.add(missed);
+    }
+  } else if (pairedSocket) {
+    const ownerSide = (__VU - 1) % 2 === 0;
+    const sender = ownerSide ? current.owner : current.requester;
+    const peer = ownerSide ? current.requester : current.owner;
+    const marker = `${context.runId}|`;
+    const wsUrl = baseUrl.replace(/^http/, 'ws') + `/ws/chat?roomId=${current.roomId}`;
+    const sent = new Map();
+    const ownReceived = new Set();
+    const peerReceived = new Set();
+    let count = 0;
+    const sendNext = () => {
+      if (count >= 5) return;
+      const id = uuid();
+      const detail = { succeeded: false };
+      sent.set(id, detail);
+      count += 1;
+      detail.succeeded = verify(send(current.roomId, sender, id, `${marker}${Date.now()}`), 201);
+    };
+    const result = ws.connect(wsUrl, { headers: headers(sender), tags: { endpoint: 'chat-paired' } }, (socket) => {
+      socket.on('open', () => {
+        socket.setTimeout(() => {
+          sendNext();
+          socket.setInterval(sendNext, 2000);
+        }, 3000);
+      });
+      socket.on('message', (raw) => {
+        try {
+          const message = JSON.parse(raw);
+          if (!message.body?.startsWith(marker)) return;
+          if (message.senderId === String(sender.memberId) && sent.get(message.clientMessageId)?.succeeded) {
+            ownReceived.add(message.clientMessageId);
+          } else if (message.senderId === String(peer.memberId) && !peerReceived.has(message.clientMessageId)) {
+            peerReceived.add(message.clientMessageId);
+            deliveryMs.add(Date.now() - Number(message.body.slice(marker.length)));
+          }
+          if (count === 5 && ownReceived.size === 5 && peerReceived.size === 5) socket.close();
+        } catch (_) { /* 현재 실행의 메시지 외 수신은 종료 시 누락 건수로 확인. */ }
+      });
+      socket.setTimeout(() => socket.close(), 17000);
+    });
+    const connectionFailed = result.status !== 101;
+    connectionFailures.add(connectionFailed);
+    const successfulSends = [...sent.values()].filter((detail) => detail.succeeded).length;
+    const incomplete = successfulSends !== 5 || ownReceived.size !== successfulSends;
+    incompleteIterations.add(incomplete);
+    failures.add(connectionFailed || incomplete);
+    for (let index = 0; index < 5; index += 1) {
+      const missed = index >= peerReceived.size;
+      peerReceiptFailures.add(missed);
+      failures.add(missed);
+    }
   } else {
     throw new Error(`Unknown CASE: ${testCase}`);
   }
 
-  if (testCase !== 'notification-read') sleep(0.2);
+  if (testCase !== 'notification-read' && !realisticSocket && !pairedSocket) sleep(0.2);
 }

@@ -2,18 +2,20 @@
 
 import hashlib
 import json
+import os
 import secrets
 import subprocess
 import sys
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 
 HERE = Path(__file__).resolve().parent
 COMPOSE = HERE / "compose.yaml"
 OUTPUT = HERE / "local" / "fixtures.json"
-PAIRS = 8
-NOTIFICATIONS_PER_MEMBER = 100
+PAIRS = int(os.environ.get("PERF_PAIRS", "8"))
+NOTIFICATIONS_PER_MEMBER = int(os.environ.get("PERF_NOTIFICATIONS_PER_MEMBER", "100"))
 
 
 def sql_string(value):
@@ -22,6 +24,8 @@ def sql_string(value):
 
 def main():
     refresh_only = len(sys.argv) == 2 and sys.argv[1] == "--refresh-csrf"
+    if not 1 <= PAIRS <= 500 or not 0 <= NOTIFICATIONS_PER_MEMBER <= 1000:
+        raise SystemExit("PERF_PAIRS must be 1..500 and PERF_NOTIFICATIONS_PER_MEMBER 0..1000")
     if not COMPOSE.exists() or "name: billim-perf" not in COMPOSE.read_text():
         raise SystemExit("Isolated billim-perf compose file is required")
     if OUTPUT.exists() and not refresh_only:
@@ -88,20 +92,25 @@ def refresh_and_save_csrf(fixtures):
     except (OSError, ValueError, KeyError) as exc:
         raise SystemExit(
             f"Fixture is saved at {OUTPUT}, but CSRF verification failed. "
-            "Start the backend and retry with: python performance/seed.py --refresh-csrf"
+            "Start the backend and retry with: python docs/performance/chat-notification/seed.py --refresh-csrf"
         ) from exc
     save_fixture(fixtures)
 
 
 def refresh_csrf(fixtures):
-    for pair in fixtures:
-        for user in (pair["owner"], pair["requester"]):
-            request = urllib.request.Request(
-                "http://localhost:18080/api/v1/auth/csrf",
-                headers={"Cookie": f"BILLIM_SESSION={user['token']}"},
-            )
-            with urllib.request.urlopen(request, timeout=10) as response:
-                user["csrf"] = json.load(response)["csrfToken"]
+    users = [user for pair in fixtures for user in (pair["owner"], pair["requester"])]
+
+    def verify(user):
+        request = urllib.request.Request(
+            "http://localhost:18080/api/v1/auth/csrf",
+            headers={"Cookie": f"BILLIM_SESSION={user['token']}"},
+        )
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return json.load(response)["csrfToken"]
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for user, csrf in zip(users, pool.map(verify, users)):
+            user["csrf"] = csrf
 
 
 if __name__ == "__main__":
