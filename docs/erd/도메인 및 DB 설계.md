@@ -1,7 +1,7 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.5\
-> 수정일 : 2026.10.19
+> 버전 : v0.1.6\
+> 수정일 : 2026.10.21
 
 ## 1. 공통 규칙
 
@@ -141,7 +141,9 @@ erDiagram
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
-인덱스: UNIQUE (token_hash) · INDEX (member_id, revoked_at) · INDEX (expires_at)
+인덱스: UNIQUE (token_hash) · INDEX (member_id, revoked_at) · INDEX (expires_at) · INDEX (absolute_expires_at)
+
+- `absolute_expires_at` 색인은 만료 정리 배치의 삭제 조건. 없으면 테이블 전체 스캔 (성능 측정 `이지은-인증회원.md` 5절)
 
 - Spring Session JDBC를 채택하면 이 논리 저장소를 프레임워크 표준 테이블로 대체한다. 중복 운영하지 않는다.
 
