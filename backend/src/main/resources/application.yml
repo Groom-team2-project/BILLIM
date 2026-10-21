@@ -9,6 +9,11 @@ spring:
   config:
     import: optional:file:.env[.properties]   # 로컬 .env 파일 로드 (없으면 무시)
 
+  datasource:
+    hikari:
+      # 기본값 10은 대기가 쌓여 처리량 천장 — 30에서 1.44배. 운영값은 RDS max_connections 확인 후
+      maximum-pool-size: ${DB_POOL_SIZE:30}
+
   jpa:
     open-in-view: false         # 뷰 렌더링 중 커넥션 점유 방지
     hibernate:
