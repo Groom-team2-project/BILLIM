@@ -20,8 +20,8 @@ import java.math.BigDecimal;
 /**
  * communities — 생활권 커뮤니티 기준 정보.
  * 좌표는 공개 커뮤니티 중심이며 개인 위치가 아니다.
- * 읍면동 단위 동네는 주변 동네 조회에서 자동 등록되고, 경계가 읍면동과 다른 동네는 운영 seed로
- * 등록하며 코드를 비운다. (ERD 4.2, 도메인 가이드 결정 '법정동 위치 인증')
+ * 행정동 단위 동네는 주변 동네 조회에서 자동 등록되고, 경계가 행정동과 다른 동네는 운영 seed로
+ * 등록하며 행정동 코드를 비운다. (ERD 4.2, 도메인 가이드 결정 '행정동 위치 인증')
  */
 @Entity
 @Table(
@@ -48,10 +48,10 @@ public class Community extends BaseTimeEntity {
     private String displayAddress;
 
     /**
-     * 법정동 코드 앞 8자리(읍면동). 역지오코딩 결과와 비교해 동네 동일성을 판정한다.
+     * 행정동 코드 10자리. 역지오코딩 결과와 비교해 동네 동일성을 판정한다.
      *
-     * <p>NULL이면 코드로 판정할 수 없는 동네이며 반경 판정만 쓴다. 반경만으로 운영하던 기존 행과
-     * 아파트 단지처럼 읍면동과 경계가 다른 동네가 여기 해당한다.
+     * <p>NULL이면 행정동으로 판정할 수 없는 동네이며 반경 판정만 쓴다. 반경만으로 운영하던 기존 행과
+     * 아파트 단지처럼 행정동과 경계가 다른 동네가 여기 해당한다.
      */
     @Column(name = "region_code", length = Region.CODE_LENGTH)
     private String regionCode;
@@ -86,7 +86,7 @@ public class Community extends BaseTimeEntity {
         return community;
     }
 
-    /** 역지오코딩으로 찾은 읍면동을 그대로 동네로 등록한다. 좌표·주소는 지도 제공자의 대표 값이다 */
+    /** 역지오코딩으로 찾은 행정동을 그대로 동네로 등록한다. 좌표·주소는 지도 제공자의 행정동 대표 값이다 */
     public static Community ofRegion(Region region, int verificationRadiusM) {
         Community community = of(
                 region.name(), region.displayAddress(),
@@ -96,13 +96,13 @@ public class Community extends BaseTimeEntity {
         return community;
     }
 
-    /** 운영 seed·테스트 픽스처에서 기존 동네에 읍면동 코드를 붙일 때 쓴다 */
+    /** 운영 seed·테스트 픽스처에서 기존 동네에 행정동 코드를 붙일 때 쓴다 */
     public Community assignRegionCode(String regionCode) {
         this.regionCode = regionCode;
         return this;
     }
 
-    /** 동네 코드가 같은지. 코드가 없는 동네는 항상 false이며 반경 판정으로 넘어간다 */
+    /** 행정동 코드가 같은지. 코드가 없는 동네는 항상 false이며 반경 판정으로 넘어간다 */
     public boolean matchesRegion(String code) {
         return regionCode != null && regionCode.equals(code);
     }
