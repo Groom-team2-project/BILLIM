@@ -113,7 +113,8 @@ export function ProfilePage() {
           setProfile(await updateDisplayName(next, current.version));
           toast("이름을 바꿨어요");
         } catch (e: unknown) {
-          if (e instanceof ApiError && e.currentVersion !== undefined) {
+          // 충돌 응답은 선검사·@Version 두 경로로 갈리고 후자는 currentVersion 미포함 — code로 판정
+          if (e instanceof ApiError && e.code === "VERSION_CONFLICT") {
             toast("다른 곳에서 먼저 수정되었어요. 새로 불러옵니다");
             load();
             return;

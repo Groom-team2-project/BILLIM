@@ -9,6 +9,11 @@ spring:
   config:
     import: optional:file:.env[.properties]   # 로컬 .env 파일 로드 (없으면 무시)
 
+  datasource:
+    hikari:
+      # 기본값 10은 대기가 쌓여 처리량 천장 — 30에서 1.44배. 운영값은 RDS max_connections 확인 후
+      maximum-pool-size: ${DB_POOL_SIZE:30}
+
   jpa:
     open-in-view: false         # 뷰 렌더링 중 커넥션 점유 방지
     hibernate:
@@ -126,6 +131,10 @@ server:
   shutdown: graceful            # 종료 시 처리 중인 요청을 마치고 종료
 
 management:
+  # 지표 전용 포트 — 서비스 포트 노출 시 요청 수·응답시간·DB 상태가 외부에 공개
+  server:
+    port: ${MANAGEMENT_PORT:9090}
+    address: ${MANAGEMENT_ADDRESS:127.0.0.1}   # 같은 호스트의 Prometheus만 수집. 원격 수집은 보안 그룹으로 허용
   endpoints:
     web:
       exposure:
