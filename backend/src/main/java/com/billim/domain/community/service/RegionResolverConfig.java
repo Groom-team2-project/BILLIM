@@ -68,7 +68,7 @@ public class RegionResolverConfig {
 
         if (!enabled || apiKey.isBlank()) {
             log.info("공용 장소 자동 보충 미사용. 장소는 운영 seed로만 등록된다");
-            return (latitude, longitude, limit) -> List.of();
+            return (latitude, longitude, boundary, limit) -> List.of();
         }
         return new KakaoPlaceFinder(
                 kakaoClient(apiKey, baseUrl, connectTimeoutMs, readTimeoutMs), jsonCodec);

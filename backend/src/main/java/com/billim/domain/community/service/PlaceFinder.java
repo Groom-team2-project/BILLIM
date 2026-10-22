@@ -11,6 +11,12 @@ import java.util.List;
  */
 public interface PlaceFinder {
 
-    /** 찾을 수 없으면 빈 목록. 예외를 던지지 않는다 */
-    List<PlaceCandidate> findNear(double latitude, double longitude, int limit);
+    /**
+     * 경계 안의 공용 장소 후보를 가까운 순으로 찾는다.
+     *
+     * @param boundary 동네 경계 기준. 시군구가 다른 후보는 제외하고, 같은 동네 후보를 먼저 쓴다
+     * @return 찾을 수 없으면 빈 목록. 예외를 던지지 않는다
+     */
+    List<PlaceCandidate> findNear(double latitude, double longitude,
+                                  PlaceBoundary boundary, int limit);
 }

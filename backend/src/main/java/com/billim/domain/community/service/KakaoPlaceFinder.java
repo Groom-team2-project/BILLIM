@@ -8,6 +8,7 @@ import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,8 +21,9 @@ import java.util.Map;
  * 1 km부터 올리면 산간에서 0건이 나와 호출만 한 번 늘었다. 20 km는 섬처럼 5 km가
  * 비는 경우에만 쓴다 — 호출 수를 줄이는 것이 우선이다.
  *
- * <p>가까운 순으로 받되 이름을 걸러낸다. 공공기관 분류에는 명예영사관·협회처럼
- * 거래 장소로 쓸 수 없는 곳이 섞여 있다.
+ * <p>가까운 순으로 받되 두 번 걸러낸다. 공공기관 분류에는 명예영사관·협회처럼 거래 장소로
+ * 쓸 수 없는 곳이 섞이고(이름 필터), 반경 안에는 옆 동네 것도 들어온다(경계 필터).
+ * 역삼1동 중심 5 km에는 서초구 주민센터가 섞여 왔다.
  */
 public class KakaoPlaceFinder implements PlaceFinder {
 
@@ -59,7 +61,8 @@ public class KakaoPlaceFinder implements PlaceFinder {
     }
 
     @Override
-    public List<PlaceCandidate> findNear(double latitude, double longitude, int limit) {
+    public List<PlaceCandidate> findNear(double latitude, double longitude,
+                                         PlaceBoundary boundary, int limit) {
         if (limit <= 0) {
             return List.of();
         }
@@ -68,18 +71,51 @@ public class KakaoPlaceFinder implements PlaceFinder {
         for (int radius : RADIUS_STEPS) {
             try {
                 for (PlaceCandidate candidate : search(latitude, longitude, radius)) {
-                    byName.putIfAbsent(candidate.name(), candidate);
+                    if (boundary.containsAddress(candidate.address())) {
+                        byName.putIfAbsent(candidate.name(), candidate);
+                    }
                 }
             } catch (RuntimeException e) {
                 log.warn("공용 장소 후보 조회 실패. 장소를 채우지 않는다: radius={} 원인={}", radius, e.toString());
                 return List.of();
             }
-            if (byName.size() >= limit) {
+            if (countSameDistrict(byName.values(), boundary) >= limit) {
                 break;
             }
         }
-        List<PlaceCandidate> found = new ArrayList<>(byName.values());
-        return found.size() <= limit ? found : List.copyOf(found.subList(0, limit));
+        return pick(byName.values(), boundary, limit);
+    }
+
+    private long countSameDistrict(Collection<PlaceCandidate> candidates, PlaceBoundary boundary) {
+        return candidates.stream().filter(c -> boundary.isSameDistrict(c.address())).count();
+    }
+
+    /**
+     * 같은 동네 후보를 먼저 채우고, 모자라면 같은 시군구 후보로 메운다.
+     *
+     * <p>행정동과 법정동 이름이 아예 다른 동네에서도 후보가 0건이 되지 않게 하려는 순서다.
+     * 두 묶음 안에서는 가까운 순(응답 순서)을 유지한다.
+     */
+    private List<PlaceCandidate> pick(Collection<PlaceCandidate> candidates,
+                                      PlaceBoundary boundary, int limit) {
+        List<PlaceCandidate> picked = new ArrayList<>();
+        for (PlaceCandidate candidate : candidates) {
+            if (picked.size() >= limit) {
+                break;
+            }
+            if (boundary.isSameDistrict(candidate.address())) {
+                picked.add(candidate);
+            }
+        }
+        for (PlaceCandidate candidate : candidates) {
+            if (picked.size() >= limit) {
+                break;
+            }
+            if (!boundary.isSameDistrict(candidate.address())) {
+                picked.add(candidate);
+            }
+        }
+        return List.copyOf(picked);
     }
 
     private List<PlaceCandidate> search(double latitude, double longitude, int radius) {
@@ -139,7 +175,7 @@ public class KakaoPlaceFinder implements PlaceFinder {
             String guide = roadAddressName != null && !roadAddressName.isBlank()
                     ? roadAddressName
                     : addressName;
-            return new PlaceCandidate(placeName.strip(), guide, latitude, longitude);
+            return new PlaceCandidate(placeName.strip(), guide, addressName, latitude, longitude);
         }
 
         /** 좌표는 문자열로 온다 */

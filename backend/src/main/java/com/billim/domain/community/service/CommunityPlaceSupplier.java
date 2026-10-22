@@ -85,7 +85,8 @@ public class CommunityPlaceSupplier {
             return List.of();
         }
         List<PlaceCandidate> candidates = placeFinder.findNear(
-                community.centerLatitudeValue(), community.centerLongitudeValue(), limit);
+                community.centerLatitudeValue(), community.centerLongitudeValue(),
+                PlaceBoundary.of(community.getDisplayAddress(), community.getName()), limit);
 
         if (candidates.isEmpty()) {
             log.info("공용 장소 후보 없음: communityId={} name={}", communityId, community.getName());

@@ -9,6 +9,8 @@ import java.math.BigDecimal;
  *
  * @param name     장소 이름. 예: 역삼1동주민센터
  * @param guide    찾아가는 안내로 쓸 주소
+ * @param address  경계 비교용 지번 주소. 예: 서울 강남구 역삼동 829-20
  */
-public record PlaceCandidate(String name, String guide, BigDecimal latitude, BigDecimal longitude) {
+public record PlaceCandidate(String name, String guide, String address,
+                             BigDecimal latitude, BigDecimal longitude) {
 }
