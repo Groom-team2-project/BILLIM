@@ -60,10 +60,17 @@ billim:
       region:
         # 읍면동 코드 판정 on/off. 끄거나 키가 없으면 반경 판정만 쓴다
         enabled: ${VERIFY_REGION_ENABLED:true}
+        # 조회 제공자. kakao | vworld
+        # 카카오맵은 원격 탑재가 유료라 운영은 vworld를 쓴다. 두 제공자의 코드 체계는 같다
+        provider: ${REGION_PROVIDER:kakao}
         # 카카오 로컬 API용 REST API 키. 비우면 OAuth client-id를 쓴다.
         # 카카오맵 권한은 최초 활성화 앱 하나에만 자동 부여돼, 로그인 앱과 다른 앱이 될 수 있다
         api-key: ${KAKAO_REST_API_KEY:${KAKAO_CLIENT_ID:}}
         base-url: ${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}
+        vworld:
+          # VWorld 오픈API 인증키. 쿼리 파라미터로 나간다
+          api-key: ${VWORLD_API_KEY:}
+          base-url: ${VWORLD_BASE_URL:https://api.vworld.kr}
         # 지도 응답을 오래 기다리지 않는다. 늦으면 반경 판정으로 내려가는 편이 낫다
         connect-timeout-ms: 1000
         read-timeout-ms: 2000
