@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 행정동 역지오코딩 연동 설정.
+ * 읍면동 역지오코딩 연동 설정.
  *
  * <p>키가 없거나 꺼져 있으면 항상 빈 값을 주는 구현을 쓴다. 로컬·테스트·CI에는 지도 키가 없고,
  * 그 환경에서도 위치 인증이 반경 판정으로 동작해야 한다.
@@ -41,7 +41,7 @@ public class RegionResolverConfig {
             @Value("${billim.community.verification.region.cache-ttl:PT30M}") Duration cacheTtl) {
 
         if (!enabled || apiKey.isBlank()) {
-            log.info("행정동 역지오코딩 미사용. 위치 인증은 반경 판정만 사용한다 (enabled={}, 키 설정={})",
+            log.info("읍면동 역지오코딩 미사용. 위치 인증은 반경 판정만 사용한다 (enabled={}, 키 설정={})",
                     enabled, !apiKey.isBlank());
             return new NoRegionResolver();
         }
@@ -56,7 +56,7 @@ public class RegionResolverConfig {
                 .requestFactory(requestFactory)
                 .build();
 
-        log.info("행정동 역지오코딩 사용. baseUrl={} 캐시={}건/{}", baseUrl, cacheSize, cacheTtl);
+        log.info("읍면동 역지오코딩 사용. baseUrl={} 캐시={}건/{}", baseUrl, cacheSize, cacheTtl);
         return new KakaoRegionResolver(restClient, jsonCodec, new RegionCache(cacheSize, cacheTtl));
     }
 

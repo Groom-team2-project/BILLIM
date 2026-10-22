@@ -58,7 +58,7 @@ billim:
       # 켜면 (거리 - 정확도) <= 반경이면 통과. 끄면 거리만으로 판정
       accuracy-tolerance: ${VERIFY_ACCURACY_TOLERANCE:true}
       region:
-        # 행정동 코드 판정 on/off. 끄거나 키가 없으면 반경 판정만 쓴다
+        # 읍면동 코드 판정 on/off. 끄거나 키가 없으면 반경 판정만 쓴다
         enabled: ${VERIFY_REGION_ENABLED:true}
         # 카카오 로컬 API용 REST API 키. 비우면 OAuth client-id를 쓴다.
         # 카카오맵 권한은 최초 활성화 앱 하나에만 자동 부여돼, 로그인 앱과 다른 앱이 될 수 있다
@@ -67,9 +67,9 @@ billim:
         # 지도 응답을 오래 기다리지 않는다. 늦으면 반경 판정으로 내려가는 편이 낫다
         connect-timeout-ms: 1000
         read-timeout-ms: 2000
-        # 자동 등록 동네의 폴백 반경(m). 행정동 코드가 1차 판정이다
+        # 자동 등록 동네의 폴백 반경(m). 읍면동 코드가 1차 판정이다
         default-radius-m: ${VERIFY_REGION_RADIUS_M:3000}
-        # 조회 결과 캐시. 호출 1회가 약 50ms이고 행정동 경계는 개편 때만 바뀐다.
+        # 조회 결과 캐시. 호출 1회가 약 50ms이고 읍면동 경계는 개편 때만 바뀐다.
         # 연동 실패는 캐시하지 않으므로 장애 복구가 TTL만큼 늦어지지 않는다
         cache-size: 500
         cache-ttl: 30m

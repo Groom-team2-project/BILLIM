@@ -57,19 +57,19 @@ class KakaoRegionResolverTest {
             new KakaoRegionResolver(builder.build(), new JsonCodec(), new RegionCache(0, Duration.ZERO));
 
     @Test
-    @DisplayName("행정동(H)만 골라 읽는다")
-    void readsAdminRegionOnly() {
+    @DisplayName("법정동(B)만 골라 읽고 앞 8자리를 쓴다")
+    void readsLegalDistrictOnly() {
         server.expect(requestTo(containsString("/v2/local/geo/coord2regioncode.json")))
                 .andRespond(withSuccess(BOTH_TYPES, MediaType.APPLICATION_JSON));
 
         Optional<Region> region = resolver.resolve(37.5006, 127.0361);
 
         assertThat(region).isPresent();
-        assertThat(region.get().code()).isEqualTo("1168064000");
-        assertThat(region.get().name()).isEqualTo("역삼1동");
-        assertThat(region.get().displayAddress()).isEqualTo("서울특별시 강남구 역삼1동");
-        assertThat(region.get().latitude()).isEqualTo(37.5006);
-        assertThat(region.get().longitude()).isEqualTo(127.0361);
+        assertThat(region.get().code()).isEqualTo("11680101");          // 1168010100의 앞 8자리
+        assertThat(region.get().name()).isEqualTo("역삼동");
+        assertThat(region.get().displayAddress()).isEqualTo("서울특별시 강남구 역삼동");
+        assertThat(region.get().latitude()).isEqualTo(37.4955);
+        assertThat(region.get().longitude()).isEqualTo(127.0333);
         server.verify();
     }
 
@@ -86,8 +86,8 @@ class KakaoRegionResolverTest {
     }
 
     @Test
-    @DisplayName("행정동이 없는 좌표는 빈 값. 바다·국외가 여기 해당한다")
-    void returnsEmptyWithoutAdminRegion() {
+    @DisplayName("법정동이 없는 좌표는 빈 값. 바다·국외가 여기 해당한다")
+    void returnsEmptyWithoutLegalDistrict() {
         server.expect(requestTo(containsString("coord2regioncode")))
                 .andRespond(withSuccess("""
                         {"meta": {"total_count": 0}, "documents": []}
@@ -114,10 +114,11 @@ class KakaoRegionResolverTest {
                           "meta": {"total_count": 1, "added_field": 1},
                           "documents": [
                             {
-                              "region_type": "H", "code": "1168064000",
-                              "address_name": "서울특별시 강남구 역삼1동",
-                              "region_3depth_name": "역삼1동",
-                              "x": 127.0361, "y": 37.5006,
+                              "region_type": "B", "code": "1168010100",
+                              "address_name": "서울특별시 강남구 역삼동",
+                              "region_1depth_name": "서울특별시", "region_2depth_name": "강남구",
+                              "region_3depth_name": "역삼동",
+                              "x": 127.0333, "y": 37.4955,
                               "added_field": "무시"
                             }
                           ]
@@ -125,9 +126,9 @@ class KakaoRegionResolverTest {
                         """, MediaType.APPLICATION_JSON));
 
         assertThat(resolver.resolve(37.5006, 127.0361))
-                .map(Region::code).contains("1168064000");
+                .map(Region::code).contains("11680101");
     }
-    /** "역삼" 주소 검색. 같은 행정동이 여러 주소로 반복되고 도로명만 있는 결과가 섞인다 */
+    /** "역삼" 주소 검색. 같은 읍면동이 여러 주소로 반복되고, 행정동만 담긴 결과가 섞인다 */
     private static final String ADDRESS_SEARCH = """
             {
               "meta": {"total_count": 4},
@@ -138,7 +139,7 @@ class KakaoRegionResolverTest {
                     "address_name": "서울 강남구 역삼동 736",
                     "region_1depth_name": "서울", "region_2depth_name": "강남구",
                     "region_3depth_name": "역삼동", "region_3depth_h_name": "역삼1동",
-                    "h_code": "1168064000", "b_code": "1168010100",
+                    "b_code": "1168010100", "h_code": "1168064000",
                     "x": 127.0361, "y": 37.5006
                   },
                   "road_address": null
@@ -148,43 +149,50 @@ class KakaoRegionResolverTest {
                   "address": {
                     "address_name": "서울 강남구 역삼동 737",
                     "region_1depth_name": "서울", "region_2depth_name": "강남구",
-                    "region_3depth_name": "역삼동", "region_3depth_h_name": "역삼1동",
-                    "h_code": "1168064000", "b_code": "1168010100",
+                    "region_3depth_name": "역삼동", "region_3depth_h_name": "역삼2동",
+                    "b_code": "1168010100", "h_code": "1168065000",
                     "x": 127.0371, "y": 37.5016
                   },
                   "road_address": null
                 },
                 {
-                  "address_name": "서울 강남구 역삼동 820",
+                  "address_name": "경기 양평군 양평읍",
                   "address": {
-                    "address_name": "서울 강남구 역삼동 820",
-                    "region_1depth_name": "서울", "region_2depth_name": "강남구",
-                    "region_3depth_name": "역삼동", "region_3depth_h_name": "역삼2동",
-                    "h_code": "1168065000", "b_code": "1168010100",
-                    "x": 127.0421, "y": 37.4921
+                    "address_name": "경기 양평군 양평읍",
+                    "region_1depth_name": "경기", "region_2depth_name": "양평군",
+                    "region_3depth_name": "양평읍", "region_3depth_h_name": "양평읍",
+                    "b_code": "4183025000", "h_code": "4183025000",
+                    "x": 127.4886, "y": 37.4948
                   },
                   "road_address": null
                 },
                 {
-                  "address_name": "서울 강남구 테헤란로 123",
-                  "address": null,
-                  "road_address": {"address_name": "서울 강남구 테헤란로 123"}
+                  "address_name": "서울 강남구 역삼1동",
+                  "address": {
+                    "address_name": "서울 강남구 역삼1동",
+                    "region_1depth_name": "서울", "region_2depth_name": "강남구",
+                    "region_3depth_name": "", "region_3depth_h_name": "역삼1동",
+                    "b_code": "", "h_code": "1168064000",
+                    "x": 127.0361, "y": 37.5006
+                  },
+                  "road_address": null
                 }
               ]
             }
             """;
 
     @Test
-    @DisplayName("주소 검색 결과를 행정동 코드로 묶는다. 같은 동 중복과 주소 없는 결과는 빠진다")
-    void searchGroupsByAdminCode() {
+    @DisplayName("주소 검색 결과를 읍면동 코드로 묶는다. 같은 동 중복과 b_code 없는 결과는 빠진다")
+    void searchGroupsByDistrictCode() {
         server.expect(requestTo(containsString("/v2/local/search/address.json")))
                 .andRespond(withSuccess(ADDRESS_SEARCH, MediaType.APPLICATION_JSON));
 
         List<Region> regions = resolver.search("역삼", 10);
 
-        assertThat(regions).extracting(Region::code).containsExactly("1168064000", "1168065000");
-        assertThat(regions).extracting(Region::name).containsExactly("역삼1동", "역삼2동");
-        assertThat(regions.getFirst().displayAddress()).isEqualTo("서울 강남구 역삼1동");
+        // 역삼동 2건은 하나로 묶이고, b_code가 빈 행정동 행은 빠진다
+        assertThat(regions).extracting(Region::code).containsExactly("11680101", "41830250");
+        assertThat(regions).extracting(Region::name).containsExactly("역삼동", "양평읍");
+        assertThat(regions.getFirst().displayAddress()).isEqualTo("서울 강남구 역삼동");
         // 먼저 나온 주소의 좌표를 쓴다
         assertThat(regions.getFirst().latitude()).isEqualTo(37.5006);
         server.verify();
@@ -196,7 +204,7 @@ class KakaoRegionResolverTest {
         server.expect(requestTo(containsString("address.json")))
                 .andRespond(withSuccess(ADDRESS_SEARCH, MediaType.APPLICATION_JSON));
 
-        assertThat(resolver.search("역삼", 1)).extracting(Region::code).containsExactly("1168064000");
+        assertThat(resolver.search("역삼", 1)).extracting(Region::code).containsExactly("11680101");
     }
 
     @Test
