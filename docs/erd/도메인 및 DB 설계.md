@@ -1,6 +1,6 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.8\
+> 버전 : v0.1.9\
 > 수정일 : 2026.10.22
 
 ## 1. 공통 규칙
@@ -222,7 +222,7 @@ erDiagram
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
-인덱스: INDEX (community_id, active, id)
+인덱스: INDEX (community_id, active, id) · UNIQUE (community_id, name)
 
 - 물건/약속의 community_id와 일치하는지 서비스 검사. 사용된 장소는 물리 삭제하지 않는다.
 
