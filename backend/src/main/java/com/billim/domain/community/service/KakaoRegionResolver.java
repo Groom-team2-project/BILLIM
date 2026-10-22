@@ -21,6 +21,9 @@ import java.util.Optional;
  *
  * <p>어떤 실패도 예외로 올리지 않는다. 호출 측이 반경 판정으로 내려갈 수 있어야 한다.
  * 좌표는 질의에만 쓰고 저장·로그에 남기지 않는다. (정책 및 상태 5 위치 인증)
+ *
+ * <p>호출 1회가 약 50ms라 결과를 캐시한다. 연동 실패는 캐시하지 않으므로 장애가 풀리면
+ * 바로 복구된다. (성능 측정 E-커뮤니티운영-1차측정 5.1)
  */
 public class KakaoRegionResolver implements RegionResolver {
 
@@ -37,14 +40,20 @@ public class KakaoRegionResolver implements RegionResolver {
 
     private final RestClient restClient;
     private final JsonCodec jsonCodec;
+    private final RegionCache cache;
 
-    public KakaoRegionResolver(RestClient restClient, JsonCodec jsonCodec) {
+    public KakaoRegionResolver(RestClient restClient, JsonCodec jsonCodec, RegionCache cache) {
         this.restClient = restClient;
         this.jsonCodec = jsonCodec;
+        this.cache = cache;
     }
 
     @Override
     public Optional<Region> resolve(double latitude, double longitude) {
+        Optional<Optional<Region>> cached = cache.getCoord(latitude, longitude);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
         try {
             String body = restClient.get()
                     .uri(builder -> builder.path(COORD_PATH)
@@ -54,7 +63,10 @@ public class KakaoRegionResolver implements RegionResolver {
                     .retrieve()
                     .body(String.class);
 
-            return toRegion(body);
+            Optional<Region> region = toRegion(body);
+            // 0건도 캐시한다. 바다·국외 좌표가 매번 외부로 나가지 않게
+            cache.putCoord(latitude, longitude, region);
+            return region;
         } catch (RuntimeException e) {
             // 좌표는 남기지 않는다. 실패했다는 사실과 원인만 남긴다
             log.warn("행정동 조회 실패. 반경 판정으로 대체한다: {}", e.toString());
@@ -74,6 +86,10 @@ public class KakaoRegionResolver implements RegionResolver {
         if (keyword == null || keyword.isBlank() || limit <= 0) {
             return List.of();
         }
+        Optional<List<Region>> cached = cache.getKeyword(keyword, limit);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
         try {
             String body = restClient.get()
                     .uri(builder -> builder.path(ADDRESS_PATH)
@@ -83,7 +99,10 @@ public class KakaoRegionResolver implements RegionResolver {
                     .retrieve()
                     .body(String.class);
 
-            return toRegions(body, limit);
+            List<Region> regions = toRegions(body, limit);
+            // 0건도 캐시한다. 구·시 이름처럼 늘 행정동이 없는 검색어가 반복된다
+            cache.putKeyword(keyword, limit, regions);
+            return regions;
         } catch (RuntimeException e) {
             log.warn("행정동 이름 검색 실패. 등록된 동네만 보여준다: {}", e.toString());
             return List.of();

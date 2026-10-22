@@ -398,7 +398,7 @@ export const STATUS_UI: Record<RentalStatus, { label: string; icon: string; toke
 |---|---|---|
 | `Button` | `variant: primary \| secondary \| ghost \| danger`, `size: sm(36) \| md(44) \| lg(52)`, `icon`, `block`, `disabled` | 한 화면(카드)에 primary 하나. 거절은 secondary, danger는 신고·차단에만. `loading`은 아직 미구현 |
 | `TextField` | `label`, `hint`, `optional`, `multiline`, `placeholder`, `defaultValue` | 라벨 항상 표시(placeholder로 대체 금지). `error`는 아직 미구현 |
-| `SearchField` | `placeholder`, `className` | 알약형, `--surface-sunken` 배경 |
+| `SearchField` | `placeholder`, `className`, `value`, `onChange`, `onSubmit`, `label`, `inputRef`, `onKeyDown` | 알약형, `--surface-sunken` 배경. 제어 입력은 `value`+`onChange`. 한글 조합 중 Enter는 내부에서 무시 |
 | `Chip` | `selected`, `icon`, `count`, `caret`, `onClick` | 필터용. 날짜 칩은 선택된 기간을 그대로 표기 |
 | `ChipScroller` | `label` | 칩 줄이 넘칠 때 드래그 스크롤 + 좌우 이동 버튼 + 가장자리 페이드 |
 | `Segmented` | `label`, `value`, `options`, `onChange` (제네릭) | 정렬(최신순/가까운 순), 보기(목록/지도) |

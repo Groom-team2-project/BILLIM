@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,7 +36,9 @@ public class RegionResolverConfig {
             @Value("${billim.community.verification.region.api-key:}") String apiKey,
             @Value("${billim.community.verification.region.base-url:https://dapi.kakao.com}") String baseUrl,
             @Value("${billim.community.verification.region.connect-timeout-ms:1000}") int connectTimeoutMs,
-            @Value("${billim.community.verification.region.read-timeout-ms:2000}") int readTimeoutMs) {
+            @Value("${billim.community.verification.region.read-timeout-ms:2000}") int readTimeoutMs,
+            @Value("${billim.community.verification.region.cache-size:500}") int cacheSize,
+            @Value("${billim.community.verification.region.cache-ttl:PT30M}") Duration cacheTtl) {
 
         if (!enabled || apiKey.isBlank()) {
             log.info("행정동 역지오코딩 미사용. 위치 인증은 반경 판정만 사용한다 (enabled={}, 키 설정={})",
@@ -53,8 +56,8 @@ public class RegionResolverConfig {
                 .requestFactory(requestFactory)
                 .build();
 
-        log.info("행정동 역지오코딩 사용. baseUrl={}", baseUrl);
-        return new KakaoRegionResolver(restClient, jsonCodec);
+        log.info("행정동 역지오코딩 사용. baseUrl={} 캐시={}건/{}", baseUrl, cacheSize, cacheTtl);
+        return new KakaoRegionResolver(restClient, jsonCodec, new RegionCache(cacheSize, cacheTtl));
     }
 
     /** 지도 연동을 쓰지 않을 때. 위치 인증은 반경 판정만, 동네 검색은 등록된 동네만 쓴다 */

@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,7 +52,9 @@ class KakaoRegionResolverTest {
 
     private final RestClient.Builder builder = RestClient.builder().baseUrl("https://dapi.kakao.com");
     private final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-    private final RegionResolver resolver = new KakaoRegionResolver(builder.build(), new JsonCodec());
+    // 캐시가 응답을 가로채면 MockRestServiceServer 기대가 어긋난다. TTL 0으로 끈다
+    private final RegionResolver resolver =
+            new KakaoRegionResolver(builder.build(), new JsonCodec(), new RegionCache(0, Duration.ZERO));
 
     @Test
     @DisplayName("행정동(H)만 골라 읽는다")
