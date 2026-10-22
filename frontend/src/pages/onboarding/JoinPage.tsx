@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Icon } from "@/components/ui/icon";
 import { PageHeader } from "@/components/layout/header";
@@ -16,11 +16,14 @@ const c = classes(styles);
 /** key는 이 결과가 어느 검색어의 것인지. 현재 검색어와 다르면 로딩이다 */
 type Result = { key: string } & (
   | { state: "error"; message: string }
-  | { state: "ok"; items: ApiCommunity[]; truncated: boolean }
+  | { state: "ok"; items: ApiCommunity[]; truncated: boolean; total: number }
 );
 
 /** 위치로 찾은 결과의 key. 어떤 검색어 key와도 겹치지 않는다 */
 const NEARBY_KEY = "nearby";
+
+/** 한 글자로는 검색하지 않는다. 후보가 너무 넓고 서버에서도 행정동 보충을 하지 않는다 */
+const MIN_KEYWORD = 2;
 
 /** 목록 문구: "표시 주소 · 이웃 N명" */
 function describe(community: ApiCommunity): string {
@@ -36,6 +39,9 @@ export function JoinPage() {
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+  // ↑↓로 후보 사이를 옮기려면 실제 링크를 집어야 한다
+  const listRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   // 입력이 멈춘 뒤 검색 (300ms). 일부만 입력해도 후보가 좁혀진다
   useEffect(() => {
@@ -46,15 +52,22 @@ export function JoinPage() {
   // 로딩은 상태로 두지 않고 "결과가 현재 검색어의 것인지"로 가린다.
   // 효과 안에서 setState하면 입력마다 렌더가 한 번 더 돈다
   const key = `${retry}:${query}`;
-  const loading = source === "search" && result?.key !== key;
+  // 한 글자는 요청하지 않으므로 로딩도 아니다
+  const tooShort = query.length > 0 && query.length < MIN_KEYWORD;
+  const loading = source === "search" && !tooShort && result?.key !== key;
 
   // 이름 검색 — 처음에는 전체 활성 동네를 보여준다 (위치 없이 검색 가능, E_009)
   useEffect(() => {
-    if (source !== "search") return;
+    if (source !== "search" || tooShort) return;
     let alive = true;
     searchCommunities(query || undefined)
       .then((page) => {
-        if (alive) setResult({ key, state: "ok", items: page.items, truncated: false });
+        if (alive) {
+          setResult({
+            key, state: "ok", items: page.items,
+            truncated: page.hasNext, total: page.totalElements,
+          });
+        }
       })
       .catch((e: unknown) => {
         if (!alive) return;
@@ -64,7 +77,7 @@ export function JoinPage() {
     return () => {
       alive = false;
     };
-  }, [key, query, source]);
+  }, [key, query, source, tooShort]);
 
   /** 현재 위치로 주변 동네 찾기 (E_071). 이 조회 자체는 인증이 아니다 */
   const onLocate = async () => {
@@ -76,7 +89,10 @@ export function JoinPage() {
       setSource("nearby");
       setKeyword("");
       setQuery("");
-      setResult({ key: NEARBY_KEY, state: "ok", items: nearby.items, truncated: nearby.truncated });
+      setResult({
+        key: NEARBY_KEY, state: "ok", items: nearby.items,
+        truncated: nearby.truncated, total: nearby.items.length,
+      });
     } catch (e: unknown) {
       if (e instanceof GeoError) setLocateError(e.message);
       else if (e instanceof ApiError) setLocateError(e.message);
@@ -100,6 +116,15 @@ export function JoinPage() {
         <SearchField
           placeholder="동네·단지 이름으로 검색"
           label="동네 검색"
+          inputRef={searchRef}
+          onKeyDown={(e) => {
+            // 아래 화살표로 후보 목록에 들어간다. 한글 조합 중에는 건드리지 않는다
+            if (e.key !== "ArrowDown" || e.nativeEvent.isComposing) return;
+            const first = listRef.current?.querySelector<HTMLAnchorElement>("a");
+            if (!first) return;
+            e.preventDefault();
+            first.focus();
+          }}
           value={keyword}
           onChange={(value) => {
             setSource("search");
@@ -134,20 +159,40 @@ export function JoinPage() {
           </Loading>
         )}
 
-        {!loading && result?.state === "error" && (
+        {!loading && !tooShort && result?.state === "error" && (
           <ErrorState onRetry={() => setRetry((n) => n + 1)}>
             {result.message}
           </ErrorState>
         )}
 
-        {!loading && result?.state === "ok" && result.items.length === 0 && (
+        {!loading && !tooShort && result?.state === "ok" && result.items.length === 0 && (
           <EmptyState icon="search" title="찾는 동네가 없어요">
             이름을 다시 확인하거나 현재 위치로 찾아 주세요.
           </EmptyState>
         )}
 
-        {!loading && result?.state === "ok" && result.items.length > 0 && (
-          <div className={c("join-card")}>
+        {!loading && !tooShort && result?.state === "ok" && result.items.length > 0 && (
+          <div
+            className={c("join-card")}
+            ref={listRef}
+            onKeyDown={(e) => {
+              if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Escape") return;
+              if (e.key === "Escape") {
+                e.preventDefault();
+                searchRef.current?.focus();
+                return;
+              }
+              const links = Array.from(
+                listRef.current?.querySelectorAll<HTMLAnchorElement>("a") ?? [],
+              );
+              const at = links.indexOf(document.activeElement as HTMLAnchorElement);
+              if (at < 0) return;
+              e.preventDefault();
+              // 첫 항목에서 위로 가면 입력창으로 돌아간다
+              if (e.key === "ArrowUp" && at === 0) searchRef.current?.focus();
+              else links[e.key === "ArrowDown" ? Math.min(at + 1, links.length - 1) : at - 1]?.focus();
+            }}
+          >
             {result.items.map((community) => (
               <Link
                 key={community.id}
@@ -167,9 +212,15 @@ export function JoinPage() {
           </div>
         )}
 
-        {!loading && result?.state === "ok" && result.truncated && (
+        {tooShort && (
+          <p className={c("t-caption join-muted")}>두 글자 이상 입력해 주세요.</p>
+        )}
+
+        {!loading && !tooShort && result?.state === "ok" && result.truncated && (
           <p className={c("t-caption join-muted")}>
-            가까운 동네 20개만 보여줘요. 찾는 동네가 없으면 이름으로 검색해 주세요.
+            {source === "nearby"
+              ? "가까운 동네 20개만 보여줘요. 찾는 동네가 없으면 이름으로 검색해 주세요."
+              : `총 ${result.total}곳 중 ${result.items.length}곳만 보여줘요. 동 이름까지 입력하면 좁혀져요.`}
           </p>
         )}
 
