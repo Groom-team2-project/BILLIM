@@ -11,12 +11,12 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 읍면동 조회 캐시 (성능 측정 5.1 — 외부 호출 1회 약 50ms).
+ * 행정동 조회 캐시 (성능 측정 5.1 — 외부 호출 1회 약 50ms).
  */
 class RegionCacheTest {
 
     private static final Region YEOKSAM = new Region(
-            "11680101", "역삼동", "서울 강남구 역삼동", 37.4955, 127.0333);
+            "1168064000", "역삼1동", "서울 강남구 역삼1동", 37.5006, 127.0361);
 
     @Test
     @DisplayName("같은 좌표는 캐시에서 돌려준다")
