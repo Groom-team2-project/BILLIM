@@ -70,8 +70,8 @@ class ChatWebSocketHandlerTest {
         handler.refreshRoom(901L);
         handler.refreshRoom(901L);
 
-        verify(session, times(1)).sendMessage(argThat(message ->
-            message instanceof TextMessage textMessage
+        verify(session, times(1)).sendMessage(argThat(sentMessage ->
+            sentMessage instanceof TextMessage textMessage
                 && textMessage.getPayload().equals("{\"id\":\"701\"}")));
     }
 
