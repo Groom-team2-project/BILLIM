@@ -21,6 +21,7 @@ class ChatDatabaseRelayTest {
 
         relay.deliverCommittedMessages();
 
+        verify(handler).activeRoomIds();
         verify(handler).refreshRoom(901L);
         verify(handler).refreshRoom(902L);
         verifyNoMoreInteractions(handler);
