@@ -57,12 +57,16 @@ class ChatWebSocketHandlerTest {
     @DisplayName("유효한 연결은 메시지를 수신한다")
     void authorizedConnectionReceivesMessage() throws Exception {
         WebSocketSession session = session("session-1", 2L, 55L);
+        MessageResponse message = message(1L);
         when(accessService.canReceive(901L, 2L, 55L)).thenReturn(true);
         when(accessService.findLastSequenceForParticipant(901L, 2L))
-            .thenReturn(Optional.of(0L));
+            .thenReturn(Optional.of(0L), Optional.of(1L));
+        when(messageQueryService.getMessages(901L, 2L, 0L, null, 50))
+            .thenReturn(new MessagePageResponse(List.of(message), false, null, null, 0));
+        when(objectMapper.writeValueAsString(message)).thenReturn("{\"id\":\"701\"}");
 
         handler.afterConnectionEstablished(session);
-        handler.broadcast(901L, "{\"id\":\"701\"}");
+        handler.refreshRoom(901L);
 
         verify(session).sendMessage(argThat(message ->
             message instanceof TextMessage textMessage
@@ -73,12 +77,12 @@ class ChatWebSocketHandlerTest {
     @DisplayName("전달 시 권한이 사라진 연결은 종료하고 메시지를 보내지 않는다")
     void revokedConnectionDoesNotReceiveMessage() throws Exception {
         WebSocketSession session = session("session-1", 2L, 55L);
-        when(accessService.canReceive(901L, 2L, 55L)).thenReturn(true, false);
+        when(accessService.canReceive(901L, 2L, 55L)).thenReturn(true, true, false);
         when(accessService.findLastSequenceForParticipant(901L, 2L))
             .thenReturn(Optional.of(0L));
 
         handler.afterConnectionEstablished(session);
-        handler.broadcast(901L, "{\"id\":\"701\"}");
+        handler.refreshRoom(901L);
 
         verify(session, never()).sendMessage(any());
         verify(session).close(CloseStatus.POLICY_VIOLATION);
@@ -88,10 +92,7 @@ class ChatWebSocketHandlerTest {
     @DisplayName("핸드셰이크 뒤 등록 전 저장된 메시지를 연결 직후 재전달한다")
     void messageCommittedDuringConnectionIsReplayed() throws Exception {
         WebSocketSession session = session("session-1", 2L, 55L);
-        MessageResponse message = new MessageResponse(
-            "701", "901", 1L, "TEXT", "2", "hello", null, null,
-            null, null, Instant.parse("2026-10-19T00:00:00Z")
-        );
+        MessageResponse message = message(1L);
         when(accessService.canReceive(901L, 2L, 55L)).thenReturn(true);
         when(accessService.findLastSequenceForParticipant(901L, 2L))
             .thenReturn(Optional.of(1L));
@@ -118,6 +119,13 @@ class ChatWebSocketHandlerTest {
 
         verify(session, never()).sendMessage(any());
         verify(session).close(CloseStatus.POLICY_VIOLATION);
+    }
+
+    private MessageResponse message(long sequence) {
+        return new MessageResponse(
+            "701", "901", sequence, "TEXT", "2", "hello", null, null,
+            null, null, Instant.parse("2026-10-19T00:00:00Z")
+        );
     }
 
     private WebSocketSession session(String sessionId, Long memberId, Long authSessionId) {
