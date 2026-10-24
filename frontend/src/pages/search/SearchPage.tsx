@@ -12,7 +12,7 @@ import { KakaoMapView } from "@/components/custom/items/KakaoMapView";
 import { ApiError } from "@/api/client";
 import { type ApiItemSummary, searchItems } from "@/api/items";
 import { useCategories } from "@/hooks/useCategories";
-import { useActiveCommunity } from "@/stores/community";
+import { getMyProfile } from "@/api/members";
 import { categoryIcon, toIsoDate } from "@/utils/registerForm";
 import { fillPlace, formatMonthDay, toCardItem, toMapPins, toPlaceMarkers, toSearchQuery } from "@/utils/itemView";
 import { useCommunityPlaces } from "@/hooks/useCommunityPlaces";
@@ -35,7 +35,8 @@ export function SearchPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const categories = useCategories();
-  const community = useActiveCommunity();
+  // 실제 활성 동네 이름 (GET /members/me). 불러오기 전·실패 시에는 표시하지 않는다
+  const [communityName, setCommunityName] = useState<string | null>(null);
   const [keyword, setKeyword] = useState(params.get("keyword") ?? "");
   const [query, setQuery] = useState(keyword);
   const [categoryId, setCategoryId] = useState<string | null>(params.get("categoryId"));
@@ -52,6 +53,18 @@ export function SearchPage() {
   const [today] = useState(() => new Date());
 
   // 입력이 멈춘 뒤 검색 (300ms)
+  useEffect(() => {
+    let alive = true;
+    getMyProfile()
+      .then((me) => alive && setCommunityName(me.activeMembership?.communityName ?? null))
+      .catch(() => {
+        // 표시용 정보라 실패해도 검색은 그대로 진행
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   useEffect(() => {
     const t = setTimeout(() => setQuery(keyword), 300);
     return () => clearTimeout(t);
@@ -182,7 +195,7 @@ export function SearchPage() {
           <div className={c("search-toolbar")}>
             <p className={c("t-label search-count")} aria-live="polite">
               결과 {result?.state === "ok" && !loading ? result.total : 0}개
-              <span className={c("search-muted")}> · {community}</span>
+              {communityName ? <span className={c("search-muted")}> · {communityName}</span> : null}
             </p>
             <div className={c("search-toolbar-controls")}>
               <Segmented
