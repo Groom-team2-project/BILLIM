@@ -4,6 +4,9 @@
 spring:
   application:
     name: billim
+  data:
+    redis:
+      url: ${REDIS_URL:redis://127.0.0.1:6379}
   profiles:
     default: local              # 프로필 미지정 시 local로 동작
   config:
@@ -170,6 +173,9 @@ spring:
   config:
     activate:
       on-profile: prod
+  data:
+    redis:
+      url: ${REDIS_URL}
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}

@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 class ChatWebSocketHandlerTest {
@@ -67,8 +68,9 @@ class ChatWebSocketHandlerTest {
 
         handler.afterConnectionEstablished(session);
         handler.refreshRoom(901L);
+        handler.refreshRoom(901L);
 
-        verify(session).sendMessage(argThat(message ->
+        verify(session, times(1)).sendMessage(argThat(message ->
             message instanceof TextMessage textMessage
                 && textMessage.getPayload().equals("{\"id\":\"701\"}")));
     }
