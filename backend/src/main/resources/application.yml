@@ -79,6 +79,17 @@ billim:
         # 연동 실패는 캐시하지 않으므로 장애 복구가 TTL만큼 늦어지지 않는다
         cache-size: 500
         cache-ttl: 30m
+    places:
+      auto-supply:
+        # 장소가 0개인 동네를 조회 시 공공기관으로 채운다. 부담되면 내린다
+        enabled: ${PLACE_AUTO_SUPPLY:true}
+        # 한 동네에 채울 장소 수. 반경 5km 한 번에 보통 3건 이상 나온다
+        limit: 3
+        # 채우지 못한 동네를 다시 시도하기까지의 간격.
+        # 섬처럼 후보가 없는 동네와 연동 장애가 매 조회마다 외부를 부르지 않게 한다
+        retry-after: 1h
+        # 재시도 억제를 기억할 동네 수 (인스턴스별)
+        tracked-communities: 1000
   notification:
     outbox:
       # 사건 소비 주기 실행 on/off. 테스트·부하 측정에서 끈다
