@@ -708,16 +708,15 @@ class ItemServiceTest {
     }
 
     @Test
-    @DisplayName("검색은 동네 공개 물건 소유자 중 차단 관계인 회원을 조회 전에 제외 조건으로 넣는다")
+    @DisplayName("검색은 동네 소유자 전체를 모으지 않고, 차단 관계 회원만 조회해 조회 전에 제외 조건으로 넣는다")
     void searchExcludesBlockedOwnersBeforePaging() {
         when(accessPolicy.requireActiveCommunityId(ME)).thenReturn(COMMUNITY);
-        when(itemRepository.findPublicOwnerIds(COMMUNITY)).thenReturn(List.of(2L, 3L, 4L));
-        when(accessPolicy.findBlockedOwners(ME, List.of(2L, 3L, 4L))).thenReturn(Set.of(3L));
+        when(accessPolicy.findBlockRelatedMembers(ME)).thenReturn(Set.of(3L));
         when(itemRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
 
         service.search(ME, cond(null, null, ItemSort.LATEST, 0, 20));
 
-        verify(accessPolicy).findBlockedOwners(ME, List.of(2L, 3L, 4L));
+        verify(accessPolicy).findBlockRelatedMembers(ME);
         verify(itemRepository).findAll(any(Specification.class), any(Pageable.class));
     }
 

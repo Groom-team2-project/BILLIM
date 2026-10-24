@@ -21,6 +21,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -135,9 +136,10 @@ class ItemAccessPolicyTest {
     }
 
     @Test
-    @DisplayName("검색 후보 소유자 중 차단 관계인 회원을 한 번에 돌려준다")
-    void findBlockedOwnersDelegatesInOneCall() {
-        when(blockQuery.findBlockedAmong(VIEWER, List.of(1L, 3L))).thenReturn(Set.of(3L));
-        assertThat(policy.findBlockedOwners(VIEWER, List.of(1L, 3L))).containsExactly(3L);
+    @DisplayName("검색 제외 대상은 후보를 모으지 않고 차단 관계 회원만 한 번에 조회한다")
+    void findBlockRelatedMembersDelegatesInOneCall() {
+        when(blockQuery.findBlockRelatedMemberIds(VIEWER)).thenReturn(Set.of(3L));
+        assertThat(policy.findBlockRelatedMembers(VIEWER)).containsExactly(3L);
+        verify(blockQuery, never()).findBlockedAmong(anyLong(), any());
     }
 }

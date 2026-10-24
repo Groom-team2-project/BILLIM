@@ -122,6 +122,11 @@ public class BlockService implements BlockQuery {
         return new HashSet<>(blockRepository.findRelatedMemberIdsAmong(memberId, candidateMemberIds));
     }
 
+    @Override
+    public Set<Long> findBlockRelatedMemberIds(long memberId) {
+        return new HashSet<>(blockRepository.findRelatedMemberIds(memberId));
+    }
+
     /**
      * 볼 수 있는 상대만 차단할 수 있다. 같은 유효 동네 이웃이거나 거래한 적이 있는 상대다.
      * 그 외는 애초에 알 수 없는 사람이라 존재를 알리지 않고 404로 돌려보낸다. (명세 0.2)

@@ -8,6 +8,7 @@ import com.billim.domain.item.entity.MediaFile;
 import com.billim.domain.member.entity.Member;
 import com.billim.domain.rental.entity.Rental;
 import com.billim.domain.rental.entity.RentalStatus;
+import com.billim.global.config.JpaAuditingConfig;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Docker가 필요하다.
  */
 @DataJpaTest
-@Import(ItemRepositoryTest.MySql.class)
+// 회원·대여는 생성 시각을 JPA Auditing 으로 채우므로 함께 불러온다 (물건·사진은 시각을 직접 넣는다)
+@Import({ItemRepositoryTest.MySql.class, JpaAuditingConfig.class})
 class ItemRepositoryTest {
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -231,15 +233,13 @@ class ItemRepositoryTest {
     }
 
     @Test
-    @DisplayName("차단 판정 후보는 동네의 공개 물건 소유자만이고, ownerNotIn으로 해당 소유자 물건을 검색에서 제외한다")
+    @DisplayName("ownerNotIn으로 차단 관계 소유자의 물건을 검색에서 제외한다")
     void publicOwnerCandidatesAndOwnerExclusion() {
         Item fromTwo = itemOf(2L, COMMUNITY, "드릴", ItemVisibility.PUBLIC);
         itemOf(3L, COMMUNITY, "텐트", ItemVisibility.PUBLIC);
         itemOf(4L, COMMUNITY, "숨김", ItemVisibility.HIDDEN);
         itemOf(5L, 999L, "다른 동네", ItemVisibility.PUBLIC);
         em.flush();
-
-        assertThat(itemRepository.findPublicOwnerIds(COMMUNITY)).containsExactlyInAnyOrder(2L, 3L);
 
         List<Long> visible = itemRepository.findAll(ItemSpecifications.allOf(
                         ItemSpecifications.community(COMMUNITY),

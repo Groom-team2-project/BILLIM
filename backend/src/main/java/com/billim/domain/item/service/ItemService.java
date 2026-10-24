@@ -291,8 +291,9 @@ public class ItemService {
     // 검색·지도 공통 조건: 같은 동네의 공개 물건, 차단 관계 소유자 제외
     private Specification<Item> searchFilter(long memberId, long communityId, String keyword, Long categoryId,
                                              Long placeId, LocalDate startDate, LocalDate endDate) {
-        // 차단 관계(양방향) 소유자는 페이지 수가 맞도록 조회 전에 조건으로 제외
-        Set<Long> blockedOwners = accessPolicy.findBlockedOwners(memberId, itemRepository.findPublicOwnerIds(communityId));
+        // 차단 관계(양방향) 회원의 물건은 페이지 수가 맞도록 조회 전에 조건으로 제외.
+        // 동네 소유자 전체를 먼저 모으지 않고 차단 관계만 조회한다 (1차 측정: 소유자 전체 조회가 검색·지도·홈 공통 병목)
+        Set<Long> blockedOwners = accessPolicy.findBlockRelatedMembers(memberId);
         // 기간을 고르면 물건의 대여 가능 기간 안이면서, 그 기간에 대여가 점유되지 않은 물건만
         return ItemSpecifications.allOf(
                 ItemSpecifications.community(communityId),
