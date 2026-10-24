@@ -193,6 +193,16 @@ class BlockNoticeFlowDbTest {
     }
 
     @Test
+    @DisplayName("차단 관계 회원 전체를 양방향으로 돌려준다")
+    void findBlockRelatedMemberIdsIsBidirectional() {
+        blockService.block(me, neighbor);
+
+        assertThat(blockService.findBlockRelatedMemberIds(me)).containsExactly(neighbor);
+        assertThat(blockService.findBlockRelatedMemberIds(neighbor)).containsExactly(me);
+        assertThat(blockService.findBlockRelatedMemberIds(stranger)).isEmpty();
+    }
+
+    @Test
     @DisplayName("내가 차단한 경우만 단방향 판정이 참이다")
     void hasBlockedIsOneDirectional() {
         blockService.block(me, neighbor);
