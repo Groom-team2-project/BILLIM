@@ -2,21 +2,22 @@
 # B파트 물건 조회 성능 측정을 CASE마다 반복 실행하고 결과를 한 폴더에 모은다.
 # 순서: 연결 확인(1 VU) → CASE마다 워밍업 10초(기록 안 함) → 같은 조건 REPEAT회 측정 → 표 정리
 #
-# 사용: bash performance/item_bench.sh
-# 옵션: CASES="search-latest map" VUS=10 DURATION=30s REPEAT=3 bash performance/item_bench.sh
+# 사용: bash docs/performance/tools/item/item_bench.sh
+# 옵션: CASES="search-latest map" VUS=10 DURATION=30s REPEAT=3 bash docs/performance/tools/item/item_bench.sh
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../../../.."
 
-COMPOSE="performance/compose.yaml"
+TOOL="docs/performance/tools/item"
+COMPOSE="$TOOL/compose.yaml"
 CASES=${CASES:-"search-latest search-keyword search-category search-period search-nearest search-deep-page item-detail mine neighbor map home"}
 VUS=${VUS:-10}
 DURATION=${DURATION:-30s}
 REPEAT=${REPEAT:-3}
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
-OUT="performance/local/results/$(date +%Y%m%d-%H%M%S)-${COMMIT}"
+OUT="$TOOL/local/results/$(date +%Y%m%d-%H%M%S)-${COMMIT}"
 
-if [ ! -f performance/local/item-fixtures.json ]; then
-  echo "local/item-fixtures.json 이 없습니다. 먼저 python3 performance/item_seed.py 를 실행하세요."
+if [ ! -f "$TOOL/local/item-fixtures.json" ]; then
+  echo "local/item-fixtures.json 이 없습니다. 먼저 python3 $TOOL/item_seed.py 를 실행하세요."
   exit 1
 fi
 mkdir -p "$OUT"
@@ -58,6 +59,6 @@ for c in $CASES; do
   done
 done
 
-python3 performance/item_report.py "$OUT" | tee "$OUT/report.md"
+python3 "$TOOL/item_report.py" "$OUT" | tee "$OUT/report.md"
 echo
 echo "원본: ${OUT}  ·  표: ${OUT}/report.md (docs/performance 측정 문서 2번 표에 붙여 넣기)"

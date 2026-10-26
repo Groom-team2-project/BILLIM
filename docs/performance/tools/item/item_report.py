@@ -1,6 +1,6 @@
 """item_bench.sh 결과 폴더를 읽어 CASE별 중위값 표(마크다운)를 만든다.
 
-사용: python3 performance/item_report.py performance/local/results/<폴더>
+사용: python3 docs/performance/tools/item/item_report.py docs/performance/tools/item/local/results/<폴더>
 """
 
 import json
@@ -45,5 +45,5 @@ def main(folder: Path) -> None:
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        raise SystemExit("사용: python3 performance/item_report.py <결과 폴더>")
+        raise SystemExit("사용: python3 docs/performance/tools/item/item_report.py <결과 폴더>")
     main(Path(sys.argv[1]))

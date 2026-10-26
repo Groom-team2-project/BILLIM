@@ -5,8 +5,8 @@
 - 난수 없이 번호 계산식으로 만들어 몇 번을 실행해도 같은 데이터가 된다 (1차·2차 비교용).
 - 데이터가 이미 있으면 다시 넣지 않고, 세션 갱신과 결과 파일(local/item-fixtures.json)만 다시 쓴다.
 
-실행: python3 performance/item_seed.py
-초기화: docker compose -f performance/compose.yaml down -v && rm -rf performance/local
+실행: python3 docs/performance/tools/item/item_seed.py
+초기화: docker compose -f docs/performance/tools/item/compose.yaml down -v && rm -rf docs/performance/tools/item/local
 """
 
 import hashlib
@@ -79,7 +79,7 @@ def wait_until(label: str, probe, timeout_s: int) -> None:
             last_error = last_error[0]
         time.sleep(3)
     raise SystemExit(f"✗ {label} 대기 시간 초과 ({timeout_s}초). {last_error}\n"
-                     f"  docker compose -f performance/compose.yaml logs backend --tail 50 으로 상태를 확인하세요.")
+                     f"  docker compose -f docs/performance/tools/item/compose.yaml logs backend --tail 50 으로 상태를 확인하세요.")
 
 
 def schema_ready() -> bool:

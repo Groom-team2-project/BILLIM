@@ -8,7 +8,6 @@ import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
 import java.util.Optional;
 import java.util.Set;
 
@@ -46,9 +45,9 @@ public class ItemAccessPolicy {
         return blockQuery.isBlockedBetween(memberId, otherMemberId);
     }
 
-    // 후보 소유자 중 나와 차단 관계(양방향)인 회원
-    public Set<Long> findBlockedOwners(long memberId, Collection<Long> ownerIds) {
-        return blockQuery.findBlockedAmong(memberId, ownerIds);
+    // 나와 차단 관계(양방향)인 회원. 검색에서 이 회원들의 물건을 제외한다 (차단 관계 수만큼만 조회)
+    public Set<Long> findBlockRelatedMembers(long memberId) {
+        return blockQuery.findBlockRelatedMemberIds(memberId);
     }
 
     /** 본인은 HIDDEN도 조회. 타인은 같은 유효 동네의 PUBLIC이면서 차단 관계가 아닌 경우만. DELETED는 모두 불가 */

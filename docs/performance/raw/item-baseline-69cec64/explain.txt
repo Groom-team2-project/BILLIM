@@ -1,0 +1,58 @@
+커밋 e11fd38 · 2026-10-24 09:51
+
+### Q1 (개선 전 검색) 차단 판정용 소유자 전체
+-> Table scan on <temporary>  (cost=2.96..2.96 rows=1) (actual time=3.68..3.68 rows=0 loops=1)
+    -> Temporary table with deduplication  (cost=0.45..0.45 rows=1) (actual time=3.27..3.27 rows=0 loops=1)
+        -> Index lookup on items using idx_items_community_visibility_created (community_id=910100, visibility='PUBLIC')  (cost=0.35 rows=1) (actual time=1.27..1.27 rows=0 loops=1)
+
+
+### Q1' (개선 후 검색) 차단 관계 회원만
+-> Filter: ((blocks.blocker_id = 1999999) or (blocks.blocked_id = 1999999))  (cost=1.1 rows=1) (actual time=0.00621..0.00621 rows=0 loops=1)
+    -> Covering index scan on blocks using uk_blocks_blocker_blocked  (cost=1.1 rows=1) (actual time=0.00571..0.00571 rows=0 loops=1)
+
+
+### Q2 전체 건수
+-> Aggregate: count(0)  (cost=0.45 rows=1) (actual time=0.463..0.464 rows=1 loops=1)
+    -> Covering index lookup on items using idx_items_community_visibility_created (community_id=910100, visibility='PUBLIC')  (cost=0.35 rows=1) (actual time=0.0147..0.0147 rows=0 loops=1)
+
+
+### Q3 최신순 20건
+-> Limit: 20 row(s)  (cost=0.35 rows=1) (actual time=1.46..1.46 rows=0 loops=1)
+    -> Covering index lookup on items using idx_items_community_visibility_created (community_id=910100, visibility='PUBLIC') (reverse)  (cost=0.35 rows=1) (actual time=1.13..1.13 rows=0 loops=1)
+
+
+### Q4 깊은 페이지 OFFSET 20000
+-> Limit/Offset: 20/20000 row(s)  (cost=0.35 rows=0) (actual time=0.0125..0.0125 rows=0 loops=1)
+    -> Covering index lookup on items using idx_items_community_visibility_created (community_id=910100, visibility='PUBLIC') (reverse)  (cost=0.35 rows=1) (actual time=0.0119..0.0119 rows=0 loops=1)
+
+
+### Q5 키워드 건수
+-> Aggregate: count(0)  (cost=0.272 rows=1) (actual time=0.26..0.26 rows=1 loops=1)
+    -> Filter: (items.title like '%드릴%')  (cost=0.261 rows=0.111) (actual time=0.259..0.259 rows=0 loops=1)
+        -> Index lookup on items using idx_items_community_visibility_created (community_id=910100, visibility='PUBLIC')  (cost=0.261 rows=1) (actual time=0.258..0.258 rows=0 loops=1)
+
+
+### Q6 기간 건수 (NOT EXISTS 2개)
+-> Aggregate: count(0)  (cost=0.366 rows=1) (actual time=0.0175..0.0176 rows=1 loops=1)
+    -> Nested loop antijoin  (cost=0.347 rows=0.189) (actual time=0.0163..0.0163 rows=0 loops=1)
+        -> Nested loop antijoin  (cost=0.3 rows=0.111) (actual time=0.0159..0.0159 rows=0 loops=1)
+            -> Filter: ((i.available_start_date <= <cache>((curdate() + interval 1 day))) and (i.available_end_date >= <cache>((curdate() + interval 7 day))))  (cost=0.261 rows=0.111) (actual time=0.0151..0.0151 rows=0 loops=1)
+                -> Index lookup on i using idx_items_community_visibility_created (community_id=910100, visibility='PUBLIC')  (cost=0.261 rows=1) (actual time=0.0144..0.0144 rows=0 loops=1)
+            -> Filter: ((o.item_id = i.id) and (o.due_at <= <cache>(utc_timestamp())))  (cost=1.15 rows=1) (never executed)
+                -> Index lookup on o using idx_rentals_status_expires (status='ACTIVE')  (cost=1.15 rows=1) (never executed)
+        -> Filter: ((r.`status` in ('APPROVED','ACTIVE','RETURNED')) and (r.start_date <= <cache>((curdate() + interval 7 day))) and (r.end_date >= <cache>((curdate() + interval 1 day))))  (cost=3.03 rows=1.7) (never executed)
+            -> Covering index lookup on r using idx_rentals_item_status_dates (item_id=i.id)  (cost=3.03 rows=1.7) (never executed)
+
+
+### Q7 지도 장소별 집계
+-> Table scan on <temporary>  (actual time=0.378..0.378 rows=0 loops=1)
+    -> Aggregate using temporary table  (actual time=0.376..0.376 rows=0 loops=1)
+        -> Index lookup on items using idx_items_community_visibility_created (community_id=910100, visibility='PUBLIC')  (cost=0.35 rows=1) (actual time=0.364..0.364 rows=0 loops=1)
+
+
+### Q8 가까운 순 20건
+-> Limit: 20 row(s)  (cost=0.35 rows=1) (actual time=0.015..0.015 rows=0 loops=1)
+    -> Sort: (case items.place_id when 910100 then 10 when 910101 then 20 when 910102 then 30 else 2147483647 end), items.id DESC, limit input to 20 row(s) per chunk  (cost=0.35 rows=1) (actual time=0.0147..0.0147 rows=0 loops=1)
+        -> Index lookup on items using idx_items_community_visibility_created (community_id=910100, visibility='PUBLIC')  (cost=0.35 rows=1) (actual time=0.00992..0.00992 rows=0 loops=1)
+
+

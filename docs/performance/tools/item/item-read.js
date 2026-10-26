@@ -1,7 +1,7 @@
 // B파트(물건·검색) 조회 성능 측정 — k6
-// 전제: python3 performance/item_seed.py 실행 완료 (local/item-fixtures.json 생성)
-// 실행: docker compose -f performance/compose.yaml run --rm -e CASE=search-latest -e VUS=10 -e DURATION=30s k6 run /scripts/item-read.js
-// 반복 측정과 표 정리는 performance/item_bench.sh 사용
+// 전제: python3 docs/performance/tools/item/item_seed.py 실행 완료 (local/item-fixtures.json 생성)
+// 실행: docker compose -f docs/performance/tools/item/compose.yaml run --rm -e CASE=search-latest -e VUS=10 -e DURATION=30s k6 run /scripts/item-read.js
+// 반복 측정과 표 정리는 docs/performance/tools/item/item_bench.sh 사용
 
 import http from 'k6/http';
 import { check, sleep } from 'k6';
@@ -11,7 +11,7 @@ let fixture;
 try {
   fixture = JSON.parse(open('./local/item-fixtures.json'));
 } catch (e) {
-  throw new Error('local/item-fixtures.json 이 없습니다. 먼저 python3 performance/item_seed.py 를 실행하세요.');
+  throw new Error('local/item-fixtures.json 이 없습니다. 먼저 python3 docs/performance/tools/item/item_seed.py 를 실행하세요.');
 }
 
 const baseUrl = __ENV.BASE_URL || 'http://backend:8080';
