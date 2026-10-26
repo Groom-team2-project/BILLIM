@@ -199,6 +199,10 @@ server:
   forward-headers-strategy: framework
 
 billim:
+  chat:
+    redis:
+      # 운영 배포는 Compose에서 Redis 준비 후 기동한다. 장애 시 환경 변수로 비활성화 가능.
+      enabled: ${CHAT_REDIS_ENABLED:true}
   auth:
     # 운영은 HTTPS 전제. 환경 변수 누락으로 http 쿠키가 나가는 실수 방지
     cookie-secure: true

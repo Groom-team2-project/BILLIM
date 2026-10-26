@@ -1,6 +1,6 @@
 name: Deploy Backend
 
-# develop·main push 시 자동 배포. jar를 S3에 올리고 SSM으로 EC2가 받아 교체·재시작
+# develop·main push 시 자동 배포. Redis 준비 후 JAR을 교체·재시작
 on:
   push:
     branches: [develop, main]
@@ -71,6 +71,9 @@ jobs:
               "export PATH=$PATH:/snap/bin",
               "command -v aws >/dev/null || snap install aws-cli --classic",
               ("aws s3 cp s3://" + $b + "/" + $redisCompose + " /home/ubuntu/BILLIM/backend/compose.redis.prod.yaml --region " + $r),
+              "command -v docker >/dev/null",
+              "docker compose version >/dev/null",
+              "docker compose -f /home/ubuntu/BILLIM/backend/compose.redis.prod.yaml up -d --wait",
               ("aws s3 cp s3://" + $b + "/" + $k + " /home/ubuntu/BILLIM/backend/app.jar.new --region " + $r),
               "chown ubuntu:ubuntu /home/ubuntu/BILLIM/backend/app.jar.new",
               "mv /home/ubuntu/BILLIM/backend/app.jar.new /home/ubuntu/BILLIM/backend/app.jar",
