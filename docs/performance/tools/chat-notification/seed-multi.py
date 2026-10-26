@@ -24,6 +24,8 @@ def sql_string(value):
 
 def main():
     refresh_only = len(sys.argv) == 2 and sys.argv[1] == "--refresh-csrf"
+    if os.name != "posix":
+        raise SystemExit("Run this seed tool in WSL/Linux to enforce 0600 fixture permissions.")
     if not 1 <= PAIRS <= 500 or not 0 <= NOTIFICATIONS_PER_MEMBER <= 1000:
         raise SystemExit("PERF_PAIRS must be 1..500 and PERF_NOTIFICATIONS_PER_MEMBER 0..1000")
     if not COMPOSE.exists() or "name: billim-perf-multi" not in COMPOSE.read_text():
@@ -83,7 +85,10 @@ def main():
 
 def save_fixture(fixtures):
     OUTPUT.parent.mkdir(exist_ok=True)
-    OUTPUT.write_text(json.dumps({"pairs": fixtures}, indent=2), encoding="utf-8")
+    fd = os.open(OUTPUT, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as output:
+        os.fchmod(output.fileno(), 0o600)
+        json.dump({"pairs": fixtures}, output, indent=2)
 
 
 def refresh_and_save_csrf(fixtures):
