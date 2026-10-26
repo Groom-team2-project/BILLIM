@@ -4,6 +4,7 @@ import com.billim.domain.chat.service.ChatMessageCreatedEvent;
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.data.redis.connection.Message;
@@ -14,6 +15,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
+@ConditionalOnProperty(prefix = "billim.chat.redis", name = "enabled", havingValue = "true")
 @Slf4j
 public class ChatRedisRelay implements MessageListener {
 

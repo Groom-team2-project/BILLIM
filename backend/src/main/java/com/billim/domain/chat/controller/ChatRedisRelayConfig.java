@@ -1,6 +1,7 @@
 package com.billim.domain.chat.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,6 +11,7 @@ import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 @Configuration
+@ConditionalOnProperty(prefix = "billim.chat.redis", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class ChatRedisRelayConfig {
 

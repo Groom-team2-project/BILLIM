@@ -34,6 +34,7 @@ services:
       SPRING_DATASOURCE_USERNAME: billim_perf
       SPRING_DATASOURCE_PASSWORD: local_perf_only
       REDIS_URL: redis://redis:6379
+      CHAT_REDIS_ENABLED: 'true'
       KAKAO_CLIENT_ID: local-perf-id
       KAKAO_CLIENT_SECRET: local-perf-secret
       OUTBOX_ENABLED: 'false'
