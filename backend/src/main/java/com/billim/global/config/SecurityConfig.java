@@ -1,7 +1,7 @@
 package com.billim.global.config;
 
 import com.billim.global.exception.ErrorCode;
-import com.billim.global.security.KakaoOAuth2UserService;
+import com.billim.global.security.SocialOAuth2UserService;
 import com.billim.global.security.SecurityErrorResponseWriter;
 import com.billim.global.security.oauth.DbAuthorizationRequestRepository;
 import com.billim.global.security.oauth.LoginFailureHandler;
@@ -32,9 +32,11 @@ public class SecurityConfig {
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs/**",
+            // 약관·정책 문서 — 명세 0.2 익명 허용. 로그인 전 화면에서 열람
+            "/api/v1/policies/**",
     };
 
-    private final KakaoOAuth2UserService kakaoOAuth2UserService;
+    private final SocialOAuth2UserService socialOAuth2UserService;
     private final SecurityErrorResponseWriter errorResponseWriter;
     private final AuthSessionSecurityContextRepository securityContextRepository;
     private final AuthSessionCsrfTokenRepository csrfTokenRepository;
@@ -52,6 +54,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        // 관리자 API는 경로에서도 차단 — 컨트롤러의 역할 검사(SafetyRequests.adminId)와 겹벽
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 // HTTP 세션 미사용. 인증·CSRF·OAuth state를 모두 DB에 보관
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -60,8 +64,9 @@ public class SecurityConfig {
                         // baseUri를 /api/v1/auth로 두면 /auth/csrf·/auth/logout까지 등록 ID로 해석됨
                         .authorizationEndpoint(endpoint -> endpoint
                                 .authorizationRequestRepository(authorizationRequestRepository))
-                        .redirectionEndpoint(endpoint -> endpoint.baseUri("/api/v1/auth/kakao/callback"))
-                        .userInfoEndpoint(userInfo -> userInfo.userService(kakaoOAuth2UserService))
+                        // 제공자 자리 와일드카드 — 제공자는 state로 저장된 시도에서 복원
+                        .redirectionEndpoint(endpoint -> endpoint.baseUri("/api/v1/auth/*/callback"))
+                        .userInfoEndpoint(userInfo -> userInfo.userService(socialOAuth2UserService))
                         // defaultSuccessUrl 대신 핸들러에서 세션 회전 후 이동
                         .successHandler(loginSuccessHandler)
                         .failureHandler(loginFailureHandler))

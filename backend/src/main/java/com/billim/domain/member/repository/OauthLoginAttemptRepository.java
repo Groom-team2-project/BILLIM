@@ -4,6 +4,8 @@ import com.billim.domain.member.entity.OauthLoginAttempt;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -30,8 +32,13 @@ public interface OauthLoginAttemptRepository extends JpaRepository<OauthLoginAtt
             """)
     int consumeOnce(String stateHash, Long sessionId, Instant now);
 
-    /** 만료된 시도 삭제. state TTL이 세션보다 훨씬 짧아 세션보다 먼저 정리된다 */
+    /**
+     * 만료된 시도를 묶음 단위로 삭제. state TTL이 세션보다 훨씬 짧아 세션보다 먼저 정리.
+     * 묶음마다 별도 트랜잭션 — 이유는 {@link AuthSessionRepository#deleteExpiredBefore} 참고.
+     */
     @Modifying(flushAutomatically = true, clearAutomatically = true)
-    @Query("delete from OauthLoginAttempt a where a.expiresAt < :threshold")
-    int deleteExpiredBefore(Instant threshold);
+    @Transactional
+    @Query(value = "delete from oauth_login_attempts where expires_at < :threshold limit :chunk",
+            nativeQuery = true)
+    int deleteExpiredBefore(@Param("threshold") Instant threshold, @Param("chunk") int chunk);
 }

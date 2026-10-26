@@ -1,5 +1,7 @@
 package com.billim.domain.community.service;
 
+import com.billim.MockChatRedisListener;
+
 import com.billim.domain.community.dto.MembershipResponse;
 import com.billim.domain.community.dto.VerifyLocationRequest;
 import com.billim.domain.community.entity.Community;
@@ -50,6 +52,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         // 이 테스트는 반경 판정만 본다. 개발자 .env에 카카오 키가 있어도 외부를 부르지 않게 끈다
         "billim.community.verification.region.enabled=false"
 })
+@MockChatRedisListener
 class CommunityFlowDbTest {
 
     @TestConfiguration(proxyBeanMethods = false)

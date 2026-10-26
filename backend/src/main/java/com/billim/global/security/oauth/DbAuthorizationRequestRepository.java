@@ -2,6 +2,7 @@ package com.billim.global.security.oauth;
 
 import com.billim.domain.member.entity.AuthSession;
 import com.billim.domain.member.entity.OauthLoginAttempt;
+import com.billim.domain.member.entity.SocialProvider;
 import com.billim.domain.member.service.AuthSessionService;
 import com.billim.domain.member.service.OauthLoginAttemptService;
 import com.billim.global.security.session.CurrentAuthSession;
@@ -18,6 +19,8 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.stereotype.Component;
 
+import java.util.Locale;
+
 /**
  * 인가 요청을 HTTP 세션이 아닌 oauth_login_attempts에 보관.
  * 로그인 시작과 콜백이 다른 인스턴스로 가도 state 검증과 토큰 교환 성립.
@@ -25,8 +28,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class DbAuthorizationRequestRepository implements AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
-
-    private static final String REGISTRATION_ID = "kakao";
 
     private final OauthLoginAttemptService oauthLoginAttemptService;
     private final AuthSessionService authSessionService;
@@ -45,8 +46,14 @@ public class DbAuthorizationRequestRepository implements AuthorizationRequestRep
                 .orElseGet(() -> issueSession(request, response));
         oauthLoginAttemptService.start(session,
                 authorizationRequest.getState(),
+                providerOf(authorizationRequest),
                 authorizationRequest.getAttribute(PkceParameterNames.CODE_VERIFIER),
                 authorizationRequest.getRedirectUri());
+    }
+
+    private static SocialProvider providerOf(OAuth2AuthorizationRequest authorizationRequest) {
+        String registrationId = authorizationRequest.getAttribute(OAuth2ParameterNames.REGISTRATION_ID);
+        return SocialProvider.valueOf(registrationId.toUpperCase(Locale.ROOT));
     }
 
     /** 소비 없는 조회. 현재 로그인 흐름에서는 호출되지 않으나 계약상 구현 */
@@ -76,7 +83,8 @@ public class DbAuthorizationRequestRepository implements AuthorizationRequestRep
      * code_verifier는 재계산이 불가해 저장이 필요한 유일한 값.
      */
     private OAuth2AuthorizationRequest rebuild(String state, OauthLoginAttempt attempt) {
-        ClientRegistration registration = clientRegistrationRepository.findByRegistrationId(REGISTRATION_ID);
+        ClientRegistration registration = clientRegistrationRepository.findByRegistrationId(
+                attempt.getProvider().name().toLowerCase(Locale.ROOT));
         return OAuth2AuthorizationRequest.authorizationCode()
                 .authorizationUri(registration.getProviderDetails().getAuthorizationUri())
                 .clientId(registration.getClientId())

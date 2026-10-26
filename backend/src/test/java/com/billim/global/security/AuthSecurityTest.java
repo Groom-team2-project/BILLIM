@@ -1,5 +1,10 @@
 package com.billim.global.security;
 
+import com.billim.MockChatRedisListener;
+import com.billim.domain.member.entity.Member;
+import com.billim.domain.member.entity.SocialProvider;
+import com.billim.domain.member.service.AuthSessionService;
+import com.billim.domain.member.service.MemberAuthService;
 import com.billim.global.security.session.SessionCookies;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
@@ -12,6 +17,7 @@ import org.springframework.boot.testcontainers.service.connection.ServiceConnect
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -42,6 +48,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @AutoConfigureMockMvc
 @Import(AuthSecurityTest.MySql.class)
+@MockChatRedisListener
 class AuthSecurityTest {
 
     @TestConfiguration(proxyBeanMethods = false)
@@ -54,6 +61,9 @@ class AuthSecurityTest {
     }
 
     @Autowired MockMvc mockMvc;
+    @Autowired MemberAuthService memberAuthService;
+    @Autowired AuthSessionService authSessionService;
+    @Autowired JdbcTemplate jdbcTemplate;
 
     @Test
     @DisplayName("CSRF 토큰은 비로그인도 발급받는다")
@@ -94,6 +104,44 @@ class AuthSecurityTest {
     void prometheusIsNotBlockedBySecurity() throws Exception {
         mockMvc.perform(get("/actuator/prometheus"))
                 .andExpect(status().isNotFound());
+    }
+
+    /** 명세 0.2 익명 허용 — 로그인 전 화면(가입 동의)의 약관·정책 열람 */
+    @Test
+    @DisplayName("정책 문서는 로그인 없이 열려 있다")
+    void policiesArePublic() throws Exception {
+        mockMvc.perform(get("/api/v1/policies/safety"))
+                .andExpect(status().isOk());
+    }
+
+    /** 컨트롤러의 역할 검사(SafetyRequests.adminId)와 겹벽 — 새 관리자 컨트롤러가 검사를 빠뜨려도 경로에서 차단 */
+    @Test
+    @DisplayName("비로그인 관리자 경로는 401 UNAUTHENTICATED")
+    void anonymousAdminPathIsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/ping"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
+    @Test
+    @DisplayName("일반 회원의 관리자 경로는 403 FORBIDDEN")
+    void userIsForbiddenFromAdminPaths() throws Exception {
+        LoggedIn user = loginAs("admin-rule-user", "일반회원경로");
+
+        mockMvc.perform(get("/api/v1/admin/ping").cookie(user.cookie()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"));
+    }
+
+    /** ADMIN 부여는 운영과 같은 DB UPDATE 경로 — 세션 복원이 매 요청 role을 읽어 재로그인 없이 적용 */
+    @Test
+    @DisplayName("ADMIN은 관리자 경로의 보안을 통과한다")
+    void adminPassesAdminPathSecurity() throws Exception {
+        LoggedIn admin = loginAs("admin-rule-admin", "관리자경로");
+        jdbcTemplate.update("UPDATE members SET role = 'ADMIN' WHERE id = ?", admin.member().getId());
+
+        mockMvc.perform(get("/api/v1/admin/ping").cookie(admin.cookie()))
+                .andExpect(status().isNotFound());   // 핸들러 없는 경로라 보안 통과 시 404
     }
 
     /** 권한 부족(FORBIDDEN)과 구분 필요. 프론트엔드는 CSRF_INVALID일 때만 토큰 폐기 후 재시도 */
@@ -199,6 +247,28 @@ class AuthSecurityTest {
         assertThat(response.getHeader(HttpHeaders.SET_COOKIE)).contains(SessionCookies.NAME + "=");
     }
 
+    @Test
+    @DisplayName("로그인 시작은 네이버로 302 이동하며 세션을 발급한다")
+    void startsNaverLogin() throws Exception {
+        var response = mockMvc.perform(get("/api/v1/auth/naver"))
+                .andExpect(status().isFound())
+                .andReturn().getResponse();
+
+        assertThat(response.getHeader(HttpHeaders.LOCATION))
+                .startsWith("https://nid.naver.com/oauth2.0/authorize")
+                .contains("state=");
+        assertThat(response.getHeader(HttpHeaders.SET_COOKIE)).contains(SessionCookies.NAME + "=");
+    }
+
+    /** 와일드카드 콜백 경로의 네이버 매칭 회귀 */
+    @Test
+    @DisplayName("네이버 콜백도 저장되지 않은 state는 거부한다")
+    void rejectsUnknownStateOnNaverCallback() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/naver/callback").param("code", "dummy").param("state", "없는-state"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
     /** state만 맞고 세션이 다르면 공격자가 피해자를 자기 계정으로 로그인시킬 수 있음 */
     @Test
     @DisplayName("세션 쿠키 없는 콜백은 거부한다")
@@ -278,5 +348,15 @@ class AuthSecurityTest {
     }
 
     private record IssuedSession(Cookie cookie, String csrfToken) {
+    }
+
+    /** 카카오 로그인 자동화 불가 — 성공 핸들러와 같은 경로(가입 + 세션 회전)로 로그인 상태 구성 */
+    private LoggedIn loginAs(String kakaoSubject, String displayName) {
+        Member member = memberAuthService.loginOrRegister(SocialProvider.KAKAO, kakaoSubject, displayName);
+        AuthSessionService.Issued issued = authSessionService.rotateForMember(null, member.getId());
+        return new LoggedIn(member, new Cookie(SessionCookies.NAME, issued.token()));
+    }
+
+    private record LoggedIn(Member member, Cookie cookie) {
     }
 }

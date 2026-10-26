@@ -31,10 +31,11 @@ public class OauthLoginAttemptService {
 
     /** 로그인 시작 시 state를 세션에 묶어 보관. state는 원문이 아닌 해시만 저장 */
     @Transactional
-    public void start(AuthSession session, String state, String codeVerifier, String redirectUri) {
+    public void start(AuthSession session, String state, SocialProvider provider,
+                      String codeVerifier, String redirectUri) {
         Instant now = Instant.now(clock);
         oauthLoginAttemptRepository.save(OauthLoginAttempt.start(
-                session, SessionTokens.hash(state), SocialProvider.KAKAO, now, ttl, codeVerifier, redirectUri));
+                session, SessionTokens.hash(state), provider, now, ttl, codeVerifier, redirectUri));
     }
 
     /**
