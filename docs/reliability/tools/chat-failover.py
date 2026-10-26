@@ -236,7 +236,7 @@ def main():
             and detail["restored_send_to_socket_ms"] is not None
     elif args.scenario == "backend-restart":
         passed = detail["socket_closed_on_stop"] and detail["send_status"] == 201 \
-            and detail["api_recovered"]
+            and detail["api_recovered"] and not detail["websocket_replayed"]
     else:
         passed = detail["send_status"] != 201 and not detail["persisted_after_recovery"]
     result = {"scenario": args.scenario, "roomId": room_id, "passed": passed, "result": detail}
