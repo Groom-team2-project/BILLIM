@@ -4,6 +4,11 @@
 spring:
   application:
     name: billim
+  task:
+    scheduling:
+      # 채팅 DB 재확인이 길어져도 다른 주기 작업이 실행될 여유를 둔다.
+      pool:
+        size: 3
   data:
     redis:
       url: ${REDIS_URL:redis://127.0.0.1:6379}
