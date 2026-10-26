@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { getChatRooms } from "@/api/chat";
 import { LiveChatRoom } from "@/components/custom/chat/LiveChatRoom";
@@ -8,7 +8,7 @@ import { Chip } from "@/components/ui/chip";
 import { ChipScroller } from "@/components/ui/chip-scroller";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/state";
 import { refreshChatUnreadCount } from "@/stores/chat-unread";
-import type { ApiChatRoom, ChatRoomFilter } from "@/types/chat-api";
+import type { ApiChatMessage, ApiChatRoom, ChatRoomFilter } from "@/types/chat-api";
 import { classes } from "@/utils/classes";
 import styles from "@/pages/chat/ChatPage.module.css";
 
@@ -36,17 +36,37 @@ export function LiveChatPage() {
 
   useEffect(() => {
     let active = true;
-    getChatRooms({ filter, page, size: PAGE_SIZE }).then((result) => {
-      if (!active) return;
-      setRooms((previous) => page === 0 ? result.items : [...previous, ...result.items]);
-      setHasNext(result.hasNext);
-      setError(false);
-    }).catch(() => {
-      if (active) setError(true);
-    }).finally(() => {
-      if (active) setLoading(false);
-    });
-    return () => { active = false; };
+    let busy = false;
+    let loaded = false;
+    const refresh = async () => {
+      if (!active || busy || document.hidden) return;
+      busy = true;
+      try {
+        const pages = await Promise.all(Array.from({ length: page + 1 }, (_, index) =>
+          getChatRooms({ filter, page: index, size: PAGE_SIZE })));
+        if (!active) return;
+        setRooms([...new Map(pages.flatMap((result) => result.items).map((room) => [room.id, room])).values()]);
+        setHasNext(pages.at(-1)?.hasNext ?? false);
+        setError(false);
+        loaded = true;
+        void refreshChatUnreadCount();
+      } catch {
+        if (active && !loaded) setError(true);
+      } finally {
+        busy = false;
+        if (active) setLoading(false);
+      }
+    };
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 15000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [filter, page, retry]);
 
   const changeFilter = (next: ChatRoomFilter) => {
@@ -60,6 +80,23 @@ export function LiveChatPage() {
     setRooms((previous) => previous.map((room) => room.id === roomId ? { ...room, unreadCount: 0 } : room));
     void refreshChatUnreadCount();
   };
+  const onMessage = useCallback((roomId: string, message: ApiChatMessage) => {
+    const preview = message.type === "SYSTEM"
+      ? message.system?.label ?? message.body ?? "거래 상태가 변경됐어요"
+      : message.body ?? "";
+    setRooms((previous) => {
+      const index = previous.findIndex((room) => room.id === roomId);
+      if (index < 0) return previous;
+      const current = previous[index];
+      if (current.lastMessageAt && Date.parse(current.lastMessageAt) > Date.parse(message.createdAt)) {
+        return previous;
+      }
+      return [
+        { ...current, lastMessagePreview: preview.slice(0, 200), lastMessageAt: message.createdAt },
+        ...previous.filter((_, position) => position !== index),
+      ];
+    });
+  }, []);
   const selectedId = chatId ?? (desktop ? rooms[0]?.id : undefined);
 
   return (
@@ -97,7 +134,7 @@ export function LiveChatPage() {
         </section>
       </div>
       <div className={c(chatId ? "chat-page-room" : "only-desk chat-page-room")}>
-        {selectedId ? <LiveChatRoom key={selectedId} roomId={selectedId} onRead={onRead} /> : null}
+        {selectedId ? <LiveChatRoom key={selectedId} roomId={selectedId} onRead={onRead} onMessage={onMessage} /> : null}
       </div>
     </div>
   );

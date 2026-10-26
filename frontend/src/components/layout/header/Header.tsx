@@ -27,10 +27,16 @@ export function Header({ sub, title, searchHidden, moreItems = [], onBack }: Hea
   const unreadNotifs = useUnreadCount();
 
   useEffect(() => {
-    const refresh = () => { void refreshUnreadCount(); };
+    const refresh = () => { if (!document.hidden) void refreshUnreadCount(); };
     refresh();
+    const timer = window.setInterval(refresh, 15000);
     window.addEventListener("focus", refresh);
-    return () => window.removeEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [pathname]);
 
   return (

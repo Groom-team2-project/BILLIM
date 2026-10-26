@@ -13,10 +13,16 @@ export function TabBar() {
   const unreadChats = useChatUnreadCount();
 
   useEffect(() => {
-    const refresh = () => { void refreshChatUnreadCount(); };
+    const refresh = () => { if (!document.hidden) void refreshChatUnreadCount(); };
     refresh();
+    const timer = window.setInterval(refresh, 15000);
     window.addEventListener("focus", refresh);
-    return () => window.removeEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [pathname]);
 
   return (

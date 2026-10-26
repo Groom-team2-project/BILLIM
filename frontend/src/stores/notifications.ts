@@ -84,10 +84,11 @@ export async function refreshUnreadCount(): Promise<boolean> {
   }
 }
 
-export async function refreshNotifications(): Promise<void> {
+export async function refreshNotifications(silent = false): Promise<void> {
+  if (silent && (state.loading || state.loadingMore || state.readingAll)) return;
   const version = ++listVersion;
   const currentCountVersion = ++countVersion;
-  update({ loading: true, loadingMore: false, error: null, errorKind: null });
+  if (!silent) update({ loading: true, loadingMore: false, error: null, errorKind: null });
 
   void getUnreadNotificationCount().then((count) => {
     if (version === listVersion && currentCountVersion === countVersion) {
@@ -102,15 +103,18 @@ export async function refreshNotifications(): Promise<void> {
     if (version !== listVersion) return;
 
     update({
-      items: page.items,
-      hasMore: page.hasMore,
-      nextCursor: page.nextCursor,
+      items: silent ? appendNotificationPage(page.items, state.items) : page.items,
+      hasMore: silent && state.items.length > page.items.length ? state.hasMore : page.hasMore,
+      nextCursor: silent && state.items.length > page.items.length ? state.nextCursor : page.nextCursor,
       loading: false,
+      loadingMore: false,
+      error: null,
       errorKind: null,
     });
   } catch {
     if (version !== listVersion) return;
-    update({ loading: false, error: "알림을 불러오지 못했어요.", errorKind: "refresh" });
+    if (silent) update({ loadingMore: false });
+    else update({ loading: false, error: "알림을 불러오지 못했어요.", errorKind: "refresh" });
   }
 }
 
@@ -142,6 +146,7 @@ export async function markOneRead(id: string): Promise<void> {
   const version = sessionVersion;
   const updated = await markNotificationRead(id);
   if (version !== sessionVersion) return;
+  ++listVersion;
   ++countVersion;
   update(applyNotificationRead(state.items, state.unreadCount, updated));
 }
