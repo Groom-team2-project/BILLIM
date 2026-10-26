@@ -12,18 +12,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
- * 카카오 로컬로 동네(법정동 읍면동)를 찾는다. 좌표는 행정구역 변환, 이름은 주소 검색을 쓴다.
+ * 카카오 로컬로 행정동을 찾는다. 좌표는 행정구역 변환, 이름은 주소 검색을 쓴다.
  *
- * <p>응답에는 법정동(B)과 행정동(H)이 함께 온다. 인증 기준은 법정동이라 B만 쓴다.
- * 행정동은 인구에 따라 분동·통합이 잦아 코드가 자주 바뀐다.
- *
- * <p>법정동 코드 10자리에서 앞 8자리(읍면동)만 쓴다. 뒤 2자리는 리라서, 그대로 두면
- * 농촌이 리 단위로 쪼개진다 (양평읍 양근리, 대관령면 차항리). 앞 8자리는
- * VWorld 행정구역 검색의 L4 id와 같은 값이다.
+ * <p>응답에는 법정동(B)과 행정동(H)이 함께 온다. 인증 기준은 행정동이라 H만 쓴다.
+ * 법정동은 한 동이 여러 행정동으로 갈려 동네 단위와 맞지 않는다.
  *
  * <p>어떤 실패도 예외로 올리지 않는다. 호출 측이 반경 판정으로 내려갈 수 있어야 한다.
  * 좌표는 질의에만 쓰고 저장·로그에 남기지 않는다. (정책 및 상태 5 위치 인증)
@@ -38,10 +32,10 @@ public class KakaoRegionResolver implements RegionResolver {
     private static final String COORD_PATH = "/v2/local/geo/coord2regioncode.json";
     private static final String ADDRESS_PATH = "/v2/local/search/address.json";
 
-    /** 법정동. 행정동은 "H" */
-    private static final String LEGAL_REGION_TYPE = "B";
+    /** 행정동. 법정동은 "B" */
+    private static final String ADMIN_REGION_TYPE = "H";
 
-    /** 주소 검색 1회 요청 건수. 같은 읍면동이 여러 주소로 나와 후보 수보다 넉넉해야 한다 */
+    /** 주소 검색 1회 요청 건수. 같은 행정동이 여러 주소로 나와 후보 수보다 넉넉해야 한다 */
     private static final int RESPONSE_SIZE = 30;
 
     private final RestClient restClient;
@@ -75,17 +69,17 @@ public class KakaoRegionResolver implements RegionResolver {
             return region;
         } catch (RuntimeException e) {
             // 좌표는 남기지 않는다. 실패했다는 사실과 원인만 남긴다
-            log.warn("읍면동 조회 실패. 반경 판정으로 대체한다: {}", e.toString());
+            log.warn("행정동 조회 실패. 반경 판정으로 대체한다: {}", e.toString());
             return Optional.empty();
         }
     }
 
     /**
-     * 주소 검색 결과에서 읍면동을 모은다.
+     * 주소 검색 결과에서 행정동을 모은다.
      *
-     * <p>주소 검색은 지번·도로명 주소를 찾지만 결과마다 그 주소가 속한 법정동 코드(b_code)와
-     * 이름을 함께 준다. 그래서 "역삼"처럼 일부만 입력해도 후보를 얻는다.
-     * 같은 읍면동이 여러 주소에서 나오므로 코드로 묶는다.
+     * <p>주소 검색은 지번·도로명 주소를 찾지만 결과마다 그 주소가 속한 행정동 코드(h_code)와
+     * 이름을 함께 준다. 그래서 "역삼"처럼 일부만 입력해도 행정동 후보를 얻는다.
+     * 같은 행정동이 여러 주소에서 나오므로 코드로 묶는다.
      */
     @Override
     public List<Region> search(String keyword, int limit) {
@@ -106,11 +100,11 @@ public class KakaoRegionResolver implements RegionResolver {
                     .body(String.class);
 
             List<Region> regions = toRegions(body, limit);
-            // 0건도 캐시한다. 구·시 이름처럼 늘 읍면동이 없는 검색어가 반복된다
+            // 0건도 캐시한다. 구·시 이름처럼 늘 행정동이 없는 검색어가 반복된다
             cache.putKeyword(keyword, limit, regions);
             return regions;
         } catch (RuntimeException e) {
-            log.warn("읍면동 이름 검색 실패. 등록된 동네만 보여준다: {}", e.toString());
+            log.warn("행정동 이름 검색 실패. 등록된 동네만 보여준다: {}", e.toString());
             return List.of();
         }
     }
@@ -125,7 +119,7 @@ public class KakaoRegionResolver implements RegionResolver {
         }
 
         // 먼저 나온 주소의 좌표를 쓴다. 지번 단위 결과면 동 중심에서 조금 벗어나지만
-        // 판정 기준은 읍면동 코드이고 반경은 폴백이라 영향이 작다
+        // 판정 기준은 행정동 코드이고 반경은 폴백이라 영향이 작다
         Map<String, Region> byCode = new LinkedHashMap<>();
         for (KakaoAddressDocument document : response.documents()) {
             Region region = document.toRegion();
@@ -149,7 +143,7 @@ public class KakaoRegionResolver implements RegionResolver {
         }
 
         return documents.stream()
-                .filter(KakaoRegionDocument::isLegalDistrict)
+                .filter(KakaoRegionDocument::isAdminRegion)
                 .findFirst()
                 .map(KakaoRegionDocument::toRegion);
     }
@@ -170,54 +164,46 @@ public class KakaoRegionResolver implements RegionResolver {
     }
 
     private record KakaoAddress(
-            @JsonProperty("b_code") String bCode,
+            @JsonProperty("h_code") String hCode,
             @JsonProperty("region_1depth_name") String region1depthName,
             @JsonProperty("region_2depth_name") String region2depthName,
-            @JsonProperty("region_3depth_name") String region3depthName,
+            @JsonProperty("region_3depth_h_name") String region3depthHName,
             double x,
             double y
     ) {
 
-        /** 행정동만 담긴 결과는 b_code가 비어 있다. 그 행은 건너뛴다 */
         Region toRegion() {
-            if (bCode == null || bCode.length() != Region.SOURCE_CODE_LENGTH
-                    || region3depthName == null || region3depthName.isBlank()) {
+            if (hCode == null || hCode.length() != Region.CODE_LENGTH
+                    || region3depthHName == null || region3depthHName.isBlank()) {
                 return null;
             }
-            return new Region(
-                    Region.toDistrictCode(bCode), region3depthName,
-                    joinAddress(region1depthName, region2depthName, region3depthName), y, x);
+            String displayAddress = String.join(" ",
+                    nullToEmpty(region1depthName), nullToEmpty(region2depthName), region3depthHName).strip();
+            return new Region(hCode, region3depthHName, displayAddress, y, x);
         }
-    }
 
-    /** 빈 조각은 건너뛰고 공백 하나로 잇는다 */
-    private static String joinAddress(String sido, String sigungu, String district) {
-        return Stream.of(sido, sigungu, district)
-                .filter(part -> part != null && !part.isBlank())
-                .collect(Collectors.joining(" "));
+        private static String nullToEmpty(String value) {
+            return value == null ? "" : value;
+        }
     }
 
     private record KakaoRegionDocument(
             @JsonProperty("region_type") String regionType,
             String code,
-            @JsonProperty("region_1depth_name") String region1depthName,
-            @JsonProperty("region_2depth_name") String region2depthName,
+            @JsonProperty("address_name") String addressName,
             @JsonProperty("region_3depth_name") String region3depthName,
             double x,
             double y
     ) {
 
-        boolean isLegalDistrict() {
-            return LEGAL_REGION_TYPE.equals(regionType)
-                    && code != null && code.length() == Region.SOURCE_CODE_LENGTH
+        boolean isAdminRegion() {
+            return ADMIN_REGION_TYPE.equals(regionType)
+                    && code != null && code.length() == Region.CODE_LENGTH
                     && region3depthName != null && !region3depthName.isBlank();
         }
 
-        /** address_name은 리까지 담고 있어 쓰지 않는다. 읍면동까지 직접 이어 붙인다 */
         Region toRegion() {
-            return new Region(
-                    Region.toDistrictCode(code), region3depthName,
-                    joinAddress(region1depthName, region2depthName, region3depthName), y, x);
+            return new Region(code, region3depthName, addressName, y, x);
         }
     }
 }

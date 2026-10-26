@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 읍면동 역지오코딩 연동 설정.
+ * 행정동 역지오코딩 연동 설정.
  *
  * <p>키가 없거나 꺼져 있으면 항상 빈 값을 주는 구현을 쓴다. 로컬·테스트·CI에는 지도 키가 없고,
  * 그 환경에서도 위치 인증이 반경 판정으로 동작해야 한다.
@@ -29,55 +29,62 @@ public class RegionResolverConfig {
     /** 카카오 REST API 키 인증 헤더 접두어 */
     private static final String AUTH_PREFIX = "KakaoAK ";
 
-    private static final String PROVIDER_VWORLD = "vworld";
-
     @Bean
     public RegionResolver regionResolver(
             JsonCodec jsonCodec,
             @Value("${billim.community.verification.region.enabled:true}") boolean enabled,
-            @Value("${billim.community.verification.region.provider:kakao}") String provider,
             @Value("${billim.community.verification.region.api-key:}") String apiKey,
             @Value("${billim.community.verification.region.base-url:https://dapi.kakao.com}") String baseUrl,
-            @Value("${billim.community.verification.region.vworld.api-key:}") String vworldKey,
-            @Value("${billim.community.verification.region.vworld.base-url:https://api.vworld.kr}") String vworldBaseUrl,
             @Value("${billim.community.verification.region.connect-timeout-ms:1000}") int connectTimeoutMs,
             @Value("${billim.community.verification.region.read-timeout-ms:2000}") int readTimeoutMs,
             @Value("${billim.community.verification.region.cache-size:500}") int cacheSize,
             @Value("${billim.community.verification.region.cache-ttl:PT30M}") Duration cacheTtl) {
 
-        boolean vworld = PROVIDER_VWORLD.equalsIgnoreCase(provider);
-        String key = vworld ? vworldKey : apiKey;
-
-        if (!enabled || key.isBlank()) {
-            log.info("읍면동 조회 미사용. 위치 인증은 반경 판정만 사용한다 (enabled={}, provider={}, 키 설정={})",
-                    enabled, provider, !key.isBlank());
+        if (!enabled || apiKey.isBlank()) {
+            log.info("행정동 역지오코딩 미사용. 위치 인증은 반경 판정만 사용한다 (enabled={}, 키 설정={})",
+                    enabled, !apiKey.isBlank());
             return new NoRegionResolver();
         }
 
+        RestClient restClient = kakaoClient(apiKey, baseUrl, connectTimeoutMs, readTimeoutMs);
+
+        log.info("행정동 역지오코딩 사용. baseUrl={} 캐시={}건/{}", baseUrl, cacheSize, cacheTtl);
+        return new KakaoRegionResolver(restClient, jsonCodec, new RegionCache(cacheSize, cacheTtl));
+    }
+
+    /**
+     * 공용 장소 후보 조회. 키가 없으면 빈 목록만 주는 구현을 쓴다.
+     *
+     * <p>행정동 조회와 같은 카카오 로컬 API라 키·타임아웃 설정을 공유한다.
+     */
+    @Bean
+    public PlaceFinder placeFinder(
+            JsonCodec jsonCodec,
+            @Value("${billim.community.verification.region.enabled:true}") boolean enabled,
+            @Value("${billim.community.verification.region.api-key:}") String apiKey,
+            @Value("${billim.community.verification.region.base-url:https://dapi.kakao.com}") String baseUrl,
+            @Value("${billim.community.verification.region.connect-timeout-ms:1000}") int connectTimeoutMs,
+            @Value("${billim.community.verification.region.read-timeout-ms:2000}") int readTimeoutMs) {
+
+        if (!enabled || apiKey.isBlank()) {
+            log.info("공용 장소 자동 보충 미사용. 장소는 운영 seed로만 등록된다");
+            return (latitude, longitude, boundary, limit) -> List.of();
+        }
+        return new KakaoPlaceFinder(
+                kakaoClient(apiKey, baseUrl, connectTimeoutMs, readTimeoutMs), jsonCodec);
+    }
+
+    private static RestClient kakaoClient(String apiKey, String baseUrl,
+                                          int connectTimeoutMs, int readTimeoutMs) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(connectTimeoutMs);
         requestFactory.setReadTimeout(readTimeoutMs);
-        RegionCache cache = new RegionCache(cacheSize, cacheTtl);
 
-        if (vworld) {
-            // VWorld는 인증키를 쿼리 파라미터로 받는다. 헤더 인증이 없다
-            RestClient restClient = RestClient.builder()
-                    .baseUrl(vworldBaseUrl)
-                    .requestFactory(requestFactory)
-                    .build();
-
-            log.info("읍면동 조회 사용. provider=vworld baseUrl={} 캐시={}건/{}", vworldBaseUrl, cacheSize, cacheTtl);
-            return new VworldRegionResolver(restClient, jsonCodec, cache, key);
-        }
-
-        RestClient restClient = RestClient.builder()
+        return RestClient.builder()
                 .baseUrl(baseUrl)
-                .defaultHeader(HttpHeaders.AUTHORIZATION, AUTH_PREFIX + key)
+                .defaultHeader(HttpHeaders.AUTHORIZATION, AUTH_PREFIX + apiKey)
                 .requestFactory(requestFactory)
                 .build();
-
-        log.info("읍면동 조회 사용. provider=kakao baseUrl={} 캐시={}건/{}", baseUrl, cacheSize, cacheTtl);
-        return new KakaoRegionResolver(restClient, jsonCodec, cache);
     }
 
     /** 지도 연동을 쓰지 않을 때. 위치 인증은 반경 판정만, 동네 검색은 등록된 동네만 쓴다 */

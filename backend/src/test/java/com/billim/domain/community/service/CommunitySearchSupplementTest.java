@@ -28,15 +28,15 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * 동네 검색의 읍면동 보충 등록 (API 명세 E_009).
+ * 동네 검색의 행정동 보충 등록 (API 명세 E_009).
  *
- * <p>검색어 일부만으로 전국 읍면동이 후보에 나와야 하지만, 모든 입력마다 지도를 부르고
+ * <p>검색어 일부만으로 전국 행정동이 후보에 나와야 하지만, 모든 입력마다 지도를 부르고
  * 행을 만들면 안 된다. 호출 조건만 보는 단위 테스트다.
  */
 class CommunitySearchSupplementTest {
 
     private static final Region YEOKSAM = new Region(
-            "11680101", "역삼동", "서울 강남구 역삼동", 37.4955, 127.0333);
+            "1168064000", "역삼1동", "서울 강남구 역삼1동", 37.5006, 127.0361);
 
     private CommunityRepository communityRepository;
     private RegionResolver regionResolver;
@@ -61,7 +61,7 @@ class CommunitySearchSupplementTest {
     }
 
     @Test
-    @DisplayName("없는 읍면동은 검색 중에 동네로 등록된다")
+    @DisplayName("없는 행정동은 검색 중에 동네로 등록된다")
     void registersMissingRegion() {
         when(regionResolver.search(eq("역삼"), anyInt())).thenReturn(List.of(YEOKSAM));
         when(communityRepository.findByRegionCodeAndStatus(YEOKSAM.code(), CommunityStatus.ACTIVE))
@@ -73,7 +73,7 @@ class CommunitySearchSupplementTest {
     }
 
     @Test
-    @DisplayName("이미 있는 읍면동은 다시 등록하지 않는다")
+    @DisplayName("이미 있는 행정동은 다시 등록하지 않는다")
     void skipsRegisteredRegion() {
         when(regionResolver.search(anyString(), anyInt())).thenReturn(List.of(YEOKSAM));
         when(communityRepository.findByRegionCodeAndStatus(YEOKSAM.code(), CommunityStatus.ACTIVE))

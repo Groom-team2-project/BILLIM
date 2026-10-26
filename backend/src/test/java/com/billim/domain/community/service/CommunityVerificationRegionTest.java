@@ -30,7 +30,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /**
- * 읍면동·반경 병행 판정 (도메인 가이드 결정 '법정동 위치 인증').
+ * 행정동·반경 병행 판정 (도메인 가이드 결정 '행정동 위치 인증').
  *
  * <p>판정 분기만 보는 단위 테스트다. 소속 저장·활성 동네 갱신은 {@link CommunityFlowDbTest}가 확인한다.
  */
@@ -38,7 +38,7 @@ class CommunityVerificationRegionTest {
 
     private static final long MEMBER_ID = 7L;
     private static final long COMMUNITY_ID = 3L;
-    private static final String REGION_CODE = "11680101";
+    private static final String REGION_CODE = "1168064000";
 
     /** 동네 중심. 반경 500m */
     private static final double CENTER_LAT = 37.5;
@@ -72,7 +72,7 @@ class CommunityVerificationRegionTest {
     }
 
     @Test
-    @DisplayName("읍면동이 같으면 반경 밖이어도 인증된다")
+    @DisplayName("행정동이 같으면 반경 밖이어도 인증된다")
     void verifiesByRegionOutsideRadius() {
         givenCommunity(REGION_CODE);
         givenResolvedRegion(REGION_CODE);
@@ -83,7 +83,7 @@ class CommunityVerificationRegionTest {
     }
 
     @Test
-    @DisplayName("읍면동이 같으면 정확도 상한을 넘어도 인증된다")
+    @DisplayName("행정동이 같으면 정확도 상한을 넘어도 인증된다")
     void verifiesByRegionIgnoringAccuracy() {
         givenCommunity(REGION_CODE);
         givenResolvedRegion(REGION_CODE);
@@ -94,20 +94,20 @@ class CommunityVerificationRegionTest {
     }
 
     @Test
-    @DisplayName("읍면동이 다르면 반경 안이면 인증된다")
+    @DisplayName("행정동이 다르면 반경 안이면 인증된다")
     void fallsBackToRadiusWhenRegionDiffers() {
         givenCommunity(REGION_CODE);
-        givenResolvedRegion("11680102");
+        givenResolvedRegion("1168065000");
 
         assertThatCode(() -> service.verify(MEMBER_ID, COMMUNITY_ID, at(CENTER_LAT, CENTER_LON, 10)))
                 .doesNotThrowAnyException();
     }
 
     @Test
-    @DisplayName("읍면동이 다르고 반경도 밖이면 403")
+    @DisplayName("행정동이 다르고 반경도 밖이면 403")
     void rejectsWhenRegionAndRadiusBothFail() {
         givenCommunity(REGION_CODE);
-        givenResolvedRegion("11680102");
+        givenResolvedRegion("1168065000");
 
         assertThatThrownBy(() -> service.verify(MEMBER_ID, COMMUNITY_ID, at(37.6, 127.0, 10)))
                 .isInstanceOfSatisfying(BusinessException.class,
@@ -128,7 +128,7 @@ class CommunityVerificationRegionTest {
     }
 
     @Test
-    @DisplayName("읍면동 코드가 없는 동네는 지도를 부르지 않는다")
+    @DisplayName("행정동 코드가 없는 동네는 지도를 부르지 않는다")
     void skipsResolverWhenCommunityHasNoRegionCode() {
         givenCommunity(null);
 
@@ -141,7 +141,7 @@ class CommunityVerificationRegionTest {
     @DisplayName("반경으로 떨어진 경우에는 정확도 상한이 그대로 걸린다")
     void keepsAccuracyLimitOnRadiusPath() {
         givenCommunity(REGION_CODE);
-        givenResolvedRegion("11680102");
+        givenResolvedRegion("1168065000");
 
         assertThatThrownBy(() -> service.verify(MEMBER_ID, COMMUNITY_ID,
                 at(CENTER_LAT, CENTER_LON, MAX_ACCURACY_M + 1)))
@@ -151,7 +151,7 @@ class CommunityVerificationRegionTest {
 
     private void givenCommunity(String regionCode) {
         Community community = Community.of(
-                "역삼동", "서울특별시 강남구 역삼동",
+                "역삼1동", "서울특별시 강남구 역삼1동",
                 BigDecimal.valueOf(CENTER_LAT), BigDecimal.valueOf(CENTER_LON),
                 RADIUS_M, CommunityStatus.ACTIVE);
         if (regionCode != null) {
@@ -162,7 +162,7 @@ class CommunityVerificationRegionTest {
 
     private void givenResolvedRegion(String code) {
         when(regionResolver.resolve(anyDouble(), anyDouble())).thenReturn(Optional.of(
-                new Region(code, "역삼동", "서울특별시 강남구 역삼동", CENTER_LAT, CENTER_LON)));
+                new Region(code, "역삼1동", "서울특별시 강남구 역삼1동", CENTER_LAT, CENTER_LON)));
     }
 
     private static VerifyLocationRequest at(double latitude, double longitude, double accuracyMeters) {

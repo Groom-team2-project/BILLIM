@@ -44,4 +44,12 @@ public interface BlockQuery {
      * 양방향 판정이며, 후보가 비면 빈 Set.
      */
     Set<Long> findBlockedAmong(long memberId, Collection<Long> candidateMemberIds);
+
+    /**
+     * 나와 차단 관계(양방향)인 회원 ID 전체. 차단 관계 수만큼만 읽는다.
+     *
+     * <p>후보 집합이 매우 큰 목록(동네 전체 물건 검색 등)에서 쓴다. 후보를 먼저 모아
+     * {@link #findBlockedAmong}에 넘기면 후보 수만큼 읽어야 하므로, 이쪽으로 차단 관계를 먼저 구해 제외한다.
+     */
+    Set<Long> findBlockRelatedMemberIds(long memberId);
 }

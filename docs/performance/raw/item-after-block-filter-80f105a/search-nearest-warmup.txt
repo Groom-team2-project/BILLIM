@@ -1,0 +1,14 @@
+ Container billim-perf-mysql-1 Running 
+ Container billim-perf-backend-1 Running 
+ Container billim-perf-mysql-1 Waiting 
+ Container billim-perf-mysql-1 Healthy 
+ Container billim-perf-k6-run-d5405e4592c0 Creating 
+ Container billim-perf-k6-run-d5405e4592c0 Created 
+CASE search-nearest · VU 10 · 10s
+  처리량 15.98 req/s (총 165건)
+  응답 p50 392.5ms · p95 790.7ms · p99 853.1ms · 최대 879.5ms
+  실패율 0% · 4xx 0건 · 5xx 0건
+  판정 기준 미달 (p95 < 500ms · 오류율 < 1%)
+BILLIM_RESULT {"case":"search-nearest","vus":10,"duration":"10s","reqPerSec":15.98,"requests":165,"avg":417,"p50":392.5,"p95":790.7,"p99":853.1,"max":879.5,"failRate":0,"client4xx":0,"server5xx":0,"p95Pass":false}
+time="2026-10-24T04:39:01Z" level=error msg="thresholds on metrics 'http_req_duration' have been crossed"
+
