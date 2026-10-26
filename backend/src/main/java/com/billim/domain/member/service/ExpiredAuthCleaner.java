@@ -38,6 +38,10 @@ public class ExpiredAuthCleaner {
                               @Value("${billim.auth.cleanup-retention}") Duration retention,
                               @Value("${billim.auth.cleanup-chunk-size}") int chunkSize,
                               @Value("${billim.auth.cleanup-chunk-pause-ms}") long chunkPauseMs) {
+        // 0 이하면 LIMIT 0 삭제가 종료 조건(deleted < chunkSize)에 걸리지 않아 정리가 조용히 꺼짐 — 기동 시점 거부
+        if (chunkSize <= 0) {
+            throw new IllegalArgumentException("billim.auth.cleanup-chunk-size는 양수 필요: " + chunkSize);
+        }
         this.authSessionRepository = authSessionRepository;
         this.oauthLoginAttemptRepository = oauthLoginAttemptRepository;
         this.clock = clock;
@@ -72,6 +76,11 @@ public class ExpiredAuthCleaner {
     private int purgeInChunks(IntUnaryOperator deleteChunk) {
         int total = 0;
         for (int round = 0; round < MAX_ROUNDS; round++) {
+            // 셧다운 등 인터럽트 수신 — 남은 묶음과 다음 테이블 중단, 다음 주기에 이어서 정리
+            if (Thread.currentThread().isInterrupted()) {
+                log.warn("만료 정리 중단 — 인터럽트 수신, 누적 {}건", total);
+                return total;
+            }
             int deleted = deleteChunk.applyAsInt(chunkSize);
             total += deleted;
             if (deleted < chunkSize) {

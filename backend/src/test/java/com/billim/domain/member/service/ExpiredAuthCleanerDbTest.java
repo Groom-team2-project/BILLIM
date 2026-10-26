@@ -17,11 +17,13 @@ import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * 만료 정리의 묶음 삭제. 한 트랜잭션에 전부 지우면 정리 중 인증 응답시간 상승.
@@ -141,6 +143,39 @@ class ExpiredAuthCleanerDbTest {
         cleaner.purgeExpired();
 
         assertThat(authSessionRepository.count()).isEqualTo(1);
+    }
+
+    /** 0이면 LIMIT 0 삭제가 종료 조건에 걸리지 않아 정리가 조용히 꺼짐 — 기동 시점 거부 */
+    @Test
+    @DisplayName("묶음 크기 0은 생성 시점에 거부한다")
+    void rejectsZeroChunkSize() {
+        assertThatThrownBy(() -> new ExpiredAuthCleaner(
+                authSessionRepository, oauthLoginAttemptRepository, Clock.systemUTC(),
+                Duration.ofDays(7), 0, 0))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /** 인터럽트 수신 후에도 삭제가 계속되면 셧다운이 배치에 붙잡힘 */
+    @Test
+    @DisplayName("인터럽트를 받으면 남은 묶음 정리를 중단한다")
+    void stopsPurgeOnInterrupt() {
+        Instant old = Instant.now().minus(30, ChronoUnit.DAYS);
+        for (int i = 0; i < 5; i++) {
+            insertSession("int-" + i, old);
+        }
+        em.flush();
+        em.clear();
+
+        Thread.currentThread().interrupt();
+        boolean interruptPreserved;
+        try {
+            cleaner.purgeExpired();
+        } finally {
+            interruptPreserved = Thread.interrupted();   // 확인과 동시에 해제 — 플래그가 남으면 이후 테스트 오염
+        }
+
+        assertThat(interruptPreserved).isTrue();
+        assertThat(authSessionRepository.count()).isEqualTo(5);
     }
 
     private void insertSession(String token, Instant absoluteExpiresAt) {
