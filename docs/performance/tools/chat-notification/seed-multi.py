@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -85,10 +86,33 @@ def main():
 
 def save_fixture(fixtures):
     OUTPUT.parent.mkdir(exist_ok=True)
-    fd = os.open(OUTPUT, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    fd = os.open(OUTPUT, os.O_WRONLY | os.O_CREAT, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as output:
         os.fchmod(output.fileno(), 0o600)
+        restrict_windows_acl(OUTPUT)
+        output.truncate(0)
         json.dump({"pairs": fixtures}, output, indent=2)
+
+
+def restrict_windows_acl(path):
+    # WSL의 /mnt 드라이브는 chmod만으로 Windows ACL이 줄어들지 않는다.
+    resolved = path.resolve()
+    if not os.environ.get("WSL_DISTRO_NAME") or resolved.parts[:2] != ("/", "mnt"):
+        return
+    windows_path = subprocess.run(
+        ["wslpath", "-w", str(resolved)], capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    identity = subprocess.run(
+        ["whoami.exe", "/user", "/fo", "csv", "/nh"], capture_output=True, check=True,
+    ).stdout
+    match = re.search(rb"S-1-[0-9-]+", identity)
+    if not match:
+        raise RuntimeError("Windows user SID could not be determined")
+    subprocess.run(
+        ["icacls.exe", windows_path, "/inheritance:r", "/grant:r",
+         f"*{match.group().decode('ascii')}:F", "*S-1-5-18:F", "*S-1-5-32-544:F"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, check=True,
+    )
 
 
 def refresh_and_save_csrf(fixtures):
