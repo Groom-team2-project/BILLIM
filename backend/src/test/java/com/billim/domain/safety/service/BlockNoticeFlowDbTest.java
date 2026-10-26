@@ -1,5 +1,7 @@
 package com.billim.domain.safety.service;
 
+import com.billim.MockChatRedisListener;
+
 import com.billim.domain.community.entity.Community;
 import com.billim.domain.community.entity.CommunityMembership;
 import com.billim.domain.community.entity.CommunityStatus;
@@ -46,6 +48,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         "spring.security.oauth2.client.registration.kakao.client-secret=test-client-secret",
         "billim.notification.outbox.enabled=false"
 })
+@MockChatRedisListener
 class BlockNoticeFlowDbTest {
 
     @TestConfiguration(proxyBeanMethods = false)

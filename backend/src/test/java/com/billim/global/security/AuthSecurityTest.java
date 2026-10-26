@@ -1,5 +1,7 @@
 package com.billim.global.security;
 
+import com.billim.MockChatRedisListener;
+
 import com.billim.global.security.session.SessionCookies;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
@@ -42,6 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 @AutoConfigureMockMvc
 @Import(AuthSecurityTest.MySql.class)
+@MockChatRedisListener
 class AuthSecurityTest {
 
     @TestConfiguration(proxyBeanMethods = false)
