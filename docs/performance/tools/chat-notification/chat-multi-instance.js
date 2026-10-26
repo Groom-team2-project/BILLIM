@@ -11,6 +11,9 @@ const testCase = __ENV.CASE || 'chat-send';
 const vus = Number(__ENV.VUS || 2);
 const duration = __ENV.DURATION || '15s';
 const pairedIntervalMs = Number(__ENV.PAIRED_INTERVAL_MS || 2000);
+if (!Number.isInteger(pairedIntervalMs) || pairedIntervalMs < 1000 || pairedIntervalMs > 4000) {
+  throw new Error('PAIRED_INTERVAL_MS must be an integer between 1000 and 4000');
+}
 const failures = new Rate('app_failures');
 const deliveryFailures = new Rate('chat_delivery_failures');
 const connectionFailures = new Rate('chat_websocket_connection_failures');
@@ -295,7 +298,8 @@ export default function (context) {
           if (count === 5 && ownReceived.size === 5 && peerReceived.size === 5) socket.close();
         } catch (_) { /* 현재 실행의 메시지 외 수신은 종료 시 누락 건수로 확인. */ }
       });
-      socket.setTimeout(() => socket.close(), jitteredPairedSocket ? 20000 : 17000);
+      const socketLifetimeMs = jitteredPairedSocket ? 20000 : 3000 + 4 * pairedIntervalMs + 5000;
+      socket.setTimeout(() => socket.close(), socketLifetimeMs);
     });
     const connectionFailed = result.status !== 101;
     connectionFailures.add(connectionFailed);

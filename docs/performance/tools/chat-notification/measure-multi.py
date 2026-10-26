@@ -5,6 +5,8 @@ import json
 import os
 import subprocess
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 try:
@@ -46,6 +48,36 @@ def docker_stats():
     return [json.loads(line) for line in result.stdout.splitlines() if line]
 
 
+def wait_backend(port):
+    deadline = time.monotonic() + 90
+    while time.monotonic() < deadline:
+        try:
+            urllib.request.urlopen(f"http://127.0.0.1:{port}/api/v1/auth/csrf", timeout=2).close()
+            return
+        except urllib.error.HTTPError as error:
+            if error.code in (200, 401, 403):
+                return
+            raise
+        except OSError:
+            time.sleep(1)
+    raise TimeoutError(f"backend on port {port} did not start within 90 seconds")
+
+
+def verify_backend_images(expected_image):
+    expected_id = subprocess.run(
+        ["docker", "image", "inspect", "--format", "{{.Id}}", expected_image],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    for container in CONTAINERS[:2]:
+        result = subprocess.run(
+            ["docker", "inspect", "--format", "{{.Image}}", container],
+            capture_output=True, text=True, check=True,
+        )
+        actual_id = result.stdout.strip()
+        if actual_id != expected_id:
+            raise RuntimeError(f"{container} uses {actual_id}, expected {expected_image} ({expected_id})")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("image", choices=["db", "redis", "redis-optimized", "redis-diagnostics", "redis-listener-pool"])
@@ -56,12 +88,19 @@ def main():
     args = parser.parse_args()
     if args.vus < 2 or args.vus % 2 or not args.run_name.replace("-", "").isalnum():
         parser.error("VUS must be a positive even number and run_name must be alphanumeric/kebab")
-    if not 1000 <= args.paired_interval_ms <= 2500:
-        parser.error("paired interval must be 1000..2500ms")
+    if not 1000 <= args.paired_interval_ms <= 4000:
+        parser.error("paired interval must be 1000..4000ms")
 
     LOCAL.mkdir(exist_ok=True)
     environment = os.environ.copy()
     environment["PERF_IMAGE"] = f"billim-perf-{args.image}"
+    subprocess.run(
+        ["docker", "compose", "-f", str(COMPOSE), "up", "-d", "--wait", "backend-a", "backend-b"],
+        env=environment, check=True,
+    )
+    verify_backend_images(environment["PERF_IMAGE"])
+    wait_backend(18080)
+    wait_backend(18081)
     command = [
         "docker", "compose", "-f", str(COMPOSE), "run", "--rm",
         "-e", f"CASE={args.case}", "-e", f"VUS={args.vus}",
