@@ -53,4 +53,6 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // 통합 테스트 컨텍스트가 MySQL 컨테이너를 계속 보유하지 않도록 상한 설정
+    systemProperty 'spring.test.context.cache.maxSize', '4'
 }
