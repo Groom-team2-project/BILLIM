@@ -1,7 +1,7 @@
 # API 명세서
 
-> 버전 : v0.1.15\
-> 수정일 : 2026.10.21
+> 버전 : v0.1.16\
+> 수정일 : 2026.10.26
 
 ## 0. 공통 규약
 
@@ -20,10 +20,10 @@
 ### 0.2 인증 방식
 
 - 쿠키 세션 인증. 개발은 같은 사이트 HTTPS 또는 로컬 프록시 구성을 권장하고 운영 쿠키는 Secure·HttpOnly·SameSite=Lax.
-- 로그인 흐름: 로그인 전 `GET /auth/csrf` → `/auth/kakao` 최상위 이동 → callback → `/auth/complete` → `GET /auth/csrf`와 `/members/me`. 인증 코드와 제공자 토큰을 브라우저 저장소에 보관하지 않는다.
+- 로그인 흐름: 로그인 전 `GET /auth/csrf` → `/auth/kakao` 또는 `/auth/naver` 최상위 이동 → callback → `/auth/complete` → `GET /auth/csrf`와 `/members/me`. 인증 코드와 제공자 토큰을 브라우저 저장소에 보관하지 않는다. 계정은 제공자별 별개 — 동일인이 두 제공자로 로그인하면 서로 다른 회원.
 - POST/PUT/PATCH/DELETE는 `X-CSRF-TOKEN` 필수. OpenAPI의 cookie+csrf는 둘 다 필요한 AND 조건. OAuth callback은 state로 별도 검증한다.
 - 로그인 세션은 제재돼도 기존 거래 정리를 위해 유효할 수 있다. 각 action은 계정 제재·소속·차단·당사자 정책을 별도로 확인한다.
-- 익명 허용은 `/auth/csrf`, `/auth/kakao`, callback, `/policies/{policyKey}`만. ADMIN API는 전역 ADMIN 역할.
+- 익명 허용은 `/auth/csrf`, `/auth/kakao`, `/auth/naver`, callback, `/policies/{policyKey}`만. ADMIN API는 전역 ADMIN 역할.
 - 공개 조회가 허용되지 않는 타인 대상은 404, 이미 인지 가능한 대상의 명령 권한 부족은 403으로 처리한다.
 - 응답 `allowedActions`·`access`는 UI 안내이며 서버 권한 검사를 대체하지 않는다. 로딩/토스트/모달/테마에는 별도 API가 없다.
 
@@ -74,6 +74,8 @@
 | [A_002](#22-a_002-카카오-로그인-시작) | 이지은 | P0 | GET | /api/v1/auth/kakao | 카카오 로그인 시작 |
 | [A_003](#23-a_003-카카오-로그인-콜백) | 이지은 | P0 | GET | /api/v1/auth/kakao/callback | 카카오 로그인 콜백 |
 | [A_004](#24-a_004-로그아웃) | 이지은 | P0 | POST | /api/v1/auth/logout | 로그아웃 |
+| [A_008](#25-a_008-네이버-로그인-시작) | 이지은 | P2 | GET | /api/v1/auth/naver | 네이버 로그인 시작 |
+| [A_009](#26-a_009-네이버-로그인-콜백) | 이지은 | P2 | GET | /api/v1/auth/naver/callback | 네이버 로그인 콜백 |
 | [A_005](#31-a_005-내-회원활성-소속-조회) | 이지은 | P0 | GET | /api/v1/members/me | 내 회원·활성 소속 조회 |
 | [A_006](#32-a_006-내-표시-이름-수정) | 이지은 | P1 | PATCH | /api/v1/members/me | 내 표시 이름 수정 |
 | [A_007](#33-a_007-이웃-공개-프로필) | 이지은 | P1 | GET | /api/v1/members/{memberId} | 이웃 공개 프로필 |
@@ -188,6 +190,24 @@
 - 성공 응답: 204 본문 없음
 - 관련 테이블: auth_sessions
 - 목업 연결: profile
+
+### 2.5 A_008 네이버 로그인 시작
+
+- `GET /api/v1/auth/naver` · 이지은 · P2
+- 설명: 카카오 시작(A_002)과 같은 흐름 — 허용된 네이버 인증 주소로 302 이동. 등록 ID만 다름.
+- 요청 본문: 없음
+- 성공 응답: 302 리다이렉트
+- 관련 테이블: auth_sessions, oauth_login_attempts
+- 목업 연결: login
+
+### 2.6 A_009 네이버 로그인 콜백
+
+- `GET /api/v1/auth/naver/callback` · 이지은 · P2
+- 설명: 카카오 콜백(A_003)과 동일한 Query·검증·응답 규칙. 계정은 제공자별 별개 — 같은 사람이 카카오로 가입했어도 네이버 콜백은 새 회원 가입.
+- 요청 본문: 없음
+- 성공 응답: 302 리다이렉트
+- 관련 테이블: members, social_accounts, auth_sessions, oauth_login_attempts
+- 목업 연결: login
 
 ## 3. 회원 (members)
 

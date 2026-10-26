@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AuthSessionSecurityContextRepository implements SecurityContextRepository {
 
-    /** 카카오 등록 ID. OAuth2AuthenticationToken 복원에 필요 */
+    /** 복원 토큰의 표기용 등록 ID — 세션에 제공자 미저장, 다운스트림도 미참조라 고정값 */
     private static final String REGISTRATION_ID = "kakao";
 
     private final CurrentAuthSession currentAuthSession;

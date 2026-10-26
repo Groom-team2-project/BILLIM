@@ -24,8 +24,6 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class AuthController {
 
-    private static final String REGISTRATION_ID = "kakao";
-
     private final AuthSessionService authSessionService;
     private final SessionCookies sessionCookies;
     private final OAuth2AuthorizationRequestResolver authorizationRequestResolver;
@@ -43,14 +41,24 @@ public class AuthController {
                 .body(new CsrfTokenResponse(csrfToken.getToken()));
     }
 
+    @GetMapping("/kakao")
+    public void startKakaoLogin(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        startLogin("kakao", request, response);
+    }
+
+    @GetMapping("/naver")
+    public void startNaverLogin(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        startLogin("naver", request, response);
+    }
+
     /**
      * 브라우저 최상위 이동. state·PKCE 생성은 Spring 리졸버에 위임하고 보관만 직접 수행.
      * Spring 기본 필터(baseUri 방식)를 쓰지 않는 이유: /api/v1/auth 아래 다른 경로까지 가로챔.
      */
-    @GetMapping("/kakao")
-    public void startKakaoLogin(HttpServletRequest request, HttpServletResponse response) throws IOException {
+    private void startLogin(String registrationId,
+                            HttpServletRequest request, HttpServletResponse response) throws IOException {
         OAuth2AuthorizationRequest authorizationRequest =
-                authorizationRequestResolver.resolve(request, REGISTRATION_ID);
+                authorizationRequestResolver.resolve(request, registrationId);
         authorizationRequestRepository.saveAuthorizationRequest(authorizationRequest, request, response);
         response.sendRedirect(authorizationRequest.getAuthorizationRequestUri());
     }

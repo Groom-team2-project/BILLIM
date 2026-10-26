@@ -1,7 +1,7 @@
 package com.billim.global.config;
 
 import com.billim.global.exception.ErrorCode;
-import com.billim.global.security.KakaoOAuth2UserService;
+import com.billim.global.security.SocialOAuth2UserService;
 import com.billim.global.security.SecurityErrorResponseWriter;
 import com.billim.global.security.oauth.DbAuthorizationRequestRepository;
 import com.billim.global.security.oauth.LoginFailureHandler;
@@ -36,7 +36,7 @@ public class SecurityConfig {
             "/api/v1/policies/**",
     };
 
-    private final KakaoOAuth2UserService kakaoOAuth2UserService;
+    private final SocialOAuth2UserService socialOAuth2UserService;
     private final SecurityErrorResponseWriter errorResponseWriter;
     private final AuthSessionSecurityContextRepository securityContextRepository;
     private final AuthSessionCsrfTokenRepository csrfTokenRepository;
@@ -64,8 +64,9 @@ public class SecurityConfig {
                         // baseUri를 /api/v1/auth로 두면 /auth/csrf·/auth/logout까지 등록 ID로 해석됨
                         .authorizationEndpoint(endpoint -> endpoint
                                 .authorizationRequestRepository(authorizationRequestRepository))
-                        .redirectionEndpoint(endpoint -> endpoint.baseUri("/api/v1/auth/kakao/callback"))
-                        .userInfoEndpoint(userInfo -> userInfo.userService(kakaoOAuth2UserService))
+                        // 제공자 자리 와일드카드 — 제공자는 state로 저장된 시도에서 복원
+                        .redirectionEndpoint(endpoint -> endpoint.baseUri("/api/v1/auth/*/callback"))
+                        .userInfoEndpoint(userInfo -> userInfo.userService(socialOAuth2UserService))
                         // defaultSuccessUrl 대신 핸들러에서 세션 회전 후 이동
                         .successHandler(loginSuccessHandler)
                         .failureHandler(loginFailureHandler))
