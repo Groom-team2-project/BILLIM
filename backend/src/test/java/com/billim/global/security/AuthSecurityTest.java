@@ -245,6 +245,28 @@ class AuthSecurityTest {
         assertThat(response.getHeader(HttpHeaders.SET_COOKIE)).contains(SessionCookies.NAME + "=");
     }
 
+    @Test
+    @DisplayName("로그인 시작은 네이버로 302 이동하며 세션을 발급한다")
+    void startsNaverLogin() throws Exception {
+        var response = mockMvc.perform(get("/api/v1/auth/naver"))
+                .andExpect(status().isFound())
+                .andReturn().getResponse();
+
+        assertThat(response.getHeader(HttpHeaders.LOCATION))
+                .startsWith("https://nid.naver.com/oauth2.0/authorize")
+                .contains("state=");
+        assertThat(response.getHeader(HttpHeaders.SET_COOKIE)).contains(SessionCookies.NAME + "=");
+    }
+
+    /** 와일드카드 콜백 경로의 네이버 매칭 회귀 */
+    @Test
+    @DisplayName("네이버 콜백도 저장되지 않은 state는 거부한다")
+    void rejectsUnknownStateOnNaverCallback() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/naver/callback").param("code", "dummy").param("state", "없는-state"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
     /** state만 맞고 세션이 다르면 공격자가 피해자를 자기 계정으로 로그인시킬 수 있음 */
     @Test
     @DisplayName("세션 쿠키 없는 콜백은 거부한다")
