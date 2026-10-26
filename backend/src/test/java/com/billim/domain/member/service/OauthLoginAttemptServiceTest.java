@@ -2,6 +2,7 @@ package com.billim.domain.member.service;
 
 import com.billim.domain.member.entity.AuthSession;
 import com.billim.domain.member.entity.OauthLoginAttempt;
+import com.billim.domain.member.entity.SocialProvider;
 import com.billim.domain.member.repository.AuthSessionRepository;
 import com.billim.global.config.JpaAuditingConfig;
 import com.billim.global.security.session.SessionTokens;
@@ -73,7 +74,7 @@ class OauthLoginAttemptServiceTest {
     void storesStateHashOnly() {
         AuthSession session = givenSession();
 
-        oauthLoginAttemptService.start(session, "state-value", "verifier", REDIRECT_URI);
+        oauthLoginAttemptService.start(session, "state-value", SocialProvider.KAKAO, "verifier", REDIRECT_URI);
         em.flush();
 
         OauthLoginAttempt saved = oauthLoginAttemptService.consume("state-value", session.getId());
@@ -86,7 +87,7 @@ class OauthLoginAttemptServiceTest {
     @DisplayName("소비에 성공하면 시작 당시 세션과 PKCE 값을 돌려받는다")
     void consumeReturnsStoredContext() {
         AuthSession session = givenSession();
-        oauthLoginAttemptService.start(session, "state-value", "verifier", REDIRECT_URI);
+        oauthLoginAttemptService.start(session, "state-value", SocialProvider.KAKAO, "verifier", REDIRECT_URI);
         em.flush();
 
         OauthLoginAttempt consumed = oauthLoginAttemptService.consume("state-value", session.getId());
@@ -102,7 +103,7 @@ class OauthLoginAttemptServiceTest {
     @DisplayName("같은 state는 두 번 소비되지 않는다")
     void consumesOnlyOnce() {
         AuthSession session = givenSession();
-        oauthLoginAttemptService.start(session, "state-value", "verifier", REDIRECT_URI);
+        oauthLoginAttemptService.start(session, "state-value", SocialProvider.KAKAO, "verifier", REDIRECT_URI);
         em.flush();
 
         assertThat(oauthLoginAttemptService.consume("state-value", session.getId())).isNotNull();
@@ -121,7 +122,7 @@ class OauthLoginAttemptServiceTest {
     void rejectsConsumeFromAnotherSession() {
         AuthSession session = givenSession();
         AuthSession other = givenSession();
-        oauthLoginAttemptService.start(session, "state-value", "verifier", REDIRECT_URI);
+        oauthLoginAttemptService.start(session, "state-value", SocialProvider.KAKAO, "verifier", REDIRECT_URI);
         em.flush();
 
         assertThat(oauthLoginAttemptService.consume("state-value", other.getId())).isNull();
@@ -132,7 +133,7 @@ class OauthLoginAttemptServiceTest {
     @DisplayName("유효 시간이 지난 state는 소비되지 않는다")
     void rejectsExpiredState() {
         AuthSession session = givenSession();
-        oauthLoginAttemptService.start(session, "state-value", "verifier", REDIRECT_URI);
+        oauthLoginAttemptService.start(session, "state-value", SocialProvider.KAKAO, "verifier", REDIRECT_URI);
         em.flush();
 
         CLOCK.advance(Duration.ofMinutes(10).plusSeconds(1));
@@ -144,7 +145,7 @@ class OauthLoginAttemptServiceTest {
     @DisplayName("PKCE 미사용 제공자는 code_verifier 없이 저장")
     void allowsNullCodeVerifier() {
         AuthSession session = givenSession();
-        oauthLoginAttemptService.start(session, "state-value", null, REDIRECT_URI);
+        oauthLoginAttemptService.start(session, "state-value", SocialProvider.KAKAO, null, REDIRECT_URI);
         em.flush();
 
         assertThat(oauthLoginAttemptService.consume("state-value", session.getId()).getCodeVerifier()).isNull();
@@ -161,7 +162,7 @@ class OauthLoginAttemptServiceTest {
         String state = "concurrent-state";
         Long sessionId = givenSession().getId();
         oauthLoginAttemptService.start(authSessionRepository.findById(sessionId).orElseThrow(),
-                state, "verifier", REDIRECT_URI);
+                state, SocialProvider.KAKAO, "verifier", REDIRECT_URI);
 
         int threads = 8;
         CountDownLatch ready = new CountDownLatch(threads);

@@ -1,15 +1,31 @@
+import { useSearchParams } from "react-router-dom";
+import { Alert } from "@/components/ui/alert/Alert";
 import styles from "@/pages/onboarding/LoginPage.module.css";
 import { classes } from "@/utils/classes";
 
 const c = classes(styles);
 
-/** 카카오 로그인 시작. Vite 프록시 경유 */
+/** 소셜 로그인 시작. Vite 프록시 경유 */
 const KAKAO_LOGIN_URL = "/api/v1/auth/kakao";
+const NAVER_LOGIN_URL = "/api/v1/auth/naver";
+
+/** 로그인 화면으로 되돌린 사유. 취소는 안내(info), 실패는 경고(danger) (디자인 시스템 P4) */
+const LOGIN_ERRORS: Record<string, { tone: "info" | "danger"; message: string }> = {
+  OAUTH_CANCELED: { tone: "info", message: "로그인을 취소했어요. 다시 시도해 주세요." },
+  PROFILE_LOAD_FAILED: { tone: "danger", message: "로그인은 됐지만 정보를 불러오지 못했어요. 다시 시도해 주세요." },
+};
 
 export function LoginPage() {
-  // 카카오 도메인을 거치는 흐름이라 SPA 라우팅이 아닌 브라우저 최상위 이동
+  const [params] = useSearchParams();
+  const loginError = LOGIN_ERRORS[params.get("error") ?? ""];
+
+  // 소셜 도메인을 거치는 흐름이라 SPA 라우팅이 아닌 브라우저 최상위 이동
   const startKakao = () => {
     window.location.href = KAKAO_LOGIN_URL;
+  };
+
+  const startNaver = () => {
+    window.location.href = NAVER_LOGIN_URL;
   };
 
   return (
@@ -19,12 +35,12 @@ export function LoginPage() {
         <p className={c("t-body-lg login-tagline")}>잠깐 필요한 물건, 이웃에게 무료로 빌려요.</p>
       </div>
       <div className={c("login-actions")}>
+        {loginError ? <Alert tone={loginError.tone}>{loginError.message}</Alert> : null}
         <button type="button" className={c("login-kakao t-label")} onClick={startKakao}>
           <KakaoMark />
           카카오로 시작하기
         </button>
-        {/* 네이버는 후순위 — 백엔드 미구현 (ERD social_accounts.provider) */}
-        <button type="button" className={c("login-naver t-label")} disabled>
+        <button type="button" className={c("login-naver t-label")} onClick={startNaver}>
           <span className={c("login-naver-mark")}>N</span>
           네이버로 시작하기
         </button>
