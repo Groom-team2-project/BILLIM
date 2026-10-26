@@ -14,6 +14,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(properties = {
+    "spring.profiles.active=prod",
+    "DB_URL=jdbc:mysql://127.0.0.1:1/test",
+    "DB_USERNAME=test",
+    "DB_PASSWORD=test",
+    "KAKAO_REDIRECT_URI=http://localhost:8080/api/v1/auth/kakao/callback",
     "spring.security.oauth2.client.registration.kakao.client-id=test-client-id",
     "spring.security.oauth2.client.registration.kakao.client-secret=test-client-secret",
     "spring.data.redis.url=redis://127.0.0.1:1",
