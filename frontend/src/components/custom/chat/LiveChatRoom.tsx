@@ -15,12 +15,14 @@ import { ContextBar } from "@/components/custom/chat/ContextBar";
 import { AppointmentCard } from "@/components/custom/chat/AppointmentCard";
 import { AppointmentSheet } from "@/components/custom/chat/AppointmentSheet";
 import { refreshChatUnreadCount } from "@/stores/chat-unread";
+import { useSession } from "@/stores/session";
 import type { ApiChatMessage, ApiChatMessagePage, ApiChatRoom } from "@/types/chat-api";
 import type { ApiAppointmentSlot, AppointmentKind } from "@/types/appointment-api";
 import { ApiError } from "@/api/client";
 import { appointmentView } from "@/utils/appointment-view";
 import { chatBlockedMessage, chatTimeLabel, isMoneyRequest } from "@/utils/chat-view";
 import { mergeChatMessages } from "@/utils/chat-state";
+import { readPendingChatMessages, writePendingChatMessages, type PendingChatMessage } from "@/utils/chat-pending";
 import { chatSocketUrl, parseChatSocketMessage } from "@/utils/chat-realtime";
 import { classes } from "@/utils/classes";
 import styles from "@/components/custom/chat/ChatRoom.module.css";
@@ -34,13 +36,17 @@ const reportReasons: Record<string, ReportReasonCode> = {
   "사기가 의심돼요": "FRAUD",
 };
 
-type Pending = { clientMessageId: string; body: string; rentalId?: string; failed: boolean };
-
-export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (roomId: string) => void }) {
+export function LiveChatRoom({ roomId, onRead, onMessage }: {
+  roomId: string;
+  onRead: (roomId: string) => void;
+  onMessage: (roomId: string, message: ApiChatMessage) => void;
+}) {
   const { report, toast } = useUi();
+  const { memberId } = useSession();
   const [room, setRoom] = useState<ApiChatRoom | null>(null);
   const [messages, setMessages] = useState<ApiChatMessage[]>([]);
-  const [pending, setPending] = useState<Pending[]>([]);
+  const [pending, setPending] = useState<PendingChatMessage[]>(() => readPendingChatMessages(memberId, roomId));
+  const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "reconnecting" | "unauthorized">("connecting");
   const [older, setOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [otherLastRead, setOtherLastRead] = useState(0);
@@ -61,23 +67,32 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
   const highestSequence = messages.at(-1)?.sequence ?? 0;
   const lastFetchedSequenceRef = useRef(0);
 
+  useEffect(() => {
+    writePendingChatMessages(memberId, roomId, pending);
+  }, [memberId, roomId, pending]);
+
   const receiveMessages = useCallback((incoming: ApiChatMessage[]) => {
     setMessages((previous) => mergeChatMessages(previous, incoming));
+    if (incoming.length > 0) {
+      const latest = incoming.reduce((current, message) => message.sequence > current.sequence ? message : current);
+      onMessage(roomId, latest);
+    }
     const confirmedIds = new Set(incoming
       .map((message) => message.clientMessageId)
       .filter((id): id is string => typeof id === "string"));
     if (confirmedIds.size > 0) {
       setPending((previous) => previous.filter((entry) => !confirmedIds.has(entry.clientMessageId)));
     }
-  }, []);
+  }, [onMessage, roomId]);
 
   useEffect(() => {
     let active = true;
     Promise.all([getChatRoom(roomId), getChatMessages(roomId)]).then(([detail, page]) => {
       if (!active) return;
       setRoom(detail);
-      setSelectedRentalId(detail.access.allowedRentalIds[0] ?? detail.rentals[0]?.id);
-      setAppointmentLoading(true);
+      const rentalId = detail.access.allowedRentalIds[0] ?? detail.rentals[0]?.id;
+      setSelectedRentalId(rentalId);
+      setAppointmentLoading(Boolean(rentalId));
       receiveMessages(page.items);
       lastFetchedSequenceRef.current = Math.max(0, ...page.items.map((item) => item.sequence));
       setOtherLastRead(page.otherLastReadSequence);
@@ -117,8 +132,11 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     let busy = false;
     let socket: WebSocket | null = null;
     let reconnectTimer: number | undefined;
+    let pollTimer: number | undefined;
+    let reconnectDelay = 1000;
+    let unauthorized = false;
     const poll = async () => {
-      if (busy || !active || document.hidden) return;
+      if (busy || !active || unauthorized || document.hidden) return;
       busy = true;
       try {
         let cursor = lastFetchedSequenceRef.current;
@@ -134,18 +152,36 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
           cursor = nextCursor;
           lastFetchedSequenceRef.current = cursor;
         } while (page.hasMore && page.items.length > 0);
-      } catch {
-        // 연결 복구 뒤 같은 커서에서 다시 조회한다.
+      } catch (exception) {
+        if (exception instanceof ApiError && exception.unauthenticated) {
+          unauthorized = true;
+          setConnectionState("unauthorized");
+          socket?.close();
+        }
+        // 그 밖의 실패는 연결 복구 뒤 같은 커서에서 다시 조회한다.
       } finally {
         busy = false;
       }
     };
+    const schedulePoll = () => {
+      window.clearTimeout(pollTimer);
+      if (!active || unauthorized) return;
+      pollTimer = window.setTimeout(() => {
+        void poll();
+        schedulePoll();
+      }, socket?.readyState === WebSocket.OPEN ? 15000 : 3000);
+    };
     const connect = () => {
-      if (!active) return;
+      if (!active || unauthorized) return;
       try {
         const current = new WebSocket(chatSocketUrl(roomId, window.location.href));
         socket = current;
-        current.onopen = () => { void poll(); };
+        current.onopen = () => {
+          reconnectDelay = 1000;
+          setConnectionState("connected");
+          void poll();
+          schedulePoll();
+        };
         current.onmessage = (event) => {
           const message = parseChatSocketMessage(event.data, roomId);
           if (message && active) {
@@ -155,14 +191,21 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
         };
         current.onerror = () => current.close();
         current.onclose = () => {
-          if (active) reconnectTimer = window.setTimeout(connect, 3000);
+          if (!active || unauthorized) return;
+          setConnectionState("reconnecting");
+          schedulePoll();
+          reconnectTimer = window.setTimeout(connect, reconnectDelay);
+          reconnectDelay = Math.min(reconnectDelay * 2, 30000);
         };
       } catch {
-        reconnectTimer = window.setTimeout(connect, 3000);
+        setConnectionState("reconnecting");
+        schedulePoll();
+        reconnectTimer = window.setTimeout(connect, reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 30000);
       }
     };
     connect();
-    const timer = window.setInterval(() => { void poll(); }, 3000);
+    schedulePoll();
     const onFocus = () => {
       if (document.hidden) return;
       setForegroundEpoch((previous) => previous + 1);
@@ -172,7 +215,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     document.addEventListener("visibilitychange", onFocus);
     return () => {
       active = false;
-      window.clearInterval(timer);
+      window.clearTimeout(pollTimer);
       window.clearTimeout(reconnectTimer);
       socket?.close();
       window.removeEventListener("focus", onFocus);
@@ -208,7 +251,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     }
   };
 
-  const send = async (entry: Pending) => {
+  const send = async (entry: PendingChatMessage) => {
     setPending((previous) => previous.map((item) => item.clientMessageId === entry.clientMessageId ? { ...item, failed: false } : item));
     try {
       const saved = await sendChatMessage(roomId, {
@@ -225,6 +268,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
 
   const createMessage = (body: string) => {
     const entry = { clientMessageId: newIdempotencyKey(), body, rentalId: selectedRentalId, failed: false };
+    writePendingChatMessages(memberId, roomId, [...pending, entry]);
     setPending((previous) => [...previous, entry]);
     void send(entry);
   };
@@ -326,6 +370,12 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
       <ContextBar room={room} selectedRentalId={selectedRentalId} action={proposalKinds.length > 0 ?
         <Button size="sm" variant="secondary" icon="clock" disabled={appointmentBusy}
           onClick={() => void openAppointmentSheet(proposalKinds[0].kind === "PICKUP" ? "give" : "back")}>약속 잡기</Button> : null} />
+      {connectionState === "reconnecting" ? <Alert tone="warning" title="실시간 연결을 다시 시도하고 있어요">
+        새 메시지는 연결이 복구되면 확인합니다.
+      </Alert> : null}
+      {connectionState === "unauthorized" ? <Alert tone="warning" title="로그인이 만료됐어요">
+        다시 로그인한 뒤 채팅을 이용해 주세요.
+      </Alert> : null}
       {allowedRentals.length > 1 ? <label className={c("chat-rental-picker")}>
         대여 건 <select value={selectedRentalId} onChange={(event) => {
           setAppointmentLoading(true);
@@ -385,7 +435,9 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
           </div> : null}
         </div>)}
       </div>
-      <Composer blocked={!room.access.canSend} blockedMessage={chatBlockedMessage(room.access.reason)} onSend={createMessage} />
+      <Composer blocked={!room.access.canSend || connectionState === "unauthorized"}
+        blockedMessage={connectionState === "unauthorized" ? "로그인이 만료됐어요. 다시 로그인해 주세요." : chatBlockedMessage(room.access.reason)}
+        onSend={createMessage} />
       {sheetKind && selectedRental ? <AppointmentSheet key={`${selectedRental.id}-${sheetKind}`}
         initialKind={sheetKind} onClose={() => setSheetKind(undefined)} live={{
           dates: { give: selectedRental.startDate, back: selectedRental.endDate },
