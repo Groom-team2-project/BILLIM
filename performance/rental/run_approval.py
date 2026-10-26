@@ -6,6 +6,7 @@ import json
 import os
 import secrets
 import subprocess
+import sys
 import time
 import urllib.request
 import uuid
@@ -13,7 +14,9 @@ import uuid
 from run import BASE, HERE, LOCAL, ROOT, sql
 
 
-def main():
+def main(mode='approval'):
+    if mode not in ('approval', 'idempotency'):
+        raise SystemExit('지원하지 않는 측정 모드')
     LOCAL.mkdir(mode=0o700, exist_ok=True)
     for attempt in range(60):
         try:
@@ -55,26 +58,34 @@ def main():
         fixture_path.write_text(json.dumps({'token': token, 'csrf': csrf, 'waves': waves}))
         fixture_path.chmod(0o600)
         env = dict(os.environ, K6_SUMMARY_TREND_STATS='avg,min,med,max,p(90),p(95),p(99)')
-        with (LOCAL / 'approval.log').open('w') as output:
-            result = subprocess.run(['k6','run','--summary-export',str(LOCAL / 'approval.json'),
-                str(HERE / 'concurrent-approval.js')],env=env,stdout=output,stderr=subprocess.STDOUT)
+        script = 'idempotency.js' if mode == 'idempotency' else 'concurrent-approval.js'
+        with (LOCAL / f'{mode}.log').open('w') as output:
+            result = subprocess.run(['k6','run','--summary-export',str(LOCAL / f'{mode}.json'),
+                str(HERE / script)],env=env,stdout=output,stderr=subprocess.STDOUT)
         last = first_rental + 199
         grouped = sql(f"SELECT item_id,SUM(status='APPROVED'),SUM(status='REQUESTED') FROM rentals WHERE id BETWEEN {first_rental} AND {last} GROUP BY item_id ORDER BY item_id;")
         rows = [[int(value) for value in row.split('\t')] for row in grouped.splitlines()]
         side_effects = sql(f"SELECT (SELECT COUNT(*) FROM rental_status_histories WHERE rental_id BETWEEN {first_rental} AND {last} AND to_status='APPROVED'),(SELECT COUNT(*) FROM appointment_slots WHERE rental_id BETWEEN {first_rental} AND {last}),(SELECT COUNT(*) FROM outbox_events WHERE aggregate_type='RENTAL' AND aggregate_id BETWEEN {first_rental} AND {last} AND event_type='RENTAL_APPROVED');")
         counts = [int(v) for v in side_effects.split('\t')]
         valid = len(rows) == 20 and all(row[1:] == [1,9] for row in rows) and counts == [20,40,20]
+        versions = int(sql(f"SELECT COUNT(*) FROM rentals WHERE id BETWEEN {first_rental} AND {last} AND status='APPROVED' AND version=1;"))
+        operations = ','.join("'POST /api/v1/rentals/" + str(w[0]['rentalId']) + "/approve'" for w in waves)
+        record_count = int(sql(f"SELECT COUNT(*) FROM idempotency_records WHERE member_id=981001 AND operation_key IN ({operations});")) if mode == 'idempotency' else None
+        if mode == 'idempotency':
+            valid = valid and versions == 20 and record_count == 20
         verification = {
             'finishedAt': datetime.now(timezone.utc).isoformat(),
             'commit': subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
-            'waves': 20, 'concurrentRequestsPerWave': 10, 'requestCount': 200,
+            'mode': mode, 'waves': 20, 'concurrentRequestsPerWave': 10,
+            'requestCount': 240 if mode == 'idempotency' else 200,
             'itemResults': rows, 'approvalHistories': counts[0], 'appointmentSlots': counts[1],
             'approvalEvents': counts[2], 'databaseChecksPassed': valid, 'k6ExitCode': result.returncode,
+            'approvedVersionOneCount': versions, 'idempotencyRecordCount': record_count,
         }
-        (LOCAL / 'approval-verification.json').write_text(json.dumps(verification,indent=2)+'\n')
+        (LOCAL / f'{mode}-verification.json').write_text(json.dumps(verification,indent=2)+'\n')
         if result.returncode or not valid:
-            raise SystemExit('동시 승인 검증 실패. local/approval.log 및 검증 결과 확인 필요')
-        print('요청 200건, 승인 20건·충돌 180건, DB 정합성 검증 통과')
+            raise SystemExit(f'{mode} 검증 실패. local/{mode}.log 및 검증 결과 확인 필요')
+        print(f'{mode} 요청·응답 및 DB 정합성 검증 통과')
     finally:
         sql(f"UPDATE auth_sessions SET revoked_at=UTC_TIMESTAMP(6) WHERE token_hash='{digest}';")
         fixture_path.unlink(missing_ok=True)
@@ -82,4 +93,6 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    if sys.argv[1:] not in ([], ['--idempotency']):
+        raise SystemExit('사용법: python3 performance/rental/run_approval.py [--idempotency]')
+    main('idempotency' if sys.argv[1:] else 'approval')
