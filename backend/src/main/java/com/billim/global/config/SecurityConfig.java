@@ -32,6 +32,8 @@ public class SecurityConfig {
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs/**",
+            // 약관·정책 문서 — 명세 0.2 익명 허용. 로그인 전 화면에서 열람
+            "/api/v1/policies/**",
     };
 
     private final KakaoOAuth2UserService kakaoOAuth2UserService;
@@ -52,6 +54,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        // 관리자 API는 경로에서도 차단 — 컨트롤러의 역할 검사(SafetyRequests.adminId)와 겹벽
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 // HTTP 세션 미사용. 인증·CSRF·OAuth state를 모두 DB에 보관
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
