@@ -1,5 +1,7 @@
 package com.billim.domain.chat.service;
 
+import com.billim.MockChatRedisListener;
+
 import com.billim.domain.chat.dto.ChatRoomPageResponse;
 import com.billim.domain.chat.dto.ChatRoomResponse;
 import com.billim.domain.chat.repository.ChatParticipantRepository;
@@ -49,6 +51,7 @@ import static org.mockito.Mockito.when;
     "billim.notification.outbox.enabled=false"
 })
 @Import(ChatRoomViewFlowDbTest.MySql.class)
+@MockChatRedisListener
 class ChatRoomViewFlowDbTest {
 
     private static final long COMMUNITY_ID = 100L;

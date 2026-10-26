@@ -1,5 +1,7 @@
 package com.billim.domain.notification.service;
 
+import com.billim.MockChatRedisListener;
+
 import com.billim.domain.chat.entity.ChatMessage;
 import com.billim.domain.chat.entity.ChatRoom;
 import com.billim.domain.chat.repository.ChatMessageRepository;
@@ -51,6 +53,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         "spring.security.oauth2.client.registration.kakao.client-secret=test-client-secret",
         "billim.notification.outbox.enabled=false"
 })
+@MockChatRedisListener
 class OutboxDispatcherDbTest {
 
     @TestConfiguration(proxyBeanMethods = false)

@@ -1,6 +1,6 @@
 name: Deploy Backend
 
-# develop·main push 시 자동 배포. jar를 S3에 올리고 SSM으로 EC2가 받아 교체·재시작
+# develop·main push 시 자동 배포. Redis 준비 후 JAR을 교체·재시작
 on:
   push:
     branches: [develop, main]
@@ -24,6 +24,7 @@ jobs:
 
     env:
       S3_KEY: app/app.jar
+      REDIS_COMPOSE_KEY: app/compose.redis.prod.yaml
 
     steps:
       - name: 체크아웃
@@ -51,7 +52,9 @@ jobs:
           role-session-name: gha-deploy-${{ github.run_id }}
 
       - name: S3 업로드
-        run: aws s3 cp "backend/${JAR_PATH}" "s3://${{ vars.DEPLOY_BUCKET }}/${S3_KEY}"
+        run: |
+          aws s3 cp "backend/${JAR_PATH}" "s3://${{ vars.DEPLOY_BUCKET }}/${S3_KEY}"
+          aws s3 cp backend/compose.redis.prod.yaml "s3://${{ vars.DEPLOY_BUCKET }}/${REDIS_COMPOSE_KEY}"
 
       - name: EC2 배포 (SSM)
         run: |
@@ -61,11 +64,16 @@ jobs:
           jq -n \
             --arg b "${{ vars.DEPLOY_BUCKET }}" \
             --arg k "${S3_KEY}" \
+            --arg redisCompose "${REDIS_COMPOSE_KEY}" \
             --arg r "${{ vars.AWS_REGION }}" \
             '{commands: [
               "set -eu",
               "export PATH=$PATH:/snap/bin",
               "command -v aws >/dev/null || snap install aws-cli --classic",
+              ("aws s3 cp s3://" + $b + "/" + $redisCompose + " /home/ubuntu/BILLIM/backend/compose.redis.prod.yaml --region " + $r),
+              "command -v docker >/dev/null",
+              "docker compose version >/dev/null",
+              "docker compose -f /home/ubuntu/BILLIM/backend/compose.redis.prod.yaml up -d --wait",
               ("aws s3 cp s3://" + $b + "/" + $k + " /home/ubuntu/BILLIM/backend/app.jar.new --region " + $r),
               "chown ubuntu:ubuntu /home/ubuntu/BILLIM/backend/app.jar.new",
               "mv /home/ubuntu/BILLIM/backend/app.jar.new /home/ubuntu/BILLIM/backend/app.jar",
