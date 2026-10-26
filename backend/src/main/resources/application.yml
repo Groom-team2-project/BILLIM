@@ -4,6 +4,14 @@
 spring:
   application:
     name: billim
+  task:
+    scheduling:
+      # 채팅 DB 재확인이 길어져도 다른 주기 작업이 실행될 여유를 둔다.
+      pool:
+        size: 3
+  data:
+    redis:
+      url: ${REDIS_URL:redis://127.0.0.1:6379}
   profiles:
     default: local              # 프로필 미지정 시 local로 동작
   config:
@@ -52,6 +60,12 @@ spring:
 
 billim:
   chat:
+    redis:
+      # 단일 서버에서는 로컬 전달·DB 재확인만 사용한다.
+      enabled: ${CHAT_REDIS_ENABLED:false}
+    delivery:
+      # Redis 신호 유실 시 DB에서 누락 메시지를 복구한다.
+      poll-interval-ms: ${CHAT_DELIVERY_POLL_INTERVAL_MS:2000}
     rooms:
       enabled: true
   community:
@@ -190,6 +204,10 @@ server:
   forward-headers-strategy: framework
 
 billim:
+  chat:
+    redis:
+      # 운영 배포는 Compose에서 Redis 준비 후 기동한다. 장애 시 환경 변수로 비활성화 가능.
+      enabled: ${CHAT_REDIS_ENABLED:true}
   auth:
     # 운영은 HTTPS 전제. 환경 변수 누락으로 http 쿠키가 나가는 실수 방지
     cookie-secure: true
