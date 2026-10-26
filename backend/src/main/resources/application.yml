@@ -55,6 +55,9 @@ spring:
 
 billim:
   chat:
+    delivery:
+      # Redis 신호 유실 시 DB에서 누락 메시지를 복구한다.
+      poll-interval-ms: ${CHAT_DELIVERY_POLL_INTERVAL_MS:2000}
     rooms:
       enabled: true
   community:

@@ -1,5 +1,6 @@
 package com.billim.domain.chat.controller;
 
+import com.billim.domain.chat.dto.MessageResponse;
 import com.billim.domain.chat.service.ChatMessageQueryService;
 import com.billim.domain.chat.service.ChatRoomAccessService;
 import java.io.IOException;
@@ -24,6 +25,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private static final int SEND_TIME_LIMIT_MS = 10_000;
     private static final int BUFFER_SIZE_LIMIT_BYTES = 64 * 1024;
     private static final int REPLAY_PAGE_SIZE = 50;
+    private static final boolean RELAY_DIAGNOSTICS = Boolean.getBoolean("chat.relay.diagnostics");
 
     private final ChatRoomAccessService accessService;
     private final ChatMessageQueryService messageQueryService;
@@ -74,6 +76,39 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         return Set.copyOf(sessionByRoom.keySet());
     }
 
+    public void broadcastCommittedMessage(Long roomId, MessageResponse message) {
+        Map<String, SessionState> sessions = sessionByRoom.get(roomId);
+        if (sessions == null) {
+            return;
+        }
+        for (Map.Entry<String, SessionState> entry : sessions.entrySet()) {
+            SessionState state = entry.getValue();
+            synchronized (state) {
+                try {
+                    if (state.lastSequence >= message.sequence()) {
+                        continue;
+                    }
+                    if (!state.session.isOpen()
+                        || !accessService.canReceive(roomId, state.memberId, state.authSessionId)) {
+                        throw new IllegalStateException("채팅 WebSocket 수신 권한이 종료되었습니다.");
+                    }
+                    if (state.lastSequence + 1 != message.sequence()) {
+                        replayMissedMessages(roomId, state);
+                        continue;
+                    }
+                    state.session.sendMessage(
+                        new TextMessage(objectMapper.writeValueAsString(message))
+                    );
+                    state.lastSequence = message.sequence();
+                } catch (Exception exception) {
+                    log.warn("채팅 WebSocket 직접 전달 실패: roomId={}, sessionId={}",
+                        roomId, entry.getKey(), exception);
+                    closeAndRemove(roomId, entry.getKey(), state.session);
+                }
+            }
+        }
+    }
+
     public void refreshRoom(Long roomId) {
         Map<String, SessionState> sessions = sessionByRoom.get(roomId);
         if (sessions == null) {
@@ -94,33 +129,63 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void replayMissedMessages(Long roomId, SessionState state) throws Exception {
-        if (!state.session.isOpen()
-            || !accessService.canReceive(roomId, state.memberId, state.authSessionId)) {
-            throw new IllegalStateException("채팅 WebSocket 수신 권한이 종료되었습니다.");
-        }
-        long throughSequence = accessService
-            .findLastSequenceForParticipant(roomId, state.memberId).orElseThrow();
-        while (state.lastSequence < throughSequence) {
+        long startedAt = System.nanoTime();
+        long accessNs = 0;
+        long sequenceNs = 0;
+        long queryNs = 0;
+        long sendNs = 0;
+        int delivered = 0;
+        try {
+            long stageAt = System.nanoTime();
             if (!state.session.isOpen()
                 || !accessService.canReceive(roomId, state.memberId, state.authSessionId)) {
                 throw new IllegalStateException("채팅 WebSocket 수신 권한이 종료되었습니다.");
             }
-            var page = messageQueryService.getMessages(
-                roomId, state.memberId, state.lastSequence, null, REPLAY_PAGE_SIZE
-            );
-            boolean advanced = false;
-            for (var message : page.items()) {
-                if (message.sequence() > throughSequence) {
+            accessNs += System.nanoTime() - stageAt;
+            stageAt = System.nanoTime();
+            long throughSequence = accessService
+                .findLastSequenceForParticipant(roomId, state.memberId).orElseThrow();
+            sequenceNs += System.nanoTime() - stageAt;
+            while (state.lastSequence < throughSequence) {
+                stageAt = System.nanoTime();
+                if (!state.session.isOpen()
+                    || !accessService.canReceive(roomId, state.memberId, state.authSessionId)) {
+                    throw new IllegalStateException("채팅 WebSocket 수신 권한이 종료되었습니다.");
+                }
+                accessNs += System.nanoTime() - stageAt;
+                stageAt = System.nanoTime();
+                var page = messageQueryService.getMessages(
+                    roomId, state.memberId, state.lastSequence, null, REPLAY_PAGE_SIZE
+                );
+                queryNs += System.nanoTime() - stageAt;
+                boolean advanced = false;
+                for (var message : page.items()) {
+                    if (message.sequence() > throughSequence) {
+                        return;
+                    }
+                    stageAt = System.nanoTime();
+                    state.session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
+                    sendNs += System.nanoTime() - stageAt;
+                    delivered++;
+                    state.lastSequence = message.sequence();
+                    advanced = true;
+                }
+                if (!advanced || !page.hasMore()) {
                     return;
                 }
-                state.session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
-                state.lastSequence = message.sequence();
-                advanced = true;
             }
-            if (!advanced || !page.hasMore()) {
-                return;
+        } finally {
+            if (RELAY_DIAGNOSTICS) {
+                log.info("채팅 중계 계측: 구간=재조회 roomId={} 전달건={} 전체Ms={} 권한Ms={} 순서Ms={} 메시지조회Ms={} 소켓전송Ms={}",
+                    roomId, delivered, elapsedMs(startedAt, System.nanoTime()),
+                    accessNs / 1_000_000.0, sequenceNs / 1_000_000.0,
+                    queryNs / 1_000_000.0, sendNs / 1_000_000.0);
             }
         }
+    }
+
+    private static double elapsedMs(long start, long end) {
+        return (end - start) / 1_000_000.0;
     }
 
     private void closeAndRemove(Long roomId, String sessionId, WebSocketSession session) {
