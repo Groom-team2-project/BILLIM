@@ -10,8 +10,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.PingMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
@@ -74,6 +76,25 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     public Set<Long> activeRoomIds() {
         return Set.copyOf(sessionByRoom.keySet());
+    }
+
+    // 대화가 없는 동안에도 프록시의 유휴 연결 종료 방지. 채팅 순번·DB 조회 미사용.
+    @Scheduled(fixedDelay = 20_000, initialDelay = 20_000)
+    public void sendHeartbeats() {
+        sessionByRoom.forEach((roomId, sessions) -> sessions.forEach((sessionId, state) -> {
+            synchronized (state) {
+                if (!state.session.isOpen()) {
+                    removeSession(roomId, sessionId);
+                    return;
+                }
+                try {
+                    state.session.sendMessage(new PingMessage());
+                } catch (Exception exception) {
+                    log.warn("채팅 WebSocket 유지 신호 전송 실패: roomId={}", roomId);
+                    closeAndRemove(roomId, sessionId, state.session);
+                }
+            }
+        }));
     }
 
     public void broadcastCommittedMessage(Long roomId, MessageResponse message) {
