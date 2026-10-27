@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getChatMessages, getChatRoom, sendChatMessage, updateChatReadPosition } from "@/api/chat";
+import { getChatMessages, getChatRoom, issueChatSocketTicket, sendChatMessage, updateChatReadPosition } from "@/api/chat";
 import { acceptAppointment, getAppointments, proposeAppointment, withdrawAppointment } from "@/api/appointments";
 import { getCommunityPlaces, type ApiCommunityPlace } from "@/api/communities";
 import { newIdempotencyKey } from "@/api/client";
@@ -171,10 +171,18 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
         schedulePoll();
       }, socket?.readyState === WebSocket.OPEN ? 15000 : 3000);
     };
-    const connect = () => {
+    const connect = async () => {
       if (!active || unauthorized) return;
       try {
-        const current = new WebSocket(chatSocketUrl(roomId, window.location.href));
+        const endpoint = import.meta.env.VITE_CHAT_WS_URL?.trim();
+        // 연결마다 새 연결권 발급. 원문은 메모리에서만 사용.
+        let url = chatSocketUrl(roomId, window.location.href, endpoint);
+        if (endpoint) {
+          const { ticket } = await issueChatSocketTicket(roomId);
+          if (!active || unauthorized) return;
+          url = chatSocketUrl(roomId, window.location.href, endpoint, ticket);
+        }
+        const current = new WebSocket(url);
         socket = current;
         current.onopen = () => {
           reconnectDelay = 1000;
@@ -194,17 +202,23 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
           if (!active || unauthorized) return;
           setConnectionState("reconnecting");
           schedulePoll();
-          reconnectTimer = window.setTimeout(connect, reconnectDelay);
+          reconnectTimer = window.setTimeout(() => void connect(), reconnectDelay);
           reconnectDelay = Math.min(reconnectDelay * 2, 30000);
         };
-      } catch {
+      } catch (exception) {
+        if (!active || unauthorized) return;
+        if (exception instanceof ApiError && exception.unauthenticated) {
+          unauthorized = true;
+          setConnectionState("unauthorized");
+          return;
+        }
         setConnectionState("reconnecting");
         schedulePoll();
-        reconnectTimer = window.setTimeout(connect, reconnectDelay);
+        reconnectTimer = window.setTimeout(() => void connect(), reconnectDelay);
         reconnectDelay = Math.min(reconnectDelay * 2, 30000);
       }
     };
-    connect();
+    void connect();
     schedulePoll();
     const onFocus = () => {
       if (document.hidden) return;
@@ -371,7 +385,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
         <Button size="sm" variant="secondary" icon="clock" disabled={appointmentBusy}
           onClick={() => void openAppointmentSheet(proposalKinds[0].kind === "PICKUP" ? "give" : "back")}>약속 잡기</Button> : null} />
       {connectionState === "reconnecting" ? <Alert tone="warning" title="실시간 연결을 다시 시도하고 있어요">
-        새 메시지는 연결이 복구되면 확인합니다.
+        새 메시지는 주기적으로 확인하고 있어요. 일시적으로 늦게 표시될 수 있어요.
       </Alert> : null}
       {connectionState === "unauthorized" ? <Alert tone="warning" title="로그인이 만료됐어요">
         다시 로그인한 뒤 채팅을 이용해 주세요.
