@@ -37,6 +37,21 @@ class ChatWebSocketHandlerTest {
     );
 
     @Test
+    @DisplayName("유휴 연결 유지 신호는 채팅 메시지나 DB 재조회를 만들지 않는다")
+    void heartbeatDoesNotQueryOrAdvanceMessages() throws Exception {
+        WebSocketSession session = session("session-heartbeat", 2L, 55L);
+        when(accessService.canReceive(901L, 2L, 55L)).thenReturn(true);
+        when(accessService.findLastSequenceForParticipant(901L, 2L)).thenReturn(Optional.of(0L));
+        handler.afterConnectionEstablished(session);
+        org.mockito.Mockito.clearInvocations(accessService);
+
+        handler.sendHeartbeats();
+
+        verify(session).sendMessage(argThat(message -> message instanceof org.springframework.web.socket.PingMessage));
+        verifyNoInteractions(accessService, messageQueryService);
+    }
+
+    @Test
     @DisplayName("검증된 채팅방 ID가 없는 연결은 종료한다")
     void connectionWithoutRoomIsClosed() throws Exception {
         WebSocketSession session = mock(WebSocketSession.class);
