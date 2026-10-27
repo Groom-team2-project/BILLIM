@@ -1,7 +1,7 @@
 # API 명세서
 
-> 버전 : v0.1.16\
-> 수정일 : 2026.10.26
+> 버전 : v0.1.17\
+> 수정일 : 2026.10.27
 
 ## 0. 공통 규약
 
@@ -30,7 +30,7 @@
 ### 0.3 동시성·멱등성
 
 - expectedVersion 불일치 409. API에 적힌 expectedVersion은 해당 대상 또는 약속 슬롯의 version이다.
-- 로그아웃을 제외한 POST에는 UUID `Idempotency-Key` 필수. 인증·조회 권한 재확인 후 같은 키/같은 요청은 최초 성공 결과·코드 재사용, 다른 내용은 409. 실패는 캐시하지 않고 24시간 보존.
+- 로그아웃·채팅 연결권 발급을 제외한 POST에는 UUID `Idempotency-Key` 필수. 인증·조회 권한 재확인 후 같은 키/같은 요청은 최초 성공 결과·코드 재사용, 다른 내용은 409. 실패는 캐시하지 않고 24시간 보존. 연결권은 일회성 임시 자격으로 요청마다 새로 발급하며 성공 응답 캐시 금지.
 - 채팅은 추가로 clientMessageId를 영구 고유 키로 사용한다. 변경 없는 PUT read/block, DELETE block은 반복에 안전하다.
 
 ### 0.4 오류 응답
@@ -724,10 +724,22 @@
 
 #### 실시간 메시지 수신
 
-- WebSocket 연결: `/ws/chat?roomId={roomId}`. 쿠키 세션 인증 및 해당 방 참여 권한 필요.
+- 동일 출처 WebSocket 연결: `/ws/chat?roomId={roomId}`. 쿠키 세션 인증 및 해당 방 참여 권한 필요.
+- 별도 WSS 출처 연결: `/ws/chat?roomId={roomId}&ticket={ticket}`. 아래 API로 받은 일회용 연결권 사용. 쿠키·회원 ID를 직접 전달하지 않음. 프론트 출처 정확히 일치하는 Origin만 허용. 연결권이 있으면 쿠키 인증으로 우회하지 않음.
 - 클라이언트의 메시지 작성은 D_045 REST API 사용. WebSocket으로 텍스트를 보내면 연결 종료.
 - 새 메시지 저장 트랜잭션 커밋 후 방 참여자에게 D_045의 `Message` 응답 전체를 JSON으로 전달. 전달 시 인증 세션과 참여 권한 재확인.
-- 연결 끊김 등으로 놓친 메시지는 D_044의 `afterSequence`로 다시 조회. 실시간 연결은 단일 백엔드 인스턴스 기준.
+- 연결 끊김 등으로 놓친 메시지는 D_044의 `afterSequence`로 다시 조회. Redis 중계 활성화 시 인스턴스 간 전달, DB 재확인으로 누락 복구.
+
+#### 별도 WSS 연결권 발급
+
+- `POST /api/v1/chat/rooms/{roomId}/socket-tickets` · 쿠키 세션 + CSRF 필수. 본문 없음.
+- 참여 권한·로그인 세션 유효성 확인 후 발급. 같은 세션·방은 1초에 한 번 발급 가능.
+- 성공: `200 { "ticket": "256비트 URL-safe 난수", "expiresAt": "2026-10-27T12:00:30Z" }`, `Cache-Control: no-store`.
+- 유효기간 30초. Redis에는 SHA-256 해시 키와 방·회원·인증 세션 ID만 저장. GETDEL로 인스턴스 간 동시 사용에서도 한 번만 소비.
+- 연결 시 방 일치·현재 세션·회원·참여 권한 재확인. 만료·재사용·방 변조·세션 폐기 시 401, 허용하지 않은 Origin 또는 중복 ticket 파라미터는 403. 잘못되거나 중복된 roomId는 400.
+- 발급 API: 비참여자 404 RESOURCE_NOT_FOUND, 유효하지 않은 세션 401 UNAUTHENTICATED, 연속 발급 429 RATE_LIMITED, 비활성화·Redis 장애 503 DEPENDENCY_UNAVAILABLE.
+- 기본 비활성화. `CHAT_SOCKET_TICKET_ENABLED=true`, 정확한 프론트 출처의 `CHAT_SOCKET_ALLOWED_ORIGINS` 설정 필요. 활성화 시 Redis 필수. JWT·쿠키 속성 변경 없음.
+- ticket은 연결 중 메모리에서만 사용. 브라우저 저장소·로그·분석 도구·접근 로그의 URL 쿼리에 기록 금지. WebSocket 재연결마다 새로 발급.
 
 ### 10.6 D_046 채팅 읽은 위치 갱신
 

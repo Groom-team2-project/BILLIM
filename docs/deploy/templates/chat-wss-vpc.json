@@ -1,0 +1,104 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "BILLIM 채팅 전용 CloudFront WSS와 EC2 VPC 원본. 네트워크 조건 확인 후 수동 적용.",
+  "Parameters": {
+    "OriginArn": {
+      "Type": "String",
+      "Description": "기존 EC2 인스턴스 ARN. VPC 원본 생성 조건 충족 필요."
+    },
+    "OriginPrivateDns": {
+      "Type": "String",
+      "Description": "EC2의 Private IP DNS name. 프로토콜·경로 제외."
+    },
+    "OriginPort": { "Type": "Number", "Default": 8080, "MinValue": 1, "MaxValue": 65535 }
+  },
+  "Resources": {
+    "VpcOrigin": {
+      "Type": "AWS::CloudFront::VpcOrigin",
+      "Properties": {
+        "VpcOriginEndpointConfig": {
+          "Name": { "Fn::Sub": "${AWS::StackName}-chat" },
+          "Arn": { "Ref": "OriginArn" },
+          "HTTPPort": { "Ref": "OriginPort" },
+          "HTTPSPort": 443,
+          "OriginProtocolPolicy": "http-only"
+        }
+      }
+    },
+    "NoCache": {
+      "Type": "AWS::CloudFront::CachePolicy",
+      "Properties": {
+        "CachePolicyConfig": {
+          "Name": { "Fn::Sub": "${AWS::StackName}-no-cache" },
+          "DefaultTTL": 0, "MinTTL": 0, "MaxTTL": 0,
+          "ParametersInCacheKeyAndForwardedToOrigin": {
+            "EnableAcceptEncodingBrotli": false,
+            "EnableAcceptEncodingGzip": false,
+            "CookiesConfig": { "CookieBehavior": "none" },
+            "HeadersConfig": { "HeaderBehavior": "none" },
+            "QueryStringsConfig": { "QueryStringBehavior": "none" }
+          }
+        }
+      }
+    },
+    "SocketRequest": {
+      "Type": "AWS::CloudFront::OriginRequestPolicy",
+      "Properties": {
+        "OriginRequestPolicyConfig": {
+          "Name": { "Fn::Sub": "${AWS::StackName}-socket-request" },
+          "CookiesConfig": { "CookieBehavior": "none" },
+          "QueryStringsConfig": { "QueryStringBehavior": "whitelist", "QueryStrings": ["roomId", "ticket"] },
+          "HeadersConfig": {
+            "HeaderBehavior": "whitelist",
+            "Headers": ["Origin", "Sec-WebSocket-Key", "Sec-WebSocket-Version", "Sec-WebSocket-Protocol", "Sec-WebSocket-Extensions"]
+          }
+        }
+      }
+    },
+    "SocketPathOnly": {
+      "Type": "AWS::CloudFront::Function",
+      "Properties": {
+        "Name": { "Fn::Sub": "${AWS::StackName}-socket-path" },
+        "AutoPublish": true,
+        "FunctionConfig": { "Comment": "채팅 경로 외 API·미디어 접근 차단", "Runtime": "cloudfront-js-2.0" },
+        "FunctionCode": "function handler(event) { var r = event.request; if (r.uri !== '/ws/chat' || r.method !== 'GET') { return {statusCode: 404, statusDescription: 'Not Found', headers: {'cache-control': {value: 'no-store'}}}; } return r; }"
+      }
+    },
+    "Distribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Properties": {
+        "DistributionConfig": {
+          "Enabled": true,
+          "Comment": "BILLIM 채팅 WSS 전용. ticket 쿼리 접근 로그 비활성.",
+          "IPV6Enabled": true,
+          "HttpVersion": "http2",
+          "ViewerCertificate": { "CloudFrontDefaultCertificate": true },
+          "Origins": [{
+            "Id": "chat-backend",
+            "DomainName": { "Ref": "OriginPrivateDns" },
+            "VpcOriginConfig": { "VpcOriginId": { "Fn::GetAtt": ["VpcOrigin", "Id"] }, "OriginReadTimeout": 60 }
+          }],
+          "DefaultCacheBehavior": {
+            "TargetOriginId": "chat-backend",
+            "ViewerProtocolPolicy": "https-only",
+            "AllowedMethods": ["GET", "HEAD"],
+            "CachePolicyId": { "Ref": "NoCache" },
+            "OriginRequestPolicyId": { "Ref": "SocketRequest" },
+            "FunctionAssociations": [{ "EventType": "viewer-request", "FunctionARN": { "Fn::GetAtt": ["SocketPathOnly", "FunctionARN"] } }]
+          },
+          "CustomErrorResponses": [
+            { "ErrorCode": 400, "ErrorCachingMinTTL": 0 },
+            { "ErrorCode": 403, "ErrorCachingMinTTL": 0 },
+            { "ErrorCode": 404, "ErrorCachingMinTTL": 0 },
+            { "ErrorCode": 503, "ErrorCachingMinTTL": 0 }
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "SocketUrl": { "Value": { "Fn::Sub": "wss://${Distribution.DomainName}/ws/chat" } },
+    "DistributionId": { "Value": { "Ref": "Distribution" } },
+    "VpcOriginId": { "Value": { "Fn::GetAtt": ["VpcOrigin", "Id"] } }
+  }
+}
