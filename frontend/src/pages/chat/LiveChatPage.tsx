@@ -76,10 +76,10 @@ export function LiveChatPage() {
     setLoading(true);
     if (next === filter) setRetry((value) => value + 1);
   };
-  const onRead = (roomId: string) => {
+  const onRead = useCallback((roomId: string) => {
     setRooms((previous) => previous.map((room) => room.id === roomId ? { ...room, unreadCount: 0 } : room));
     void refreshChatUnreadCount();
-  };
+  }, []);
   const onMessage = useCallback((roomId: string, message: ApiChatMessage) => {
     const preview = message.type === "SYSTEM"
       ? message.system?.label ?? message.body ?? "거래 상태가 변경됐어요"

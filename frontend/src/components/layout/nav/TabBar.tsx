@@ -1,6 +1,5 @@
-import { useEffect } from "react";
-import { NavLink, useLocation } from "react-router-dom";
-import { refreshChatUnreadCount, useChatUnreadCount } from "@/stores/chat-unread";
+import { NavLink } from "react-router-dom";
+import { useChatUnreadCount } from "@/stores/chat-unread";
 import { TAB_MENU } from "@/components/layout/nav/constants/tab-menu-list";
 import styles from "@/components/layout/nav/TabBar.module.css";
 import { classes } from "@/utils/classes";
@@ -9,21 +8,7 @@ const c = classes(styles);
 
 /** 하단 탭 (모바일) — 데스크톱·하위 화면에서는 렌더되지 않음 */
 export function TabBar() {
-  const { pathname } = useLocation();
   const unreadChats = useChatUnreadCount();
-
-  useEffect(() => {
-    const refresh = () => { if (!document.hidden) void refreshChatUnreadCount(); };
-    refresh();
-    const timer = window.setInterval(refresh, 15000);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [pathname]);
 
   return (
     <nav className={c("shell-tabbar")} aria-label="주 메뉴">
@@ -47,7 +32,7 @@ export function TabBar() {
             {t.icon}
             <span className={c("t-micro")}>{t.label}</span>
             {t.chatDot && unreadChats > 0 ? (
-              <span className={c("shell-tab-dot")} aria-label={`안 읽은 채팅 ${unreadChats}개`}>{unreadChats}</span>
+              <span className={c("shell-tab-dot")} aria-label={`안 읽은 메시지 ${unreadChats}개`}>{unreadChats > 99 ? "99+" : unreadChats}</span>
             ) : null}
           </NavLink>
         ),
