@@ -21,7 +21,7 @@ import type { ApiAppointmentSlot, AppointmentKind } from "@/types/appointment-ap
 import { ApiError } from "@/api/client";
 import { appointmentView } from "@/utils/appointment-view";
 import { chatBlockedMessage, chatTimeLabel, isMoneyRequest } from "@/utils/chat-view";
-import { countNewChatMessages, isChatAtBottom, mergeChatMessages } from "@/utils/chat-state";
+import { countNewChatMessages, isChatAtBottom, isChatMessageEndVisible, mergeChatMessages } from "@/utils/chat-state";
 import { readPendingChatMessages, writePendingChatMessages, type PendingChatMessage } from "@/utils/chat-pending";
 import { chatSocketUrl, parseChatSocketMessage } from "@/utils/chat-realtime";
 import { classes } from "@/utils/classes";
@@ -73,19 +73,53 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
   const [atBottom, setAtBottom] = useState(true);
   const [seenSequence, setSeenSequence] = useState(0);
 
+  const recordVisibleMessages = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element || document.hidden) return;
+    const bounds = element.getBoundingClientRect();
+    const viewport = {
+      top: Math.max(0, bounds.top + element.clientTop),
+      bottom: Math.min(window.innerHeight, bounds.top + element.clientTop + element.clientHeight),
+      left: Math.max(0, bounds.left + element.clientLeft),
+      right: Math.min(window.innerWidth, bounds.left + element.clientLeft + element.clientWidth),
+    };
+    let visibleSequence = 0;
+    element.querySelectorAll<HTMLElement>("[data-message-sequence]").forEach((message) => {
+      if (isChatMessageEndVisible(viewport, message.getBoundingClientRect())) {
+        visibleSequence = Math.max(visibleSequence, Number(message.dataset.messageSequence));
+      }
+    });
+    setSeenSequence((previous) => Math.max(previous, visibleSequence));
+  }, []);
+
+  const scrollToLatestMessage = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    // 카드·전송 대기 영역에 가려지지 않도록 최신 확정 메시지 끝부분으로 이동.
+    const messages = element.querySelectorAll<HTMLElement>("[data-message-sequence]");
+    const target = messages.item(messages.length - 1);
+    if (target) element.scrollTop += target.getBoundingClientRect().bottom
+      - element.getBoundingClientRect().top - element.clientHeight;
+    else element.scrollTop = element.scrollHeight;
+  }, []);
+
   const jumpToLatest = () => {
     followLatestRef.current = true;
-    const element = scrollRef.current;
-    if (element) element.scrollTop = element.scrollHeight;
+    scrollToLatestMessage();
     setAtBottom(true);
+    recordVisibleMessages();
   };
 
   const onScroll = () => {
     const element = scrollRef.current;
     if (!element) return;
-    const bottom = isChatAtBottom(element);
+    const entries = element.querySelectorAll<HTMLElement>("[data-message-sequence]");
+    const latest = entries.item(entries.length - 1);
+    const bottom = isChatAtBottom(element) || Boolean(latest
+      && isChatMessageEndVisible(element.getBoundingClientRect(), latest.getBoundingClientRect()));
     followLatestRef.current = bottom;
     setAtBottom(bottom);
+    recordVisibleMessages();
   };
 
   useLayoutEffect(() => {
@@ -99,10 +133,10 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
         - element.getBoundingClientRect().top - anchor.bottom;
       olderAnchorRef.current = null;
     } else if (followLatestRef.current) {
-      element.scrollTop = element.scrollHeight;
+      scrollToLatestMessage();
     }
-    if (followLatestRef.current && !document.hidden) setSeenSequence(highestSequence);
-  }, [messages, pending, loading, error, atBottom, highestSequence, foregroundEpoch]);
+    recordVisibleMessages();
+  }, [messages, pending, loading, error, atBottom, highestSequence, foregroundEpoch, recordVisibleMessages, scrollToLatestMessage]);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -110,12 +144,13 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
     if (!element || !content) return;
     // 약속 카드·줄바꿈·화면 크기 변경 후에도 하단 고정 유지.
     const observer = new ResizeObserver(() => {
-      if (followLatestRef.current) element.scrollTop = element.scrollHeight;
+      if (followLatestRef.current) scrollToLatestMessage();
+      recordVisibleMessages();
     });
     observer.observe(element);
     observer.observe(content);
     return () => observer.disconnect();
-  }, [loading, error]);
+  }, [loading, error, recordVisibleMessages, scrollToLatestMessage]);
 
   useEffect(() => {
     writePendingChatMessages(memberId, roomId, pending);
@@ -288,8 +323,8 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
   }, [roomId, loading, error, receiveMessages]);
 
   useEffect(() => {
-    if (!room || !atBottom || highestSequence <= lastReadRef.current || document.hidden) return;
-    const sequence = highestSequence;
+    if (!room || seenSequence <= lastReadRef.current || document.hidden) return;
+    const sequence = seenSequence;
     lastReadRef.current = sequence;
     updateChatReadPosition(roomId, sequence).then(() => {
       onRead(roomId);
@@ -297,7 +332,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
     }).catch(() => {
       lastReadRef.current = Math.min(lastReadRef.current, sequence - 1);
     });
-  }, [room, roomId, highestSequence, onRead, foregroundEpoch, atBottom]);
+  }, [room, roomId, seenSequence, onRead, foregroundEpoch]);
 
   const loadOlder = async () => {
     const first = messages[0]?.sequence;
@@ -471,7 +506,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
         {messages.map((message, index) => {
           const date = new Date(message.createdAt).toDateString();
           const divider = index === 0 || date !== new Date(messages[index - 1].createdAt).toDateString();
-          return <div key={message.id} data-message-id={message.id} className={c("chat-message-group")}>
+          return <div key={message.id} data-message-id={message.id} data-message-sequence={message.sequence} className={c("chat-message-group")}>
             {divider ? <DateDivider>{new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "long" }).format(new Date(message.createdAt))}</DateDivider> : null}
             {message.type === "SYSTEM" ? <SystemMessage icon="ring">{message.system?.label ?? message.body ?? "거래 상태가 변경됐어요"}</SystemMessage> : <>
               <Bubble me={message.senderId !== room.otherMember.id} time={chatTimeLabel(message.createdAt)}
@@ -512,7 +547,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
         </div>)}
         </div>
       </div>
-      {!atBottom ? <div className={c("chat-latest")} aria-live="polite">
+      {!atBottom || newMessageCount > 0 ? <div className={c("chat-latest")} aria-live="polite">
         <Button size="sm" variant="secondary" onClick={jumpToLatest}>
           {newMessageCount > 0 ? `새 메시지 ${newMessageCount}개 · 최신 대화 보기` : "최신 대화 보기"}
         </Button>
