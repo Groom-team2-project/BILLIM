@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiChatMessage } from "../src/types/chat-api.ts";
-import { countNewChatMessages, isChatAtBottom, mergeChatMessages } from "../src/utils/chat-state.ts";
+import { countNewChatMessages, isChatAtBottom, isChatMessageEndVisible, mergeChatMessages } from "../src/utils/chat-state.ts";
 import { isMoneyRequest } from "../src/utils/chat-view.ts";
 
 function message(sequence: number): ApiChatMessage {
@@ -41,4 +41,15 @@ test("새 메시지 개수는 상대방의 새 텍스트만 포함하고 재조�
   assert.equal(countNewChatMessages(merged, 9, "2"), 0);
   const older = mergeChatMessages(merged, [message(1), message(2)]);
   assert.equal(countNewChatMessages(older, 5, "2"), 2);
+});
+
+test("약속 카드·전송 대기 영역이 화면을 채우면 가려진 수신 메시지는 읽음 대상에서 제외한다", () => {
+  const viewport = { top: 100, bottom: 500, left: 0, right: 400 };
+  assert.equal(isChatMessageEndVisible(viewport, { top: 0, bottom: 90, left: 10, right: 300 }), false);
+  assert.equal(isChatMessageEndVisible(viewport, { top: 490, bottom: 550, left: 10, right: 300 }), false);
+  assert.equal(isChatMessageEndVisible(viewport, { top: 400, bottom: 480, left: 10, right: 300 }), true);
+  // 화면보다 긴 메시지는 첫 부분만 보일 때 제외, 끝부분을 확인한 경우 포함.
+  assert.equal(isChatMessageEndVisible(viewport, { top: -500, bottom: 700, left: 10, right: 300 }), false);
+  assert.equal(isChatMessageEndVisible(viewport, { top: -500, bottom: 450, left: 10, right: 300 }), true);
+  assert.equal(isChatMessageEndVisible({ ...viewport, right: 0 }, { top: 200, bottom: 250, left: 0, right: 0 }), false);
 });
