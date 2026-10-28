@@ -1,0 +1,76 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /Users/sobean/IdeaProjects/BILLIM/performance/rental/create-rental.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 10 max VUs, 31s max duration (incl. graceful stop):
+              * default: 10 looping VUs for 1s (gracefulStop: 30s)
+
+time="2026-10-28T21:11:22+09:00" level=warning msg="실패 분류: VU=3, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:11:22+09:00" level=warning msg="실패 분류: VU=7, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:11:22+09:00" level=warning msg="실패 분류: VU=4, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:11:22+09:00" level=warning msg="실패 분류: VU=2, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:11:22+09:00" level=warning msg="실패 분류: VU=9, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:11:22+09:00" level=warning msg="실패 분류: VU=10, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:11:22+09:00" level=warning msg="실패 분류: VU=8, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:11:22+09:00" level=warning msg="실패 분류: VU=5, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:11:22+09:00" level=warning msg="실패 분류: VU=1, status=500, code=INTERNAL_ERROR" source=console
+
+running (01.0s), 10/10 VUs, 0 complete and 0 interrupted iterations
+default   [  99% ] 10 VUs  1.0s/1s
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✗ 'rate==1' rate=10.00%
+
+    http_req_failed
+    ✗ 'rate==0' rate=90.00%
+
+    unexpected_responses
+    ✗ 'rate==0' rate=90.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 10     7.411151/s
+    checks_succeeded...: 10.00% 1 out of 10
+    checks_failed......: 90.00% 9 out of 10
+
+    ✗ 대여 생성 201·대상·요청자·초기 상태 일치
+      ↳  10% — ✓ 1 / ✗ 9
+
+    CUSTOM
+    rejected_responses.............: 9      6.670036/s
+    unexpected_responses...........: 90.00% 9 out of 10
+
+    HTTP
+    http_req_duration..............: avg=339.14ms min=339.01ms med=339.12ms max=339.41ms p(90)=339.36ms p(95)=339.39ms p(99)=339.4ms 
+      { expected_response:true }...: avg=339.15ms min=339.15ms med=339.15ms max=339.15ms p(90)=339.15ms p(95)=339.15ms p(99)=339.15ms
+    http_req_failed................: 90.00% 9 out of 10
+    http_reqs......................: 10     7.411151/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.34s    min=1.34s    med=1.34s    max=1.34s    p(90)=1.34s    p(95)=1.34s    p(99)=1.34s   
+    iterations.....................: 10     7.411151/s
+    vus............................: 10     min=10      max=10
+    vus_max........................: 10     min=10      max=10
+
+    NETWORK
+    data_received..................: 5.5 kB 4.1 kB/s
+    data_sent......................: 4.6 kB 3.4 kB/s
+
+
+
+
+running (01.3s), 00/10 VUs, 10 complete and 0 interrupted iterations
+default ✓ [ 100% ] 10 VUs  1s
+time="2026-10-28T21:11:23+09:00" level=error msg="thresholds on metrics 'checks, http_req_failed, unexpected_responses' have been crossed"

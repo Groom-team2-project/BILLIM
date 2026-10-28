@@ -1,0 +1,74 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /Users/sobean/IdeaProjects/BILLIM/performance/rental/create-rental.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 1 max VUs, 10m30s max duration (incl. graceful stop):
+              * default: 1 iterations shared among 1 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+time="2026-10-28T21:10:54+09:00" level=warning msg="생성 재전송 실패 분류: status=404, code=RESOURCE_NOT_FOUND" source=console
+time="2026-10-28T21:10:54+09:00" level=warning msg="생성 재전송 실패 분류: status=404, code=RESOURCE_NOT_FOUND" source=console
+time="2026-10-28T21:10:54+09:00" level=warning msg="생성 재전송 실패 분류: status=404, code=RESOURCE_NOT_FOUND" source=console
+time="2026-10-28T21:10:54+09:00" level=warning msg="생성 재전송 실패 분류: status=404, code=RESOURCE_NOT_FOUND" source=console
+time="2026-10-28T21:10:54+09:00" level=warning msg="생성 재전송 실패 분류: status=404, code=RESOURCE_NOT_FOUND" source=console
+time="2026-10-28T21:10:54+09:00" level=warning msg="생성 재전송 실패 분류: status=404, code=RESOURCE_NOT_FOUND" source=console
+time="2026-10-28T21:10:54+09:00" level=warning msg="생성 재전송 실패 분류: status=404, code=RESOURCE_NOT_FOUND" source=console
+time="2026-10-28T21:10:54+09:00" level=warning msg="생성 재전송 실패 분류: status=404, code=RESOURCE_NOT_FOUND" source=console
+time="2026-10-28T21:10:55+09:00" level=warning msg="생성 재전송 실패 분류: status=404, code=RESOURCE_NOT_FOUND" source=console
+time="2026-10-28T21:10:55+09:00" level=warning msg="생성 재전송 실패 분류: status=404, code=RESOURCE_NOT_FOUND" source=console
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✗ 'rate==1' rate=66.66%
+
+    unexpected_responses
+    ✗ 'rate==0' rate=75.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 30     70.854649/s
+    checks_succeeded...: 66.66% 20 out of 30
+    checks_failed......: 33.33% 10 out of 30
+
+    ✗ 생성 동시 재전송 10건 동일 응답
+      ↳  0% — ✓ 0 / ✗ 10
+    ✓ 생성 완료 후 재전송 응답 일치
+    ✓ 생성 키 다른 본문 재사용 거부
+
+    CUSTOM
+    create_changed_body_conflicts...: 10     23.618216/s
+    create_replay_duration..........: avg=4.15ms   min=2.36ms   med=3.04ms   max=8.11ms   p(90)=7.04ms   p(95)=7.58ms   p(99)=8.01ms  
+    create_replay_not_found.........: 90     212.563946/s
+    create_replay_successes.........: 20     47.236433/s
+    unexpected_responses............: 75.00% 90 out of 120
+
+    HTTP
+    http_req_duration...............: avg=21.9ms   min=1.99ms   med=14.28ms  max=130.54ms p(90)=28.05ms  p(95)=114.91ms p(99)=127.75ms
+      { expected_response:true }....: avg=8ms      min=2.36ms   med=7.61ms   max=27.93ms  p(90)=12.1ms   p(95)=13.66ms  p(99)=25.08ms 
+    http_req_failed.................: 83.33% 100 out of 120
+    http_reqs.......................: 120    283.418595/s
+
+    EXECUTION
+    iteration_duration..............: avg=423.32ms min=423.32ms med=423.32ms max=423.32ms p(90)=423.32ms p(95)=423.32ms p(99)=423.32ms
+    iterations......................: 1      2.361822/s
+
+    NETWORK
+    data_received...................: 69 kB  163 kB/s
+    data_sent.......................: 55 kB  131 kB/s
+
+
+
+
+running (00m00.4s), 0/1 VUs, 1 complete and 0 interrupted iterations
+default ✓ [ 100% ] 1 VUs  00m00.4s/10m0s  1/1 shared iters
+time="2026-10-28T21:10:55+09:00" level=error msg="thresholds on metrics 'checks, unexpected_responses' have been crossed"

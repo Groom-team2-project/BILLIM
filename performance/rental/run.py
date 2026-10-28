@@ -11,14 +11,16 @@ import urllib.request
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
-LOCAL = HERE / "local"
+LOCAL = Path(os.environ.get("RENTAL_PERF_LOCAL", HERE / "local"))
 COMPOSE = ["docker", "compose", "-f", str(HERE / "compose.yaml")]
+if os.environ.get("RENTAL_PERF_PROJECT"):
+    COMPOSE += ["-p", os.environ["RENTAL_PERF_PROJECT"]]
 BASE = "http://localhost:18081"
 
 
 def sql(statement):
     result = subprocess.run(COMPOSE + ["exec", "-T", "mysql", "sh", "-c",
-        'MYSQL_PWD="$MYSQL_PASSWORD" mysql --default-character-set=utf8mb4 -urental_perf -N -B billim_rental_perf'],
+        'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql --default-character-set=utf8mb4 -uroot -N -B billim_rental_perf'],
         input=statement, text=True, capture_output=True)
     if result.returncode:
         raise RuntimeError("전용 DB SQL 실행 실패. 비밀값 보호를 위해 SQL 출력 생략")
@@ -83,7 +85,8 @@ def main():
     env = dict(os.environ, SESSION=token, BASE_URL=BASE,
         K6_SUMMARY_TREND_STATS='avg,min,med,max,p(90),p(95),p(99)')
     try:
-        for name, vus, duration in [('smoke', 1, '5s'), ('warmup', 10, '30s'), ('baseline', 10, '3m')]:
+        runs=[] if os.environ.get('RENTAL_SEED_ONLY')=='1' else [('smoke', 1, '5s'), ('warmup', 10, '30s'), ('baseline', 10, '3m')]
+        for name, vus, duration in runs:
             print(f'{name}: VU {vus}, {duration}', flush=True)
             command = ['k6', 'run', '-e', f'VUS={vus}', '-e', f'DURATION={duration}',
                 '--summary-export', str(LOCAL / f'{name}.json'), str(HERE / 'rental-list.js')]

@@ -1,0 +1,170 @@
+{
+  "metrics": {
+    "http_req_waiting": {
+      "p(90)": 31.68760000000002,
+      "p(95)": 58.462799999999994,
+      "p(99)": 64.05039,
+      "avg": 20.70605,
+      "min": 8.265,
+      "med": 17.377000000000002,
+      "max": 65.961
+    },
+    "withdraw_successes": {
+      "count": 12,
+      "rate": 26.0923451582392
+    },
+    "http_req_failed": {
+      "passes": 20,
+      "fails": 20,
+      "value": 0.5
+    },
+    "iteration_duration": {
+      "p(90)": 459.8185,
+      "p(95)": 459.8185,
+      "p(99)": 459.8185,
+      "avg": 459.8185,
+      "min": 459.8185,
+      "med": 459.8185,
+      "max": 459.8185
+    },
+    "http_req_blocked": {
+      "p(90)": 0.013300000000000003,
+      "p(95)": 0.1610499999999955,
+      "p(99)": 2.63505,
+      "avg": 0.13682499999999995,
+      "min": 0.001,
+      "med": 0.0035,
+      "max": 2.637
+    },
+    "http_req_tls_handshaking": {
+      "min": 0,
+      "med": 0,
+      "max": 0,
+      "p(90)": 0,
+      "p(95)": 0,
+      "p(99)": 0,
+      "avg": 0
+    },
+    "version_conflict_duration": {
+      "p(99)": 64.60976,
+      "avg": 22.437500000000004,
+      "min": 10.72,
+      "med": 18.9665,
+      "max": 66.015,
+      "p(90)": 32.07440000000001,
+      "p(95)": 58.98879999999999
+    },
+    "accept_successes": {
+      "count": 8,
+      "rate": 17.394896772159466
+    },
+    "http_req_sending": {
+      "avg": 0.015225000000000008,
+      "min": 0.004,
+      "med": 0.0125,
+      "max": 0.053,
+      "p(90)": 0.023,
+      "p(95)": 0.03905,
+      "p(99)": 0.04792999999999999
+    },
+    "checks": {
+      "passes": 40,
+      "fails": 0,
+      "thresholds": {
+        "rate==1": false
+      },
+      "value": 1
+    },
+    "http_req_receiving": {
+      "avg": 0.3078000000000001,
+      "min": 0.038,
+      "med": 0.0915,
+      "max": 6.428,
+      "p(90)": 0.3399000000000001,
+      "p(95)": 0.519249999999999,
+      "p(99)": 4.332919999999998
+    },
+    "http_req_duration{expected_response:true}": {
+      "avg": 19.620649999999998,
+      "min": 8.372,
+      "med": 15.724,
+      "max": 61.151,
+      "p(90)": 27.47210000000001,
+      "p(95)": 56.012449999999994,
+      "p(99)": 60.123290000000004
+    },
+    "iterations": {
+      "count": 1,
+      "rate": 2.1743620965199333
+    },
+    "http_req_connecting": {
+      "max": 0.374,
+      "p(90)": 0,
+      "p(95)": 0.01844999999999936,
+      "p(99)": 0.37205,
+      "avg": 0.018575,
+      "min": 0,
+      "med": 0
+    },
+    "data_sent": {
+      "count": 17360,
+      "rate": 37746.92599558605
+    },
+    "data_received": {
+      "count": 22476,
+      "rate": 48870.96248138203
+    },
+    "unexpected_responses": {
+      "passes": 0,
+      "fails": 40,
+      "thresholds": {
+        "rate==0": false
+      },
+      "value": 0
+    },
+    "http_req_duration": {
+      "p(99)": 64.11804,
+      "avg": 21.029075,
+      "min": 8.372,
+      "med": 17.501,
+      "max": 66.015,
+      "p(90)": 31.78670000000002,
+      "p(95)": 58.745599999999996
+    },
+    "change_success_duration": {
+      "med": 15.724,
+      "max": 61.151,
+      "p(90)": 27.47210000000001,
+      "p(95)": 56.012449999999994,
+      "p(99)": 60.123290000000004,
+      "avg": 19.620649999999998,
+      "min": 8.372
+    },
+    "http_reqs": {
+      "rate": 86.97448386079733,
+      "count": 40
+    }
+  },
+  "root_group": {
+    "groups": {},
+    "checks": {
+      "\uc218\ub77d\u00b7\ucca0\ud68c \uc911 \ud55c \uac74\ub9cc \uc131\uacf5": {
+        "name": "\uc218\ub77d\u00b7\ucca0\ud68c \uc911 \ud55c \uac74\ub9cc \uc131\uacf5",
+        "path": "::\uc218\ub77d\u00b7\ucca0\ud68c \uc911 \ud55c \uac74\ub9cc \uc131\uacf5",
+        "id": "3c16ef89e329b6ceee68be3378879c03",
+        "passes": 20,
+        "fails": 0
+      },
+      "\ub098\uba38\uc9c0 \ud55c \uac74\uc740 \ucd5c\uc2e0 \ubc84\uc804 \ucda9\ub3cc": {
+        "id": "d84fae910495c2357bc7c815fbceb159",
+        "passes": 20,
+        "fails": 0,
+        "name": "\ub098\uba38\uc9c0 \ud55c \uac74\uc740 \ucd5c\uc2e0 \ubc84\uc804 \ucda9\ub3cc",
+        "path": "::\ub098\uba38\uc9c0 \ud55c \uac74\uc740 \ucd5c\uc2e0 \ubc84\uc804 \ucda9\ub3cc"
+      }
+    },
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e"
+  }
+}

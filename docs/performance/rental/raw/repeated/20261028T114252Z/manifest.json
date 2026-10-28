@@ -1,0 +1,25 @@
+{
+  "startedAt": "2026-10-28T11:42:52.976453+00:00",
+  "commit": "c4ff40df1e8f57f8f68667c21b22f90c82c9c039",
+  "repetitions": 3,
+  "sqlDefinition": "\uc560\ud50c\ub9ac\ucf00\uc774\uc158 DB \uacc4\uc815\uc758 SELECT/INSERT/UPDATE/DELETE \uc2e4\ud589 \ud69f\uc218 \ucc28\uc774 / HTTP \uc694\uccad \uc218",
+  "beforeAfterComparison": false,
+  "rounds": [
+    {
+      "repeat": 1,
+      "project": "billim-rental-repeat-20261028t114252z-1",
+      "workerExit": 0
+    },
+    {
+      "repeat": 2,
+      "project": "billim-rental-repeat-20261028t114252z-2",
+      "workerExit": 0
+    },
+    {
+      "repeat": 3,
+      "project": "billim-rental-repeat-20261028t114252z-3",
+      "workerExit": 0
+    }
+  ],
+  "finishedAt": "2026-10-28T12:06:51.244730+00:00"
+}

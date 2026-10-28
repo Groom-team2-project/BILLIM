@@ -65,6 +65,8 @@ def main(replay_only=False):
         fixture.write_text(json.dumps({'users':users,'phases':phases,'startDate':dates[0],'endDate':dates[1],'changedEndDate':dates[2]}))
         fixture.chmod(0o600)
         results={}
+        reset_warmup=os.environ.get('RENTAL_RESET_WARMUP')=='1'
+        initial_state=None
         runs=[('replay',1,'')] if replay_only else [('smoke',10,'1s'),('warmup',10,'30s'),('baseline',10,'3m'),('replay',1,'')]
         for phase,vus,duration in runs:
             env=dict(os.environ,PHASE=phase,VUS=str(vus),DURATION=duration,K6_SUMMARY_TREND_STATS='avg,min,med,max,p(90),p(95),p(99)')
@@ -75,8 +77,25 @@ def main(replay_only=False):
             if not (LOCAL/f'create-{phase}.json').exists():
                 raise SystemExit(f'{phase} 실행 결과 없음. 측정 중단')
             print(f'{phase}: '+('통과' if result.returncode==0 else '검증 실패 기록, 후속 측정 계속'),flush=True)
+            if phase=='warmup' and reset_warmup:
+                if not os.environ.get('RENTAL_PERF_PROJECT','').startswith('billim-rental-repeat-'):
+                    raise SystemExit('준비 데이터 정리는 새 반복 측정 전용 프로젝트에서만 허용')
+                warm_entries=[e for p in ('smoke','warmup') for group in phases[p] for e in group]
+                ids=','.join(str(e['itemId']) for e in warm_entries)
+                warm_keys=','.join("'"+e['key']+"'" for e in warm_entries)
+                cleanup=f"""START TRANSACTION;
+DELETE FROM outbox_events WHERE aggregate_type='RENTAL' AND aggregate_id IN (SELECT id FROM rentals WHERE item_id IN ({ids}));
+DELETE FROM idempotency_records WHERE operation_key='POST /api/v1/rentals' AND request_key IN ({warm_keys});
+DELETE FROM rental_status_histories WHERE rental_id IN (SELECT id FROM rentals WHERE item_id IN ({ids}));
+DELETE FROM rentals WHERE item_id IN ({ids});
+COMMIT;"""
+                sql(cleanup)
+                initial_state=[int(v) for v in sql('SELECT (SELECT COUNT(*) FROM members),(SELECT COUNT(*) FROM items),(SELECT COUNT(*) FROM rentals),(SELECT COUNT(*) FROM rental_status_histories),(SELECT COUNT(*) FROM outbox_events),(SELECT COUNT(*) FROM idempotency_records);').split('\t')]
+                if initial_state!=[21,3420,1000,1000,0,0]:
+                    raise SystemExit('생성 본 측정 초기 상태 불일치. 집계 중단')
+                print('준비용 거래·이력·사건·멱등 기록 정리, 초기 건수 일치 확인',flush=True)
         metrics={phase:json.loads((LOCAL/f'create-{phase}.json').read_text())['metrics'] for phase in results}
-        expected=sum(int(metrics[p]['checks']['passes']) for p in results if p!='replay')+10
+        expected=sum(int(metrics[p]['checks']['passes']) for p in results if p!='replay' and (not reset_warmup or p=='baseline'))+10
         query=f"SELECT COUNT(*),SUM(status='REQUESTED'),SUM(version=0),COUNT(DISTINCT item_id),COUNT(DISTINCT borrower_id) FROM rentals WHERE item_id BETWEEN {first} AND {next_item-1};"
         counts=[int(v) for v in sql(query).split('\t')]
         effects=[int(v) for v in sql(f"SELECT (SELECT COUNT(*) FROM rental_status_histories h JOIN rentals r ON r.id=h.rental_id WHERE r.item_id BETWEEN {first} AND {next_item-1}), (SELECT COUNT(*) FROM outbox_events e JOIN rentals r ON r.id=e.aggregate_id WHERE e.aggregate_type='RENTAL' AND e.event_type='RENTAL_REQUESTED' AND r.item_id BETWEEN {first} AND {next_item-1});").split('\t')]
@@ -96,6 +115,7 @@ def main(replay_only=False):
             'idempotencyRecords':record_count,'replayUniqueRentals':10 if valid else None,
             'databaseChecksPassed':valid,'k6ExitCodes':results,
             'allThresholdsPassed':all(code==0 for code in results.values()),
+            'warmupDataReset':reset_warmup,'beforeBaselineState':initial_state,
         }
         (LOCAL/'create-verification.json').write_text(json.dumps(verification,indent=2)+'\n')
         if not valid:
