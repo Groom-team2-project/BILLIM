@@ -30,6 +30,7 @@ import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -311,6 +312,37 @@ class AuthSecurityTest {
 
         assertThat(response.getHeaders(HttpHeaders.SET_COOKIE))
                 .noneMatch(cookie -> cookie.contains("JSESSIONID"));
+    }
+
+    /**
+     * 요청 제한 필터의 등록·순서 회귀 확인 — 시큐리티 체인 앞이 아니면 차단된 요청도 세션 행을 만듦.
+     * 전용 접속 주소로 계수되어 이 클래스의 다른 테스트(접속 주소 127.0.0.1 버킷)와 간섭 없음.
+     * 프록시 헤더가 아닌 이유: 테스트는 서명 비밀값이 없어 헤더를 무시.
+     * 실제 시계라 분 경계를 걸칠 수 있음 — 한도(30)의 두 배 넘게 보내면 어느 윈도우든 초과 보장
+     */
+    @Test
+    @DisplayName("한도를 넘긴 익명 요청은 429이고 세션 행을 만들지 않는다")
+    void rateLimitedRequestDoesNotCreateSession() throws Exception {
+        for (int i = 0; i < 61; i++) {
+            Long before = countSessions();
+            var response = mockMvc.perform(get("/api/v1/auth/csrf")
+                            .with(request -> {
+                                request.setRemoteAddr("203.0.113.9");
+                                return request;
+                            }))
+                    .andReturn().getResponse();
+            if (response.getStatus() == 429) {
+                assertThat(response.getContentAsString()).contains("RATE_LIMITED");
+                assertThat(response.getHeader(HttpHeaders.RETRY_AFTER)).isNotNull();
+                assertThat(countSessions()).isEqualTo(before);
+                return;
+            }
+        }
+        fail("요청 61회 안에 429가 발생해야 한다");
+    }
+
+    private Long countSessions() {
+        return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM auth_sessions", Long.class);
     }
 
     private String startLoginAndReadState() throws Exception {

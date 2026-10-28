@@ -1,7 +1,7 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.9\
-> 수정일 : 2026.10.22
+> 버전 : v0.1.10\
+> 수정일 : 2026.10.28
 
 ## 1. 공통 규칙
 
@@ -117,7 +117,7 @@ erDiagram
 | --- | --- | --- | --- | --- |
 | id | bigint | N | PK · AUTO_INCREMENT | — |
 | member_id | bigint | N | 회원 | members.id |
-| provider | varchar(20) | N | KAKAO. NAVER는 후순위 | — |
+| provider | varchar(20) | N | KAKAO / NAVER / LOCAL(관리자 전용 로그인 계정 식별) | — |
 | provider_subject | varchar(100) | N | 제공자의 불변 식별자. 대소문자 구분 비교 | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
@@ -154,7 +154,7 @@ erDiagram
 | id | bigint | N | PK · AUTO_INCREMENT | — |
 | session_id | bigint | N | 로그인 전 세션 | auth_sessions.id |
 | state_hash | char(64) | N | 무작위 state 해시 | — |
-| provider | varchar(20) | N | KAKAO | — |
+| provider | varchar(20) | N | KAKAO / NAVER | — |
 | expires_at | datetime(6) | N | 발급 후 10분 제안 | — |
 | consumed_at | datetime(6) | Y | 콜백에서 원자적으로 한 번 소비 | — |
 | code_verifier | varchar(128) | Y | PKCE 검증값. 난수라 재계산 불가. 미사용 제공자는 NULL | — |

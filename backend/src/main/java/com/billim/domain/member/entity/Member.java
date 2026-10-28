@@ -65,6 +65,18 @@ public class Member extends BaseTimeEntity {
         return new Member(displayName);
     }
 
+    /** 관리자 전용 로그인 계정 생성 — 소셜 가입과 달리 처음부터 ADMIN */
+    public static Member registerAdmin(String displayName) {
+        Member member = new Member(displayName);
+        member.role = MemberRole.ADMIN;
+        return member;
+    }
+
+    /** 관리자 전용 로그인 계정의 role 불변식 복원 — DB 수동 변경으로 어긋난 경우 */
+    public void promoteToAdmin() {
+        this.role = MemberRole.ADMIN;
+    }
+
     public void changeDisplayName(String displayName) {
         this.displayName = requireValidDisplayName(displayName);
     }

@@ -60,6 +60,8 @@ public class SocialOAuth2UserService extends DefaultOAuth2UserService {
         String subject = switch (provider) {
             case KAKAO -> oauthUser.getName();
             case NAVER -> naverAttribute(oauthUser.getAttributes(), "id");
+            // 도달 불가 — LOCAL은 OAuth 등록 ID가 없어 valueOf()를 통과하지 못함
+            case LOCAL -> throw new IllegalStateException("LOCAL은 OAuth 제공자가 아님");
         };
         if (subject == null || subject.isBlank()) {
             throw new OAuth2AuthenticationException(new OAuth2Error(
@@ -73,6 +75,7 @@ public class SocialOAuth2UserService extends DefaultOAuth2UserService {
         return switch (provider) {
             case KAKAO -> kakaoNickname(attributes);
             case NAVER -> naverAttribute(attributes, "nickname");
+            case LOCAL -> throw new IllegalStateException("LOCAL은 OAuth 제공자가 아님");
         };
     }
 
