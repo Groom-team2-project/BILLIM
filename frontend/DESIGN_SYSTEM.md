@@ -57,9 +57,9 @@ frontend/src/
     layout/                 base(AppLayout) · header · nav · footer
     overlay/                UiProvider (확인·사유·신고 모달, 토스트)
     custom/<도메인>/         도메인 컴포넌트 (items·rentals·chat·community·profile·policy·admin)
-  types/                    도메인 타입 (item·rental·chat·notification·admin·policy)
+  types/                    도메인 타입 (item·rental·chat·notification·policy)
   data/                     목데이터 (API 연동 시 이 계층만 교체)
-  stores/                   전역 상태 (session·theme·items·community·notifications·admin)
+  stores/                   전역 상태 (session·theme·items·community·notifications)
   hooks/  utils/  constants/
   styles/tokens.css         §3 값의 유일한 출처
   styles/global.css         리셋 · t-* 타이포 · only-desk/only-mobile · sr-only
@@ -385,8 +385,8 @@ export const STATUS_UI: Record<RentalStatus, { label: string; icon: string; toke
 | `@/components/custom/community` | `CommunitySheet` (내 동네 설정) |
 | `@/components/overlay/UiContext` | `useUi()` → `confirm` · `reason` · `report` · `toast` |
 | `@/hooks/useScreenState` | `useScreenState()` → `?state=` 로 로딩·빈·오류 확인 |
-| `@/stores/*` | `useSession`·`login`/`logout`, `useTheme`, `useMyItems`·`setVisibility`·`deleteItem`, `useCommunities`, `useNotifications`·`markAllRead`, `useReports`·`useNotices` |
-| `@/data/*` | 목데이터 (`items`·`rentals`·`chat`·`notifications`·`community`·`admin`·`policy`) |
+| `@/stores/*` | `useSession`·`login`/`logout`, `useTheme`, `useMyItems`·`setVisibility`·`deleteItem`, `useCommunities`, `useNotifications`·`markAllRead` |
+| `@/data/*` | 목데이터 (`items`·`rentals`·`chat`·`notifications`·`community`·`policy`). 관리자 화면은 전부 실제 API로 전환해 목데이터가 없다 |
 | `@/utils/*` | `classes`, `fmtDate`·`md`·`rangeDays`, `objectParticle`(을/를) |
 
 **직접 만들지 말 것** — 모달·토스트(`useUi()` 사용), 하위 화면 헤더(`PageHeader`), 빈·오류·로딩 화면(`state`), 가로 스크롤 칩 줄(`ChipScroller`), 아이콘(`Icon`에 추가).
