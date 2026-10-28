@@ -27,6 +27,20 @@ export function NotificationsPage() {
 
   useEffect(() => {
     void refreshNotifications();
+    let busy = false;
+    const refresh = () => {
+      if (document.hidden || busy) return;
+      busy = true;
+      void refreshNotifications(true).finally(() => { busy = false; });
+    };
+    const timer = window.setInterval(refresh, 15000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, []);
 
   async function openNotification(notification: ApiNotification) {

@@ -1,6 +1,8 @@
 package com.billim.domain.chat.controller;
 
 import com.billim.domain.chat.service.ChatRoomAccessService;
+import com.billim.domain.chat.service.ChatSocketTicketService;
+import com.billim.global.exception.BusinessException;
 import com.billim.domain.member.entity.AuthSession;
 import com.billim.global.security.LoginMember;
 import com.billim.global.security.session.CurrentAuthSession;
@@ -28,6 +30,7 @@ public class ChatWebSocketHandshakeInterceptor implements HandshakeInterceptor {
 
     private final ChatRoomAccessService accessService;
     private final CurrentAuthSession currentAuthSession;
+    private final ChatSocketTicketService ticketService;
 
     @Override
     public boolean beforeHandshake(
@@ -39,6 +42,42 @@ public class ChatWebSocketHandshakeInterceptor implements HandshakeInterceptor {
         if (!(request instanceof ServletServerHttpRequest servletServerHttpRequest)) {
             response.setStatusCode(HttpStatus.BAD_REQUEST);
             return false;
+        }
+
+        String[] tickets = servletServerHttpRequest.getServletRequest().getParameterValues("ticket");
+        if (tickets != null) {
+            String origin = request.getHeaders().getOrigin();
+            if (tickets.length != 1 || !ticketService.acceptsOrigin(origin)) {
+                response.setStatusCode(HttpStatus.FORBIDDEN);
+                return false;
+            }
+            String[] rooms = servletServerHttpRequest.getServletRequest().getParameterValues("roomId");
+            Long ticketRoomId;
+            try {
+                if (rooms == null || rooms.length != 1) throw new IllegalArgumentException();
+                ticketRoomId = Long.valueOf(rooms[0]);
+                if (ticketRoomId <= 0) throw new IllegalArgumentException();
+            } catch (IllegalArgumentException exception) {
+                response.setStatusCode(HttpStatus.BAD_REQUEST);
+                return false;
+            }
+            try {
+                ChatSocketTicketService.Identity identity = ticketService.consume(tickets[0], ticketRoomId);
+                Long lastSequence = accessService.findLastSequenceForParticipant(ticketRoomId, identity.memberId())
+                    .orElse(null);
+                if (lastSequence == null) {
+                    response.setStatusCode(HttpStatus.NOT_FOUND);
+                    return false;
+                }
+                attributes.put(ROOM_ID_ATTRIBUTE, ticketRoomId);
+                attributes.put(MEMBER_ID_ATTRIBUTE, identity.memberId());
+                attributes.put(AUTH_SESSION_ID_ATTRIBUTE, identity.authSessionId());
+                attributes.put(REPLAY_AFTER_SEQUENCE_ATTRIBUTE, lastSequence);
+                return true;
+            } catch (BusinessException exception) {
+                response.setStatusCode(exception.getErrorCode().getStatus());
+                return false;
+            }
         }
 
         if(!(servletServerHttpRequest.getServletRequest().getUserPrincipal()

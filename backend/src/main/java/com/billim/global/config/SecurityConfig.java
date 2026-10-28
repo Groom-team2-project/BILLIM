@@ -11,6 +11,7 @@ import com.billim.global.security.session.LoginSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -54,6 +55,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        // 쿠키 없는 별도 WSS 연결은 핸드셰이크에서 일회용 연결권 검증.
+                        .requestMatchers(HttpMethod.GET, "/ws/chat").permitAll()
                         // 관리자 API는 경로에서도 차단 — 컨트롤러의 역할 검사(SafetyRequests.adminId)와 겹벽
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated())

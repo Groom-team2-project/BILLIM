@@ -2,6 +2,7 @@ import { useSyncExternalStore } from "react";
 import { api, ApiError, resetCsrf } from "@/api/client";
 import { clearNotifications } from "@/stores/notifications";
 import { clearChatUnreadCount } from "@/stores/chat-unread";
+import { clearPendingChatMessages } from "@/utils/chat-pending";
 
 /**
  * 화면 표시용 세션 캐시. 실제 인증은 서버의 BILLIM_SESSION 쿠키가 판정한다.
@@ -43,6 +44,7 @@ function commit(next: Session) {
 export function signIn(role: "USER" | "ADMIN", memberId: string) {
   clearNotifications();
   clearChatUnreadCount();
+  clearPendingChatMessages();
   commit({ loggedIn: true, admin: role === "ADMIN", memberId });
 }
 
@@ -61,6 +63,7 @@ export async function logout(): Promise<boolean> {
   resetCsrf();
   clearNotifications();
   clearChatUnreadCount();
+  clearPendingChatMessages();
   commit({ loggedIn: false, admin: false, memberId: null });
   return true;
 }
