@@ -5,6 +5,7 @@ import { ApiError, resetCsrf } from "@/api/client";
 import { getMyProfile } from "@/api/members";
 import { signIn } from "@/stores/session";
 import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import styles from "@/pages/onboarding/AdminLoginPage.module.css";
 import { classes } from "@/utils/classes";
 
@@ -70,9 +71,9 @@ export function AdminLoginPage() {
             required
           />
         </label>
-        <button type="submit" className={c("adm-login-submit t-label")} disabled={pending}>
+        <Button type="submit" size="lg" block disabled={pending}>
           {pending ? "확인 중…" : "로그인"}
-        </button>
+        </Button>
       </form>
     </main>
   );

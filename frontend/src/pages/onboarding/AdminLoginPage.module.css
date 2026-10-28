@@ -52,14 +52,3 @@
   border-color: var(--line-control);
 }
 
-.adm-login-submit {
-  min-height: 52px;
-  border-radius: var(--radius-md);
-  background: var(--action);
-  color: var(--on-action);
-}
-
-.adm-login-submit:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
