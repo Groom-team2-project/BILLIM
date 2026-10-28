@@ -156,6 +156,18 @@ billim:
     # 한 트랜잭션에 전부 지우면 정리 중 인증 응답시간 상승 — 묶음 단위로 분할 (성능 측정 5절)
     cleanup-chunk-size: ${CLEANUP_CHUNK_SIZE:500}
     cleanup-chunk-pause-ms: ${CLEANUP_CHUNK_PAUSE_MS:50}
+    # 익명 엔드포인트(csrf·로그인 시작)의 IP별 분당 제한. 성능 측정 등 한 주소 다량 호출 작업은 끄고 수행
+    rate-limit-enabled: ${AUTH_RATE_LIMIT_ENABLED:true}
+    # 클라이언트 IP를 싣는 프록시(Netlify) 헤더. 없으면 접속 주소로 계수
+    rate-limit-client-ip-header: ${AUTH_RATE_LIMIT_IP_HEADER:x-nf-client-connection-ip}
+    rate-limit-csrf-per-minute: ${AUTH_RATE_LIMIT_CSRF_PER_MINUTE:30}
+    rate-limit-login-per-minute: ${AUTH_RATE_LIMIT_LOGIN_PER_MINUTE:10}
+    # 추적 키 상한. 위조 헤더로 키가 늘어도 메모리 유한
+    rate-limit-max-tracked-keys: 50000
+    # 관리자 전용 로그인(소셜 불필요). 둘 다 있어야 활성 — 비우면 엔드포인트가 404.
+    # 해시는 bcrypt: htpasswd -nbBC 12 "" '비밀번호' | tr -d ':'
+    admin-login-id: ${ADMIN_LOGIN_ID:}
+    admin-password-hash: ${ADMIN_PASSWORD_HASH:}
 
 logging:
   pattern:
