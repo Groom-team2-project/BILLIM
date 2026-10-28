@@ -15,6 +15,9 @@
   to = "http://52.78.14.19:8080/api/:splat"
   status = 200
   force = true
+  # 요청마다 x-nf-sign(HS256 JWS) 부착 — 백엔드가 직접 호출과 구분해 IP 헤더 위조 차단.
+  # 값은 사이트 환경 변수 PROXY_SIGNATURE_SECRET(스코프에 Runtime 포함)
+  signed = "PROXY_SIGNATURE_SECRET"
 
 # SPA 라우팅 — /profile 같은 주소로 직접 들어와도 index.html 반환
 [[redirects]]

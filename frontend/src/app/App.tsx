@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import { AppLayout } from "@/components/layout/base";
 import { UiProvider } from "@/components/overlay/UiProvider";
 import { LoginPage } from "@/pages/onboarding";
+import { AdminLoginPage } from "@/pages/onboarding";
 import { AuthCompletePage } from "@/pages/onboarding";
 import { JoinPage } from "@/pages/onboarding";
 import { VerifyPage } from "@/pages/onboarding";
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
   { path: "/join", element: <JoinPage /> },
   { path: "/verify", element: <VerifyPage /> },
   { path: "/joindone", element: <JoinDonePage /> },
+  { path: "/admin/login", element: <AdminLoginPage /> },
   {
     path: "/admin",
     element: <AdminLayout />,

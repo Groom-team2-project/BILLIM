@@ -1,6 +1,7 @@
 package com.billim.domain.member.service;
 
 import com.billim.domain.member.entity.Member;
+import com.billim.domain.member.entity.MemberRole;
 import com.billim.domain.member.entity.SocialAccount;
 import com.billim.domain.member.entity.SocialProvider;
 import com.billim.domain.member.repository.MemberRepository;
@@ -32,6 +33,36 @@ public class MemberAuthService {
     private Member register(SocialProvider provider, String providerSubject, String nickname) {
         Member member = memberRepository.save(Member.register(normalizeDisplayName(nickname)));
         socialAccountRepository.save(SocialAccount.link(member, provider, providerSubject));
+        return member;
+    }
+
+    /** 관리자 전용 로그인 계정의 고정 식별자. 로그인 ID가 아닌 상수 — 설정의 ID 교체가 회원 재생성으로 이어지지 않음 */
+    static final String LOCAL_ADMIN_SUBJECT = "admin";
+    private static final String LOCAL_ADMIN_DISPLAY_NAME = "관리자";
+
+    /**
+     * 관리자 전용 로그인 계정 조회 또는 생성. 자격증명 대조는 AdminLoginService 담당.
+     * 관리자도 members 행이어야 하는 이유: 관리자 액션 기록(report_actions.admin_id)이 members를 FK 참조.
+     */
+    @Transactional
+    public Member loginOrRegisterLocalAdmin() {
+        return socialAccountRepository.findWithMember(SocialProvider.LOCAL, LOCAL_ADMIN_SUBJECT)
+                .map(SocialAccount::getMember)
+                .map(MemberAuthService::ensureAdminRole)
+                .orElseGet(this::registerLocalAdmin);
+    }
+
+    /** DB 수동 변경으로 강등된 경우 복원 — 이 계정의 접근 통제는 role이 아니라 자격증명 환경 변수 */
+    private static Member ensureAdminRole(Member member) {
+        if (member.getRole() != MemberRole.ADMIN) {
+            member.promoteToAdmin();
+        }
+        return member;
+    }
+
+    private Member registerLocalAdmin() {
+        Member member = memberRepository.save(Member.registerAdmin(LOCAL_ADMIN_DISPLAY_NAME));
+        socialAccountRepository.save(SocialAccount.link(member, SocialProvider.LOCAL, LOCAL_ADMIN_SUBJECT));
         return member;
     }
 
