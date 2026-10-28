@@ -1,0 +1,10 @@
+LATEST DETECTED DEADLOCK
+*** (1) TRANSACTION:
+TRANSACTION 7104, ACTIVE 0 sec inserting
+RECORD LOCKS space id 26 page no 33 n bits 272 index uk_idempotency_member_operation_request of table `billim_rental_perf`.`idempotency_records` trx id 7104 lock_mode X locks gap before rec
+RECORD LOCKS space id 26 page no 33 n bits 272 index uk_idempotency_member_operation_request of table `billim_rental_perf`.`idempotency_records` trx id 7104 lock_mode X locks gap before rec insert intention waiting
+*** (2) TRANSACTION:
+TRANSACTION 7105, ACTIVE 0 sec inserting
+RECORD LOCKS space id 26 page no 33 n bits 272 index uk_idempotency_member_operation_request of table `billim_rental_perf`.`idempotency_records` trx id 7105 lock_mode X locks gap before rec
+RECORD LOCKS space id 26 page no 33 n bits 272 index uk_idempotency_member_operation_request of table `billim_rental_perf`.`idempotency_records` trx id 7105 lock_mode X locks gap before rec insert intention waiting
+*** WE ROLL BACK TRANSACTION (2)
