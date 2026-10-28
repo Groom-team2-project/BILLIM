@@ -32,7 +32,8 @@ class AuthRateLimitFilterTest {
     private final MutableClock clock = new MutableClock(Instant.parse("2026-10-27T00:00:00Z"));
     private final AuthRateLimitFilter filter = new AuthRateLimitFilter(
             new SecurityErrorResponseWriter(JsonMapper.builder().build()),
-            clock, PROXY_HEADER, CSRF_LIMIT, LOGIN_LIMIT, MAX_TRACKED);
+            clock, PROXY_HEADER, new ProxySignatureVerifier(JsonMapper.builder().build(), clock, ""),
+            CSRF_LIMIT, LOGIN_LIMIT, MAX_TRACKED);
 
     @Test
     @DisplayName("한도 내 요청은 통과한다")
@@ -183,11 +184,30 @@ class AuthRateLimitFilterTest {
     }
 
     @Test
+    @DisplayName("서명 검증이 켜지면 서명 없는 IP 헤더는 무시하고 접속 주소로 계수한다")
+    void ignoresUnsignedProxyHeaderWhenVerificationEnabled() throws Exception {
+        AuthRateLimitFilter signedFilter = new AuthRateLimitFilter(
+                new SecurityErrorResponseWriter(JsonMapper.builder().build()), clock, PROXY_HEADER,
+                new ProxySignatureVerifier(JsonMapper.builder().build(), clock, "secret"),
+                CSRF_LIMIT, LOGIN_LIMIT, MAX_TRACKED);
+        for (int i = 0; i < CSRF_LIMIT; i++) {
+            signedFilter.doFilter(request("/api/v1/auth/csrf", "10.0.0." + i),
+                    new MockHttpServletResponse(), new MockFilterChain());
+        }
+
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        signedFilter.doFilter(request("/api/v1/auth/csrf", "10.0.0.99"), response, new MockFilterChain());
+
+        assertThat(response.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+    }
+
+    @Test
     @DisplayName("한도가 0 이하인 설정은 기동을 거부한다")
     void rejectsNonPositiveLimits() {
         assertThatIllegalArgumentException().isThrownBy(() -> new AuthRateLimitFilter(
                 new SecurityErrorResponseWriter(JsonMapper.builder().build()),
-                clock, PROXY_HEADER, 0, LOGIN_LIMIT, MAX_TRACKED));
+                clock, PROXY_HEADER, new ProxySignatureVerifier(JsonMapper.builder().build(), clock, ""),
+                0, LOGIN_LIMIT, MAX_TRACKED));
     }
 
     private MockHttpServletResponse perform(String path, String clientIp) throws Exception {
