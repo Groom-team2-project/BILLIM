@@ -13,6 +13,8 @@ export type Session = {
   admin: boolean;
   /** 표시용 본인 판정 — 권한 판정은 서버가 한다 */
   memberId: string | null;
+  /** 헤더 아바타 표시용. 이 필드 도입 전 저장된 세션엔 없음 */
+  displayName?: string | null;
 };
 
 const STORAGE_KEY = "billim-session";
@@ -41,11 +43,17 @@ function commit(next: Session) {
 }
 
 /** 로그인 직후 서버가 준 역할·회원 ID로 표시 상태를 맞춘다 */
-export function signIn(role: "USER" | "ADMIN", memberId: string) {
+export function signIn(role: "USER" | "ADMIN", memberId: string, displayName: string) {
   clearNotifications();
   clearChatUnreadCount();
   clearPendingChatMessages();
-  commit({ loggedIn: true, admin: role === "ADMIN", memberId });
+  commit({ loggedIn: true, admin: role === "ADMIN", memberId, displayName });
+}
+
+/** 프로필 조회·이름 변경 시 헤더 표시 이름 동기화 */
+export function syncDisplayName(displayName: string) {
+  if (!state.loggedIn || state.displayName === displayName) return;
+  commit({ ...state, displayName });
 }
 
 /**
@@ -64,7 +72,7 @@ export async function logout(): Promise<boolean> {
   clearNotifications();
   clearChatUnreadCount();
   clearPendingChatMessages();
-  commit({ loggedIn: false, admin: false, memberId: null });
+  commit({ loggedIn: false, admin: false, memberId: null, displayName: null });
   return true;
 }
 

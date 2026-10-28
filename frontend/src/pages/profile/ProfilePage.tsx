@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { logout } from "@/stores/session";
+import { logout, syncDisplayName } from "@/stores/session";
 import { ApiError } from "@/api/client";
 import {
   type ApiMyProfile,
@@ -36,6 +36,11 @@ export function ProfilePage() {
   const { confirm, reason, toast } = useUi();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ApiMyProfile | null>(null);
+
+  // 조회·이름 변경 모두 profile 갱신을 거침 — 헤더 아바타와 맞춤
+  useEffect(() => {
+    if (profile) syncDisplayName(profile.member.displayName);
+  }, [profile]);
   const [failed, setFailed] = useState(false);
   /** 조회 실패와 0건 구분 — 빈 목록 표시는 물건이 사라진 것으로 오해 */
   const [itemList, setItemList] = useState<
