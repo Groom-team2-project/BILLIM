@@ -32,6 +32,22 @@
   flex-direction: column;
   gap: 10px;
   padding: var(--space-4);
+  overflow-anchor: none;
+}
+
+.chat-room-messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: none;
+  min-width: 0;
+}
+
+.chat-latest {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface);
 }
 
 .chat-suggest {

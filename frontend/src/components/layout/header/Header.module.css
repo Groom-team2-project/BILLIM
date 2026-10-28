@@ -72,6 +72,19 @@
   box-sizing: content-box;
 }
 
+.shell-chat-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--space-5);
+  min-height: var(--space-5);
+  margin-left: var(--space-2);
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-full);
+  background: var(--action);
+  color: var(--on-action);
+}
+
 @media (max-width: 759px) {
   .shell-wordmark--desk-only {
     display: none;

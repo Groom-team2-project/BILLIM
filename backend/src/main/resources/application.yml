@@ -74,6 +74,10 @@ spring:
 
 billim:
   chat:
+    websocket:
+      # 별도 WSS 진입점 준비 후 활성화. 기존 동일 출처 쿠키 연결은 항상 유지.
+      ticket-enabled: ${CHAT_SOCKET_TICKET_ENABLED:false}
+      allowed-origins: ${CHAT_SOCKET_ALLOWED_ORIGINS:}
     redis:
       # 단일 서버에서는 로컬 전달·DB 재확인만 사용한다.
       enabled: ${CHAT_REDIS_ENABLED:false}

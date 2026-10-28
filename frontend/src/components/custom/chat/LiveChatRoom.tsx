@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { getChatMessages, getChatRoom, sendChatMessage, updateChatReadPosition } from "@/api/chat";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { getChatMessages, getChatRoom, issueChatSocketTicket, sendChatMessage, updateChatReadPosition } from "@/api/chat";
 import { acceptAppointment, getAppointments, proposeAppointment, withdrawAppointment } from "@/api/appointments";
 import { getCommunityPlaces, type ApiCommunityPlace } from "@/api/communities";
 import { newIdempotencyKey } from "@/api/client";
@@ -15,12 +15,14 @@ import { ContextBar } from "@/components/custom/chat/ContextBar";
 import { AppointmentCard } from "@/components/custom/chat/AppointmentCard";
 import { AppointmentSheet } from "@/components/custom/chat/AppointmentSheet";
 import { refreshChatUnreadCount } from "@/stores/chat-unread";
+import { useSession } from "@/stores/session";
 import type { ApiChatMessage, ApiChatMessagePage, ApiChatRoom } from "@/types/chat-api";
 import type { ApiAppointmentSlot, AppointmentKind } from "@/types/appointment-api";
 import { ApiError } from "@/api/client";
 import { appointmentView } from "@/utils/appointment-view";
 import { chatBlockedMessage, chatTimeLabel, isMoneyRequest } from "@/utils/chat-view";
-import { mergeChatMessages } from "@/utils/chat-state";
+import { countNewChatMessages, isChatAtBottom, isChatMessageEndVisible, mergeChatMessages } from "@/utils/chat-state";
+import { readPendingChatMessages, writePendingChatMessages, type PendingChatMessage } from "@/utils/chat-pending";
 import { chatSocketUrl, parseChatSocketMessage } from "@/utils/chat-realtime";
 import { classes } from "@/utils/classes";
 import styles from "@/components/custom/chat/ChatRoom.module.css";
@@ -34,13 +36,17 @@ const reportReasons: Record<string, ReportReasonCode> = {
   "사기가 의심돼요": "FRAUD",
 };
 
-type Pending = { clientMessageId: string; body: string; rentalId?: string; failed: boolean };
-
-export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (roomId: string) => void }) {
+export function LiveChatRoom({ roomId, onRead, onMessage }: {
+  roomId: string;
+  onRead: (roomId: string) => void;
+  onMessage: (roomId: string, message: ApiChatMessage) => void;
+}) {
   const { report, toast } = useUi();
+  const { memberId } = useSession();
   const [room, setRoom] = useState<ApiChatRoom | null>(null);
   const [messages, setMessages] = useState<ApiChatMessage[]>([]);
-  const [pending, setPending] = useState<Pending[]>([]);
+  const [pending, setPending] = useState<PendingChatMessage[]>(() => readPendingChatMessages(memberId, roomId));
+  const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "reconnecting" | "unauthorized">("connecting");
   const [older, setOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [otherLastRead, setOtherLastRead] = useState(0);
@@ -60,24 +66,118 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
   const lastReadRef = useRef(0);
   const highestSequence = messages.at(-1)?.sequence ?? 0;
   const lastFetchedSequenceRef = useRef(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const followLatestRef = useRef(true);
+  const olderAnchorRef = useRef<{ id: string; bottom: number } | null>(null);
+  const [atBottom, setAtBottom] = useState(true);
+  const [seenSequence, setSeenSequence] = useState(0);
+
+  const recordVisibleMessages = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element || document.hidden) return;
+    const bounds = element.getBoundingClientRect();
+    const viewport = {
+      top: Math.max(0, bounds.top + element.clientTop),
+      bottom: Math.min(window.innerHeight, bounds.top + element.clientTop + element.clientHeight),
+      left: Math.max(0, bounds.left + element.clientLeft),
+      right: Math.min(window.innerWidth, bounds.left + element.clientLeft + element.clientWidth),
+    };
+    let visibleSequence = 0;
+    element.querySelectorAll<HTMLElement>("[data-message-sequence]").forEach((message) => {
+      if (isChatMessageEndVisible(viewport, message.getBoundingClientRect())) {
+        visibleSequence = Math.max(visibleSequence, Number(message.dataset.messageSequence));
+      }
+    });
+    setSeenSequence((previous) => Math.max(previous, visibleSequence));
+  }, []);
+
+  const scrollToLatestMessage = useCallback(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    // 카드·전송 대기 영역에 가려지지 않도록 최신 확정 메시지 끝부분으로 이동.
+    const messages = element.querySelectorAll<HTMLElement>("[data-message-sequence]");
+    const target = messages.item(messages.length - 1);
+    if (target) element.scrollTop += target.getBoundingClientRect().bottom
+      - element.getBoundingClientRect().top - element.clientHeight;
+    else element.scrollTop = element.scrollHeight;
+  }, []);
+
+  const jumpToLatest = () => {
+    followLatestRef.current = true;
+    scrollToLatestMessage();
+    setAtBottom(true);
+    recordVisibleMessages();
+  };
+
+  const onScroll = () => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const entries = element.querySelectorAll<HTMLElement>("[data-message-sequence]");
+    const latest = entries.item(entries.length - 1);
+    const bottom = isChatAtBottom(element) || Boolean(latest
+      && isChatMessageEndVisible(element.getBoundingClientRect(), latest.getBoundingClientRect()));
+    followLatestRef.current = bottom;
+    setAtBottom(bottom);
+    recordVisibleMessages();
+  };
+
+  useLayoutEffect(() => {
+    const element = scrollRef.current;
+    if (!element) return;
+    const anchor = olderAnchorRef.current;
+    if (anchor) {
+      const message = Array.from(element.querySelectorAll<HTMLElement>("[data-message-id]"))
+        .find((entry) => entry.dataset.messageId === anchor.id);
+      if (message) element.scrollTop += message.getBoundingClientRect().bottom
+        - element.getBoundingClientRect().top - anchor.bottom;
+      olderAnchorRef.current = null;
+    } else if (followLatestRef.current) {
+      scrollToLatestMessage();
+    }
+    recordVisibleMessages();
+  }, [messages, pending, loading, error, atBottom, highestSequence, foregroundEpoch, recordVisibleMessages, scrollToLatestMessage]);
+
+  useEffect(() => {
+    const element = scrollRef.current;
+    const content = contentRef.current;
+    if (!element || !content) return;
+    // 약속 카드·줄바꿈·화면 크기 변경 후에도 하단 고정 유지.
+    const observer = new ResizeObserver(() => {
+      if (followLatestRef.current) scrollToLatestMessage();
+      recordVisibleMessages();
+    });
+    observer.observe(element);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [loading, error, recordVisibleMessages, scrollToLatestMessage]);
+
+  useEffect(() => {
+    writePendingChatMessages(memberId, roomId, pending);
+  }, [memberId, roomId, pending]);
 
   const receiveMessages = useCallback((incoming: ApiChatMessage[]) => {
     setMessages((previous) => mergeChatMessages(previous, incoming));
+    if (incoming.length > 0) {
+      const latest = incoming.reduce((current, message) => message.sequence > current.sequence ? message : current);
+      onMessage(roomId, latest);
+    }
     const confirmedIds = new Set(incoming
       .map((message) => message.clientMessageId)
       .filter((id): id is string => typeof id === "string"));
     if (confirmedIds.size > 0) {
       setPending((previous) => previous.filter((entry) => !confirmedIds.has(entry.clientMessageId)));
     }
-  }, []);
+  }, [onMessage, roomId]);
 
   useEffect(() => {
     let active = true;
     Promise.all([getChatRoom(roomId), getChatMessages(roomId)]).then(([detail, page]) => {
       if (!active) return;
       setRoom(detail);
-      setSelectedRentalId(detail.access.allowedRentalIds[0] ?? detail.rentals[0]?.id);
-      setAppointmentLoading(true);
+      const rentalId = detail.access.allowedRentalIds[0] ?? detail.rentals[0]?.id;
+      setSelectedRentalId(rentalId);
+      setAppointmentLoading(Boolean(rentalId));
       receiveMessages(page.items);
       lastFetchedSequenceRef.current = Math.max(0, ...page.items.map((item) => item.sequence));
       setOtherLastRead(page.otherLastReadSequence);
@@ -117,8 +217,11 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     let busy = false;
     let socket: WebSocket | null = null;
     let reconnectTimer: number | undefined;
+    let pollTimer: number | undefined;
+    let reconnectDelay = 1000;
+    let unauthorized = false;
     const poll = async () => {
-      if (busy || !active || document.hidden) return;
+      if (busy || !active || unauthorized || document.hidden) return;
       busy = true;
       try {
         let cursor = lastFetchedSequenceRef.current;
@@ -134,18 +237,44 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
           cursor = nextCursor;
           lastFetchedSequenceRef.current = cursor;
         } while (page.hasMore && page.items.length > 0);
-      } catch {
-        // 연결 복구 뒤 같은 커서에서 다시 조회한다.
+      } catch (exception) {
+        if (exception instanceof ApiError && exception.unauthenticated) {
+          unauthorized = true;
+          setConnectionState("unauthorized");
+          socket?.close();
+        }
+        // 그 밖의 실패는 연결 복구 뒤 같은 커서에서 다시 조회한다.
       } finally {
         busy = false;
       }
     };
-    const connect = () => {
-      if (!active) return;
+    const schedulePoll = () => {
+      window.clearTimeout(pollTimer);
+      if (!active || unauthorized) return;
+      pollTimer = window.setTimeout(() => {
+        void poll();
+        schedulePoll();
+      }, socket?.readyState === WebSocket.OPEN ? 15000 : 3000);
+    };
+    const connect = async () => {
+      if (!active || unauthorized) return;
       try {
-        const current = new WebSocket(chatSocketUrl(roomId, window.location.href));
+        const endpoint = import.meta.env.VITE_CHAT_WS_URL?.trim();
+        // 연결마다 새 연결권 발급. 원문은 메모리에서만 사용.
+        let url = chatSocketUrl(roomId, window.location.href, endpoint);
+        if (endpoint) {
+          const { ticket } = await issueChatSocketTicket(roomId);
+          if (!active || unauthorized) return;
+          url = chatSocketUrl(roomId, window.location.href, endpoint, ticket);
+        }
+        const current = new WebSocket(url);
         socket = current;
-        current.onopen = () => { void poll(); };
+        current.onopen = () => {
+          reconnectDelay = 1000;
+          setConnectionState("connected");
+          void poll();
+          schedulePoll();
+        };
         current.onmessage = (event) => {
           const message = parseChatSocketMessage(event.data, roomId);
           if (message && active) {
@@ -155,14 +284,27 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
         };
         current.onerror = () => current.close();
         current.onclose = () => {
-          if (active) reconnectTimer = window.setTimeout(connect, 3000);
+          if (!active || unauthorized) return;
+          setConnectionState("reconnecting");
+          schedulePoll();
+          reconnectTimer = window.setTimeout(() => void connect(), reconnectDelay);
+          reconnectDelay = Math.min(reconnectDelay * 2, 30000);
         };
-      } catch {
-        reconnectTimer = window.setTimeout(connect, 3000);
+      } catch (exception) {
+        if (!active || unauthorized) return;
+        if (exception instanceof ApiError && exception.unauthenticated) {
+          unauthorized = true;
+          setConnectionState("unauthorized");
+          return;
+        }
+        setConnectionState("reconnecting");
+        schedulePoll();
+        reconnectTimer = window.setTimeout(() => void connect(), reconnectDelay);
+        reconnectDelay = Math.min(reconnectDelay * 2, 30000);
       }
     };
-    connect();
-    const timer = window.setInterval(() => { void poll(); }, 3000);
+    void connect();
+    schedulePoll();
     const onFocus = () => {
       if (document.hidden) return;
       setForegroundEpoch((previous) => previous + 1);
@@ -172,7 +314,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     document.addEventListener("visibilitychange", onFocus);
     return () => {
       active = false;
-      window.clearInterval(timer);
+      window.clearTimeout(pollTimer);
       window.clearTimeout(reconnectTimer);
       socket?.close();
       window.removeEventListener("focus", onFocus);
@@ -181,8 +323,8 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
   }, [roomId, loading, error, receiveMessages]);
 
   useEffect(() => {
-    if (!room || highestSequence <= lastReadRef.current || document.hidden) return;
-    const sequence = highestSequence;
+    if (!room || seenSequence <= lastReadRef.current || document.hidden) return;
+    const sequence = seenSequence;
     lastReadRef.current = sequence;
     updateChatReadPosition(roomId, sequence).then(() => {
       onRead(roomId);
@@ -190,7 +332,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     }).catch(() => {
       lastReadRef.current = Math.min(lastReadRef.current, sequence - 1);
     });
-  }, [room, roomId, highestSequence, onRead, foregroundEpoch]);
+  }, [room, roomId, seenSequence, onRead, foregroundEpoch]);
 
   const loadOlder = async () => {
     const first = messages[0]?.sequence;
@@ -198,6 +340,15 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     setLoadingOlder(true);
     try {
       const page = await getChatMessages(roomId, { beforeSequence: first });
+      const element = scrollRef.current;
+      if (element) {
+        const top = element.getBoundingClientRect().top;
+        const visible = Array.from(element.querySelectorAll<HTMLElement>("[data-message-id]"))
+          .find((entry) => entry.getBoundingClientRect().bottom > top);
+        if (visible) olderAnchorRef.current = {
+          id: visible.dataset.messageId!, bottom: visible.getBoundingClientRect().bottom - top,
+        };
+      }
       receiveMessages(page.items);
       setOtherLastRead(page.otherLastReadSequence);
       setOlder(page.hasMore);
@@ -208,7 +359,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
     }
   };
 
-  const send = async (entry: Pending) => {
+  const send = async (entry: PendingChatMessage) => {
     setPending((previous) => previous.map((item) => item.clientMessageId === entry.clientMessageId ? { ...item, failed: false } : item));
     try {
       const saved = await sendChatMessage(roomId, {
@@ -224,7 +375,9 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
   };
 
   const createMessage = (body: string) => {
+    jumpToLatest();
     const entry = { clientMessageId: newIdempotencyKey(), body, rentalId: selectedRentalId, failed: false };
+    writePendingChatMessages(memberId, roomId, [...pending, entry]);
     setPending((previous) => [...previous, entry]);
     void send(entry);
   };
@@ -316,6 +469,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
   const selectedRental = room.rentals.find((entry) => entry.id === selectedRentalId);
   const visibleSlots = slots.filter((slot) => slot.rentalId === selectedRentalId);
   const proposalKinds = visibleSlots.filter((slot) => slot.allowedActions.includes("PROPOSE"));
+  const newMessageCount = countNewChatMessages(messages, seenSequence, room.otherMember.id);
 
   return (
     <section className={c("chat-room")} aria-label={`${other} 님과의 채팅`}>
@@ -326,6 +480,12 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
       <ContextBar room={room} selectedRentalId={selectedRentalId} action={proposalKinds.length > 0 ?
         <Button size="sm" variant="secondary" icon="clock" disabled={appointmentBusy}
           onClick={() => void openAppointmentSheet(proposalKinds[0].kind === "PICKUP" ? "give" : "back")}>약속 잡기</Button> : null} />
+      {connectionState === "reconnecting" ? <Alert tone="warning" title="실시간 연결을 다시 시도하고 있어요">
+        새 메시지는 주기적으로 확인하고 있어요. 일시적으로 늦게 표시될 수 있어요.
+      </Alert> : null}
+      {connectionState === "unauthorized" ? <Alert tone="warning" title="로그인이 만료됐어요">
+        다시 로그인한 뒤 채팅을 이용해 주세요.
+      </Alert> : null}
       {allowedRentals.length > 1 ? <label className={c("chat-rental-picker")}>
         대여 건 <select value={selectedRentalId} onChange={(event) => {
           setAppointmentLoading(true);
@@ -336,7 +496,8 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
           </option>)}
         </select>
       </label> : null}
-      <div className={c("chat-room-scroll")} role="log" aria-live="polite" aria-label={`${other} 님과의 대화`}>
+      <div ref={scrollRef} className={c("chat-room-scroll")} onScroll={onScroll}>
+        <div ref={contentRef} className={c("chat-room-messages")} role="log" aria-live="polite" aria-label={`${other} 님과의 대화`}>
         {older ? <Button size="sm" variant="secondary" disabled={loadingOlder} onClick={() => void loadOlder()}>
           {loadingOlder ? "불러오는 중" : "이전 대화 보기"}
         </Button> : null}
@@ -345,7 +506,7 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
         {messages.map((message, index) => {
           const date = new Date(message.createdAt).toDateString();
           const divider = index === 0 || date !== new Date(messages[index - 1].createdAt).toDateString();
-          return <div key={message.id} className={c("chat-message-group")}>
+          return <div key={message.id} data-message-id={message.id} data-message-sequence={message.sequence} className={c("chat-message-group")}>
             {divider ? <DateDivider>{new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "long" }).format(new Date(message.createdAt))}</DateDivider> : null}
             {message.type === "SYSTEM" ? <SystemMessage icon="ring">{message.system?.label ?? message.body ?? "거래 상태가 변경됐어요"}</SystemMessage> : <>
               <Bubble me={message.senderId !== room.otherMember.id} time={chatTimeLabel(message.createdAt)}
@@ -384,8 +545,16 @@ export function LiveChatRoom({ roomId, onRead }: { roomId: string; onRead: (room
             <Button size="sm" variant="ghost" onClick={() => setPending((previous) => previous.filter((item) => item.clientMessageId !== entry.clientMessageId))}>삭제</Button>
           </div> : null}
         </div>)}
+        </div>
       </div>
-      <Composer blocked={!room.access.canSend} blockedMessage={chatBlockedMessage(room.access.reason)} onSend={createMessage} />
+      {!atBottom || newMessageCount > 0 ? <div className={c("chat-latest")} aria-live="polite">
+        <Button size="sm" variant="secondary" onClick={jumpToLatest}>
+          {newMessageCount > 0 ? `새 메시지 ${newMessageCount}개 · 최신 대화 보기` : "최신 대화 보기"}
+        </Button>
+      </div> : null}
+      <Composer blocked={!room.access.canSend || connectionState === "unauthorized"}
+        blockedMessage={connectionState === "unauthorized" ? "로그인이 만료됐어요. 다시 로그인해 주세요." : chatBlockedMessage(room.access.reason)}
+        onSend={createMessage} />
       {sheetKind && selectedRental ? <AppointmentSheet key={`${selectedRental.id}-${sheetKind}`}
         initialKind={sheetKind} onClose={() => setSheetKind(undefined)} live={{
           dates: { give: selectedRental.startDate, back: selectedRental.endDate },

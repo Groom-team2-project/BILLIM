@@ -64,3 +64,7 @@ export function updateChatReadPosition(
 export function getChatUnreadCount(): Promise<ApiChatUnreadCount> {
   return api<ApiChatUnreadCount>("/chat/unread-count");
 }
+
+export function issueChatSocketTicket(roomId: string): Promise<{ ticket: string; expiresAt: string }> {
+  return api(`/chat/rooms/${encodeURIComponent(roomId)}/socket-tickets`, { method: "POST" });
+}

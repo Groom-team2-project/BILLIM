@@ -4,6 +4,7 @@ import { MoreMenu, type MoreMenuItem } from "@/components/ui/more-menu";
 import { SearchField } from "@/components/ui/search-field";
 import { ThemeMenu } from "@/components/ui/theme-menu";
 import { refreshUnreadCount, useUnreadCount } from "@/stores/notifications";
+import { refreshChatUnreadCount, useChatUnreadCount } from "@/stores/chat-unread";
 import { ProfileMenu } from "@/components/layout/header/_components/ProfileMenu";
 import styles from "@/components/layout/header/Header.module.css";
 import { classes } from "@/utils/classes";
@@ -25,12 +26,23 @@ export function Header({ sub, title, searchHidden, moreItems = [], onBack }: Hea
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const unreadNotifs = useUnreadCount();
+  const unreadChats = useChatUnreadCount();
 
   useEffect(() => {
-    const refresh = () => { void refreshUnreadCount(); };
+    const refresh = () => {
+      if (document.hidden) return;
+      void refreshUnreadCount();
+      void refreshChatUnreadCount();
+    };
     refresh();
+    const timer = window.setInterval(refresh, 15000);
     window.addEventListener("focus", refresh);
-    return () => window.removeEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [pathname]);
 
   return (
@@ -54,7 +66,10 @@ export function Header({ sub, title, searchHidden, moreItems = [], onBack }: Hea
         <nav className={c("shell-desktop-nav")} aria-label="주 메뉴">
           <NavLink to="/" end className={({ isActive }) => c(`shell-nav-link${isActive ? " shell-nav-link--on" : ""}`)}>홈</NavLink>
           <NavLink to="/search" className={({ isActive }) => c(`shell-nav-link${isActive ? " shell-nav-link--on" : ""}`)}>물건 찾기</NavLink>
-          <NavLink to="/chat" className={({ isActive }) => c(`shell-nav-link${isActive ? " shell-nav-link--on" : ""}`)}>채팅</NavLink>
+          <NavLink to="/chat" aria-label={`채팅, 안 읽은 메시지 ${unreadChats}개`}
+            className={({ isActive }) => c(`shell-nav-link${isActive ? " shell-nav-link--on" : ""}`)}>
+            채팅{unreadChats > 0 ? <span className={c("shell-chat-badge")} aria-hidden="true">{unreadChats > 99 ? "99+" : unreadChats}</span> : null}
+          </NavLink>
           <NavLink to="/rentals" className={({ isActive }) => c(`shell-nav-link${isActive ? " shell-nav-link--on" : ""}`)}>내 대여</NavLink>
         </nav>
 
