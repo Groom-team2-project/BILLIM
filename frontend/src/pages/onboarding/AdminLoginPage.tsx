@@ -4,7 +4,7 @@ import { adminLogin } from "@/api/auth";
 import { ApiError, resetCsrf } from "@/api/client";
 import { getMyProfile } from "@/api/members";
 import { signIn } from "@/stores/session";
-import { Alert } from "@/components/ui/alert/Alert";
+import { Alert } from "@/components/ui/alert";
 import styles from "@/pages/onboarding/AdminLoginPage.module.css";
 import { classes } from "@/utils/classes";
 
