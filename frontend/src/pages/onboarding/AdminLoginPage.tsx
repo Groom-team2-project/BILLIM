@@ -34,7 +34,7 @@ export function AdminLoginPage() {
       // 로그인으로 세션 회전 — 이전 세션의 CSRF 토큰 무효 (AuthCompletePage와 동일)
       resetCsrf();
       const profile = await getMyProfile();
-      signIn(profile.role, profile.member.id);
+      signIn(profile.role, profile.member.id, profile.member.displayName);
       navigate("/admin", { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? (ERROR_MESSAGES[err.code] ?? err.message) : "로그인하지 못했어요. 다시 시도해 주세요.");
