@@ -1,0 +1,65 @@
+.adm-login {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.adm-login-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: min(360px, 100%);
+  text-align: center;
+}
+
+/* LoginPage 워드마크와 같은 서체 — 축소판 */
+.adm-login-wordmark {
+  margin: 0;
+  font-family: var(--font-logo);
+  font-size: 48px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.adm-login-title {
+  margin: 0;
+  color: var(--ink-muted);
+}
+
+.adm-login-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  text-align: left;
+}
+
+/* TextField 입력과 같은 규격 — 컴포넌트가 비밀번호 타입·제어 입력 미지원이라 직접 작성 */
+.adm-login-input {
+  width: 100%;
+  min-height: var(--size-touch);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.adm-login-input:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-color: var(--line-control);
+}
+
+.adm-login-submit {
+  min-height: 52px;
+  border-radius: var(--radius-md);
+  background: var(--action);
+  color: var(--on-action);
+}
+
+.adm-login-submit:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

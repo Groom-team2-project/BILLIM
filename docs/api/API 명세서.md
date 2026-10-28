@@ -1,7 +1,7 @@
 # API 명세서
 
-> 버전 : v0.1.16\
-> 수정일 : 2026.10.26
+> 버전 : v0.1.17\
+> 수정일 : 2026.10.27
 
 ## 0. 공통 규약
 
@@ -23,7 +23,8 @@
 - 로그인 흐름: 로그인 전 `GET /auth/csrf` → `/auth/kakao` 또는 `/auth/naver` 최상위 이동 → callback → `/auth/complete` → `GET /auth/csrf`와 `/members/me`. 인증 코드와 제공자 토큰을 브라우저 저장소에 보관하지 않는다. 계정은 제공자별 별개 — 동일인이 두 제공자로 로그인하면 서로 다른 회원.
 - POST/PUT/PATCH/DELETE는 `X-CSRF-TOKEN` 필수. OpenAPI의 cookie+csrf는 둘 다 필요한 AND 조건. OAuth callback은 state로 별도 검증한다.
 - 로그인 세션은 제재돼도 기존 거래 정리를 위해 유효할 수 있다. 각 action은 계정 제재·소속·차단·당사자 정책을 별도로 확인한다.
-- 익명 허용은 `/auth/csrf`, `/auth/kakao`, `/auth/naver`, callback, `/policies/{policyKey}`만. ADMIN API는 전역 ADMIN 역할.
+- 익명 허용은 `/auth/csrf`, `/auth/kakao`, `/auth/naver`, callback, `/auth/admin/login`, `/policies/{policyKey}`만. ADMIN API는 전역 ADMIN 역할.
+- 익명 엔드포인트는 IP별 분당 요청 제한이 있다 — `/auth/csrf` 30회, `/auth/kakao`·`/auth/naver`·`/auth/admin/login` 합산 10회. 초과 시 429 `RATE_LIMITED`와 `Retry-After`(초)를 반환하며, 재시도는 그 시간 뒤에 한다. 익명 요청마다 세션·state 행이 생기므로 남용 차단 목적.
 - 공개 조회가 허용되지 않는 타인 대상은 404, 이미 인지 가능한 대상의 명령 권한 부족은 403으로 처리한다.
 - 응답 `allowedActions`·`access`는 UI 안내이며 서버 권한 검사를 대체하지 않는다. 로딩/토스트/모달/테마에는 별도 API가 없다.
 
@@ -76,6 +77,7 @@
 | [A_004](#24-a_004-로그아웃) | 이지은 | P0 | POST | /api/v1/auth/logout | 로그아웃 |
 | [A_008](#25-a_008-네이버-로그인-시작) | 이지은 | P2 | GET | /api/v1/auth/naver | 네이버 로그인 시작 |
 | [A_009](#26-a_009-네이버-로그인-콜백) | 이지은 | P2 | GET | /api/v1/auth/naver/callback | 네이버 로그인 콜백 |
+| [A_010](#27-a_010-관리자-전용-로그인) | 이지은 | P2 | POST | /api/v1/auth/admin/login | 관리자 전용 로그인 |
 | [A_005](#31-a_005-내-회원활성-소속-조회) | 이지은 | P0 | GET | /api/v1/members/me | 내 회원·활성 소속 조회 |
 | [A_006](#32-a_006-내-표시-이름-수정) | 이지은 | P1 | PATCH | /api/v1/members/me | 내 표시 이름 수정 |
 | [A_007](#33-a_007-이웃-공개-프로필) | 이지은 | P1 | GET | /api/v1/members/{memberId} | 이웃 공개 프로필 |
@@ -208,6 +210,20 @@
 - 성공 응답: 302 리다이렉트
 - 관련 테이블: members, social_accounts, auth_sessions, oauth_login_attempts
 - 목업 연결: login
+
+### 2.7 A_010 관리자 전용 로그인
+
+- `POST /api/v1/auth/admin/login` · 이지은 · P2
+- 설명: 소셜 계정 없이 서버 환경 변수 자격증명(`ADMIN_LOGIN_ID`·`ADMIN_PASSWORD_HASH`, bcrypt 해시)으로 ADMIN 세션 발급. 둘 중 하나라도 비면 404 — 배포 설정만으로 켜고 끈다. 자격증명 불일치는 401이며 ID·비밀번호 중 무엇이 틀렸는지 비노출. 성공 시 소셜 콜백과 같은 세션 회전, 이후 `/auth/csrf`와 `/members/me` 재조회. 로그인 전 세션의 CSRF 필요. 관리자 회원은 social_accounts(provider=LOCAL)로 식별하는 members 행 하나를 재사용.
+
+| Body | 필수 | 타입 | 의미 |
+| --- | --- | --- | --- |
+| loginId | Y | string | 관리자 로그인 ID |
+| password | Y | string | 비밀번호 원문 — 서버는 해시만 보관 |
+
+- 성공 응답: 204 본문 없음
+- 관련 테이블: members, social_accounts, auth_sessions
+- 목업 연결: admin
 
 ## 3. 회원 (members)
 
