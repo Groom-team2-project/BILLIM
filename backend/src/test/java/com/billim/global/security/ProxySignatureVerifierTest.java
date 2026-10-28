@@ -68,12 +68,14 @@ class ProxySignatureVerifierTest {
         assertThat(verifier.trusts("%%%.%%%.%%%")).isFalse();
     }
 
+    /** 비밀값 누락이 곧 우회 경로가 되지 않도록 */
     @Test
-    @DisplayName("비밀값이 비면 검증을 생략하고 신뢰한다")
-    void trustsAllWhenDisabled() {
-        ProxySignatureVerifier disabled = new ProxySignatureVerifier(JsonMapper.builder().build(), clock, "");
+    @DisplayName("비밀값이 비면 어떤 토큰도 신뢰하지 않는다")
+    void trustsNothingWhenSecretMissing() throws Exception {
+        ProxySignatureVerifier noSecret = new ProxySignatureVerifier(JsonMapper.builder().build(), clock, "");
 
-        assertThat(disabled.trusts(null)).isTrue();
+        assertThat(noSecret.trusts(null)).isFalse();
+        assertThat(noSecret.trusts(sign(HS256_HEADER, claims("netlify", NOW.plusSeconds(60)), "any"))).isFalse();
     }
 
     private static String claims(String issuer, Instant exp) {

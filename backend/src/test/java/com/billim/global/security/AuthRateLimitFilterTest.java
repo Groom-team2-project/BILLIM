@@ -25,15 +25,13 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 class AuthRateLimitFilterTest {
 
     private static final String PROXY_HEADER = "x-nf-client-connection-ip";
+    private static final String SECRET = "test-secret";
     private static final int CSRF_LIMIT = 3;
     private static final int LOGIN_LIMIT = 2;
     private static final int MAX_TRACKED = 4;
 
     private final MutableClock clock = new MutableClock(Instant.parse("2026-10-27T00:00:00Z"));
-    private final AuthRateLimitFilter filter = new AuthRateLimitFilter(
-            new SecurityErrorResponseWriter(JsonMapper.builder().build()),
-            clock, PROXY_HEADER, new ProxySignatureVerifier(JsonMapper.builder().build(), clock, ""),
-            CSRF_LIMIT, LOGIN_LIMIT, MAX_TRACKED);
+    private final AuthRateLimitFilter filter = filter(SECRET);
 
     @Test
     @DisplayName("한도 내 요청은 통과한다")
@@ -183,22 +181,29 @@ class AuthRateLimitFilterTest {
         assertThat(perform("/api/v1/auth/csrf", "10.0.1.1").getStatus()).isEqualTo(200);
     }
 
+    /** 직접 호출로 IP 헤더를 바꿔 가며 제한을 우회하는 것 방지 */
     @Test
-    @DisplayName("서명 검증이 켜지면 서명 없는 IP 헤더는 무시하고 접속 주소로 계수한다")
-    void ignoresUnsignedProxyHeaderWhenVerificationEnabled() throws Exception {
-        AuthRateLimitFilter signedFilter = new AuthRateLimitFilter(
-                new SecurityErrorResponseWriter(JsonMapper.builder().build()), clock, PROXY_HEADER,
-                new ProxySignatureVerifier(JsonMapper.builder().build(), clock, "secret"),
-                CSRF_LIMIT, LOGIN_LIMIT, MAX_TRACKED);
+    @DisplayName("서명 없는 IP 헤더는 무시하고 접속 주소로 계수한다")
+    void ignoresUnsignedProxyHeader() throws Exception {
         for (int i = 0; i < CSRF_LIMIT; i++) {
-            signedFilter.doFilter(request("/api/v1/auth/csrf", "10.0.0." + i),
-                    new MockHttpServletResponse(), new MockFilterChain());
+            perform(filter, unsignedRequest("/api/v1/auth/csrf", "10.0.0." + i));
         }
 
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        signedFilter.doFilter(request("/api/v1/auth/csrf", "10.0.0.99"), response, new MockFilterChain());
+        assertThat(perform(filter, unsignedRequest("/api/v1/auth/csrf", "10.0.0.99")).getStatus())
+                .isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+    }
 
-        assertThat(response.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+    /** 비밀값 누락이 곧 우회 경로가 되지 않도록 — 서명이 붙어 있어도 불신 */
+    @Test
+    @DisplayName("서명 비밀값이 없으면 IP 헤더를 바꿔도 같은 제한을 공유한다")
+    void ignoresProxyHeaderWhenSecretMissing() throws Exception {
+        AuthRateLimitFilter noSecret = filter("");
+        for (int i = 0; i < CSRF_LIMIT; i++) {
+            perform(noSecret, request("/api/v1/auth/csrf", "10.0.0." + i));
+        }
+
+        assertThat(perform(noSecret, request("/api/v1/auth/csrf", "10.0.0.99")).getStatus())
+                .isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
     }
 
     @Test
@@ -206,17 +211,37 @@ class AuthRateLimitFilterTest {
     void rejectsNonPositiveLimits() {
         assertThatIllegalArgumentException().isThrownBy(() -> new AuthRateLimitFilter(
                 new SecurityErrorResponseWriter(JsonMapper.builder().build()),
-                clock, PROXY_HEADER, new ProxySignatureVerifier(JsonMapper.builder().build(), clock, ""),
+                clock, PROXY_HEADER, new ProxySignatureVerifier(JsonMapper.builder().build(), clock, SECRET),
                 0, LOGIN_LIMIT, MAX_TRACKED));
     }
 
+    private AuthRateLimitFilter filter(String secret) {
+        return new AuthRateLimitFilter(
+                new SecurityErrorResponseWriter(JsonMapper.builder().build()), clock, PROXY_HEADER,
+                new ProxySignatureVerifier(JsonMapper.builder().build(), clock, secret),
+                CSRF_LIMIT, LOGIN_LIMIT, MAX_TRACKED);
+    }
+
     private MockHttpServletResponse perform(String path, String clientIp) throws Exception {
+        return perform(filter, request(path, clientIp));
+    }
+
+    private static MockHttpServletResponse perform(AuthRateLimitFilter target, MockHttpServletRequest request)
+            throws Exception {
         MockHttpServletResponse response = new MockHttpServletResponse();
-        filter.doFilter(request(path, clientIp), response, new MockFilterChain());
+        target.doFilter(request, response, new MockFilterChain());
         return response;
     }
 
+    /** Netlify를 거친 요청 — IP 헤더와 유효 서명. 만료는 테스트 중 시계를 넘겨도 유효하도록 넉넉히 */
     private MockHttpServletRequest request(String path, String clientIp) {
+        MockHttpServletRequest request = unsignedRequest(path, clientIp);
+        request.addHeader("x-nf-sign", NetlifySignatures.sign(SECRET, clock.instant().plusSeconds(3600)));
+        return request;
+    }
+
+    /** 직접 호출 — IP 헤더만 있고 서명 없음 */
+    private static MockHttpServletRequest unsignedRequest(String path, String clientIp) {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
         if (clientIp != null) {
             request.addHeader(PROXY_HEADER, clientIp);

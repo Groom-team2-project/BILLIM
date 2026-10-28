@@ -316,7 +316,8 @@ class AuthSecurityTest {
 
     /**
      * 요청 제한 필터의 등록·순서 회귀 확인 — 시큐리티 체인 앞이 아니면 차단된 요청도 세션 행을 만듦.
-     * 전용 프록시 헤더 IP로 계수되어 이 클래스의 다른 테스트(접속 주소 127.0.0.1 버킷)와 간섭 없음.
+     * 전용 접속 주소로 계수되어 이 클래스의 다른 테스트(접속 주소 127.0.0.1 버킷)와 간섭 없음.
+     * 프록시 헤더가 아닌 이유: 테스트는 서명 비밀값이 없어 헤더를 무시.
      * 실제 시계라 분 경계를 걸칠 수 있음 — 한도(30)의 두 배 넘게 보내면 어느 윈도우든 초과 보장
      */
     @Test
@@ -325,7 +326,10 @@ class AuthSecurityTest {
         for (int i = 0; i < 61; i++) {
             Long before = countSessions();
             var response = mockMvc.perform(get("/api/v1/auth/csrf")
-                            .header("x-nf-client-connection-ip", "203.0.113.9"))
+                            .with(request -> {
+                                request.setRemoteAddr("203.0.113.9");
+                                return request;
+                            }))
                     .andReturn().getResponse();
             if (response.getStatus() == 429) {
                 assertThat(response.getContentAsString()).contains("RATE_LIMITED");

@@ -19,8 +19,8 @@ import java.util.Base64;
  * EC2 8080이 외부에 열려 있어 직접 호출로 IP 헤더를 위조할 수 있기 때문.
  * 토큰은 HS256 JWS — 비밀값은 netlify.toml의 signed가 가리키는 사이트 환경 변수와 같은 값.
  *
- * <p>비밀값이 비면 검증 생략(헤더 무조건 신뢰). Netlify 서명 적용 전 배포 시 정상 사용자가
- * 프록시 IP 하나로 묶여 함께 차단되는 것 방지 — Netlify 설정 먼저, 백엔드 비밀값 나중 순서.
+ * <p>비밀값이 비면 모든 헤더 불신(접속 주소로 계수) — 설정 누락이 곧 우회 경로가 되지 않도록.
+ * 운영에서 비밀값이 빠지면 사용자들이 Netlify IP로 묶여 허용량을 나눠 씀 — 기동 경고로 확인.
  */
 public class ProxySignatureVerifier {
 
@@ -42,15 +42,12 @@ public class ProxySignatureVerifier {
                 ? null
                 : new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), ALGORITHM);
         if (key == null) {
-            log.warn("프록시 서명 검증 꺼짐 — 클라이언트 IP 헤더를 검증 없이 신뢰");
+            log.warn("프록시 서명 비밀값 없음 — 클라이언트 IP 헤더 무시, 접속 주소로 계수");
         }
     }
 
     public boolean trusts(String token) {
-        if (key == null) {
-            return true;
-        }
-        if (token == null) {
+        if (key == null || token == null) {
             return false;
         }
         String[] parts = token.split("\\.", -1);
