@@ -1,6 +1,6 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.10\
+> 버전 : v0.1.11\
 > 수정일 : 2026.10.28
 
 ## 1. 공통 규칙
@@ -181,6 +181,7 @@ erDiagram
 | center_longitude | decimal(10,7) | N | -180~180 | — |
 | verification_radius_m | int | N | 양수 인증 반경 | — |
 | status | varchar(10) | N | ACTIVE / INACTIVE | — |
+| place_supply_attempted_at | datetime(6) | Y | 공용 장소 자동 보충을 마지막으로 시도한 시각. 재시도 간격 판단용 | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
