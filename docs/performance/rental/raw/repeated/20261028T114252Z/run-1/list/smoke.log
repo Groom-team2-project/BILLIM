@@ -1,0 +1,71 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /Users/sobean/IdeaProjects/BILLIM/performance/rental/rental-list.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 1 max VUs, 35s max duration (incl. graceful stop):
+              * default: 1 looping VUs for 5s (gracefulStop: 30s)
+
+
+running (01.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [  19% ] 1 VUs  1.0s/5s
+
+running (02.0s), 1/1 VUs, 1 complete and 0 interrupted iterations
+default   [  39% ] 1 VUs  2.0s/5s
+
+running (03.0s), 1/1 VUs, 2 complete and 0 interrupted iterations
+default   [  59% ] 1 VUs  3.0s/5s
+
+running (04.0s), 1/1 VUs, 3 complete and 0 interrupted iterations
+default   [  79% ] 1 VUs  4.0s/5s
+
+running (05.0s), 1/1 VUs, 4 complete and 0 interrupted iterations
+default   [  99% ] 1 VUs  5.0s/5s
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate==1' rate=100.00%
+
+    http_req_failed
+    ✓ 'rate<0.01' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 10      1.837976/s
+    checks_succeeded...: 100.00% 10 out of 10
+    checks_failed......: 0.00%   0 out of 10
+
+    ✓ 목록 조회 200
+    ✓ 대여 목록 응답 형식
+
+    HTTP
+    http_req_duration..............: avg=80.37ms min=52.2ms med=70.83ms max=114.85ms p(90)=108.67ms p(95)=111.76ms p(99)=114.23ms
+      { expected_response:true }...: avg=80.37ms min=52.2ms med=70.83ms max=114.85ms p(90)=108.67ms p(95)=111.76ms p(99)=114.23ms
+    http_req_failed................: 0.00% 0 out of 5
+    http_reqs......................: 5     0.918988/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.08s   min=1.05s  med=1.07s   max=1.12s    p(90)=1.12s    p(95)=1.12s    p(99)=1.12s   
+    iterations.....................: 5     0.918988/s
+    vus............................: 1     min=1      max=1
+    vus_max........................: 1     min=1      max=1
+
+    NETWORK
+    data_received..................: 49 kB 9.0 kB/s
+    data_sent......................: 910 B 167 B/s
+
+
+
+
+running (05.4s), 0/1 VUs, 5 complete and 0 interrupted iterations
+default ✓ [ 100% ] 1 VUs  5s

@@ -1,0 +1,74 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /Users/sobean/IdeaProjects/BILLIM/performance/rental/create-rental.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 10 max VUs, 31s max duration (incl. graceful stop):
+              * default: 10 looping VUs for 1s (gracefulStop: 30s)
+
+time="2026-10-28T21:03:12+09:00" level=warning msg="실패 분류: VU=10, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:03:12+09:00" level=warning msg="실패 분류: VU=7, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:03:12+09:00" level=warning msg="실패 분류: VU=6, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:03:12+09:00" level=warning msg="실패 분류: VU=5, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:03:12+09:00" level=warning msg="실패 분류: VU=3, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:03:12+09:00" level=warning msg="실패 분류: VU=8, status=500, code=INTERNAL_ERROR" source=console
+time="2026-10-28T21:03:12+09:00" level=warning msg="실패 분류: VU=9, status=500, code=INTERNAL_ERROR" source=console
+
+running (01.0s), 10/10 VUs, 0 complete and 0 interrupted iterations
+default   [  99% ] 10 VUs  1.0s/1s
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✗ 'rate==1' rate=30.00%
+
+    http_req_failed
+    ✗ 'rate==0' rate=70.00%
+
+    unexpected_responses
+    ✗ 'rate==0' rate=70.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 10     7.964034/s
+    checks_succeeded...: 30.00% 3 out of 10
+    checks_failed......: 70.00% 7 out of 10
+
+    ✗ 대여 생성 201·대상·요청자·초기 상태 일치
+      ↳  30% — ✓ 3 / ✗ 7
+
+    CUSTOM
+    rejected_responses.............: 7      5.574824/s
+    unexpected_responses...........: 70.00% 7 out of 10
+
+    HTTP
+    http_req_duration..............: avg=239.01ms min=212.34ms med=249.53ms max=250.74ms p(90)=250.31ms p(95)=250.53ms p(99)=250.7ms 
+      { expected_response:true }...: avg=213.53ms min=212.34ms med=213.34ms max=214.91ms p(90)=214.6ms  p(95)=214.75ms p(99)=214.88ms
+    http_req_failed................: 70.00% 7 out of 10
+    http_reqs......................: 10     7.964034/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.24s    min=1.22s    med=1.25s    max=1.25s    p(90)=1.25s    p(95)=1.25s    p(99)=1.25s   
+    iterations.....................: 10     7.964034/s
+    vus............................: 10     min=10      max=10
+    vus_max........................: 10     min=10      max=10
+
+    NETWORK
+    data_received..................: 6.7 kB 5.3 kB/s
+    data_sent......................: 4.6 kB 3.7 kB/s
+
+
+
+
+running (01.3s), 00/10 VUs, 10 complete and 0 interrupted iterations
+default ✓ [ 100% ] 10 VUs  1s
+time="2026-10-28T21:03:14+09:00" level=error msg="thresholds on metrics 'checks, http_req_failed, unexpected_responses' have been crossed"

@@ -1,0 +1,60 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /Users/sobean/IdeaProjects/BILLIM/performance/rental/idempotency.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 1 max VUs, 10m30s max duration (incl. graceful stop):
+              * default: 1 iterations shared among 1 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate==1' rate=100.00%
+
+    unexpected_responses
+    ✓ 'rate==0' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 60      86.271476/s
+    checks_succeeded...: 100.00% 60 out of 60
+    checks_failed......: 0.00%   0 out of 60
+
+    ✓ 동시 재전송 10건 모두 동일 성공 응답
+    ✓ 완료 후 재전송 응답 일치
+    ✓ 동일 키 다른 본문 거부
+
+    CUSTOM
+    key_reuse_duration.............: avg=3.73ms   min=2.01ms   med=2.81ms   max=15.64ms  p(90)=4.89ms   p(95)=8.44ms   p(99)=14.2ms  
+    replay_duration................: avg=3.53ms   min=2.2ms    med=3ms      max=7.95ms   p(90)=5.14ms   p(95)=6.71ms   p(99)=7.7ms   
+    unexpected_responses...........: 0.00%  0 out of 240
+
+    HTTP
+    http_req_duration..............: avg=18.08ms  min=2.01ms   med=15.13ms  max=79.13ms  p(90)=33.8ms   p(95)=39.99ms  p(99)=74.11ms 
+      { expected_response:true }...: avg=19.39ms  min=2.2ms    med=15.5ms   max=79.13ms  p(90)=34.98ms  p(95)=40.66ms  p(99)=74.6ms  
+    http_req_failed................: 8.33%  20 out of 240
+    http_reqs......................: 240    345.085905/s
+
+    EXECUTION
+    iteration_duration.............: avg=695.39ms min=695.39ms med=695.39ms max=695.39ms p(90)=695.39ms p(95)=695.39ms p(99)=695.39ms
+    iterations.....................: 1      1.437858/s
+
+    NETWORK
+    data_received..................: 321 kB 462 kB/s
+    data_sent......................: 103 kB 148 kB/s
+
+
+
+
+running (00m00.7s), 0/1 VUs, 1 complete and 0 interrupted iterations
+default ✓ [ 100% ] 1 VUs  00m00.7s/10m0s  1/1 shared iters

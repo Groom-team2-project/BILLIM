@@ -1,0 +1,35 @@
+{
+  "finishedAt": "2026-10-28T12:15:00.768313+00:00",
+  "commit": "c4ff40df1e8f57f8f68667c21b22f90c82c9c039",
+  "databaseRentalsBefore": 1000,
+  "preparedItems": 2420,
+  "users": 10,
+  "ownerAccounts": 10,
+  "expectedCreates": 1692,
+  "actualCreates": 1692,
+  "requestedCount": 1692,
+  "versionZeroCount": 1692,
+  "uniqueItems": 1692,
+  "uniqueBorrowers": 10,
+  "histories": 1692,
+  "events": 1692,
+  "idempotencyRecords": 1692,
+  "replayUniqueRentals": 10,
+  "databaseChecksPassed": true,
+  "k6ExitCodes": {
+    "smoke": 99,
+    "warmup": 99,
+    "baseline": 99,
+    "replay": 99
+  },
+  "allThresholdsPassed": false,
+  "warmupDataReset": true,
+  "beforeBaselineState": [
+    21,
+    3420,
+    1000,
+    1000,
+    0,
+    0
+  ]
+}
