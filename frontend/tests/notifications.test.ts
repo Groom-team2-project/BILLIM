@@ -62,7 +62,7 @@ test("요청·승인·약속 알림은 연결된 채팅방으로 이동하고 �
     return { chatRoomId: "12" };
   };
   for (const type of ["RENTAL_REQUESTED", "RENTAL_APPROVED", "APPOINTMENT_PROPOSED", "APPOINTMENT_CONFIRMED"]) {
-    assert.equal(await notificationDestination({ ...notification("1"), type }, room), "/chat/12");
+    assert.equal(await notificationDestination({ ...notification("1"), type }, room), "/chat/12?rentalId=7");
   }
   assert.equal(await notificationDestination(notification("1"), async () => ({})), "/rentals?rentalId=7");
 });

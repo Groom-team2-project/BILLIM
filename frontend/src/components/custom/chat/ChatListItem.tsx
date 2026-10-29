@@ -24,7 +24,7 @@ export function ChatListItem({ chat, room, selected, appointment }: {
     return (
       <Link to={`/chat/${room.id}`} state={{ chatName: room.otherMember.displayName }}
         className={c("chat-row")} aria-current={selected ? "true" : undefined}
-        aria-label={`${room.otherMember.displayName} 님과의 채팅, ${room.itemTitle}${room.unreadCount ? `, 안 읽은 메시지 ${room.unreadCount}개` : ""}`}>
+        aria-label={`${room.otherMember.displayName} 님과의 채팅, ${room.itemTitle}${appointment ? `, 확정 약속 ${appointment}` : ""}${room.unreadCount ? `, 안 읽은 메시지 ${room.unreadCount}개` : ""}`}>
         <Avatar name={room.otherMember.displayName} size={44} />
         <span className={c("chat-row-body")}>
           <span className={c("chat-row-top")}><strong>{room.otherMember.displayName}</strong>

@@ -43,7 +43,9 @@ export async function notificationDestination(
   const fallback = notificationTargetPath(notification);
   if (!notificationOpensChat(notification)) return fallback;
   const rental = await getRentalRoom(notification.targetId);
-  return rental.chatRoomId ? `/chat/${encodeURIComponent(rental.chatRoomId)}` : fallback;
+  return rental.chatRoomId
+    ? `/chat/${encodeURIComponent(rental.chatRoomId)}?rentalId=${encodeURIComponent(notification.targetId)}`
+    : fallback;
 }
 
 export function notificationTargetPath(notification: ApiNotification): string {

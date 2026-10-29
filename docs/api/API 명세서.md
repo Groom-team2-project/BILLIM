@@ -1,6 +1,6 @@
 # API 명세서
 
-> 버전 : v0.1.20\
+> 버전 : v0.1.21\
 > 수정일 : 2026.10.29
 
 ## 0. 공통 규약
@@ -90,6 +90,7 @@
 | [B_014](#52-b_014-사진-업로드) | 주정현 | P0 | POST | /api/v1/media | 사진 업로드 |
 | [B_015](#53-b_015-권한-있는-사진-읽기) | 주정현 | P0 | GET | /api/v1/media/{mediaId}/content | 권한 있는 사진 읽기 |
 | [B_016](#54-b_016-미연결-업로드-삭제) | 주정현 | P0 | DELETE | /api/v1/media/{mediaId} | 미연결 업로드 삭제 |
+| [B_028](#55-b_028-권한-있는-축소-사진-읽기) | 박선우 | P1 | GET | /api/v1/media/{mediaId}/thumbnail | 권한 있는 축소 사진 읽기 |
 | [B_017](#61-b_017-물건-검색-목록) | 주정현 | P0 | GET | /api/v1/items | 물건 검색 목록 |
 | [B_018](#62-b_018-물건-검색-지도-집계) | 주정현 | P0 | GET | /api/v1/items/map | 물건 검색 지도 집계 |
 | [B_019](#63-b_019-물건-등록) | 주정현 | P0 | POST | /api/v1/items | 물건 등록 |
@@ -362,6 +363,15 @@
 - 성공 응답: 204 본문 없음
 - 관련 테이블: media_files
 - 목업 연결: register
+
+### 5.5 B_028 권한 있는 축소 사진 읽기
+
+- `GET /api/v1/media/{mediaId}/thumbnail` · 박선우 · P1
+- 설명: B_015와 같은 사진 조회 권한. 긴 변 128px 이하 JPEG 썸네일을 반환한다. 새 업로드는 원본과 함께 별도 파일로 저장하고, 기존 사진은 첫 조회 때 생성해 보관한다. 권한은 매 요청마다 다시 확인하며 private no-cache를 적용한다.
+- 요청 본문: 없음
+- 성공 응답: 200 image/jpeg 바이너리
+- 관련 테이블: media_files, item_images, items
+- 목업 연결: chat
 
 ## 6. 물건 (items)
 
@@ -1439,7 +1449,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | itemId | string | Y | ID 문자열 |
 | communityId | string | Y | 방의 물건이 등록된 동네 ID. 비공개 물건·동네 변경 후에도 기존 거래 약속 장소 조회에 사용 |
 | itemTitle | string | Y | 최대 길이 100 |
-| itemThumbnailUrl | string | N | 조회 권한이 있는 대표 사진의 콘텐츠 URL. 사진이 없거나 볼 수 없으면 생략 |
+| itemThumbnailUrl | string | N | 조회 권한이 있는 대표 사진의 128px 이하 JPEG 썸네일 URL. 사진이 없거나 볼 수 없으면 생략 |
 | otherMember | MemberSummary | Y | — |
 | unreadCount | integer(int32) | Y | 최소 0 |
 | lastMessagePreview | string | N | 최대 길이 200 |

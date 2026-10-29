@@ -22,7 +22,7 @@ test("채팅 목록에는 가장 가까운 미래의 확정 약속만 표시한�
     slot("pickup", "2026-10-20T01:00:00Z", "PICKUP"),
   ], now);
 
-  assert.match(preview ?? "", /10.*20.*전달/);
+  assert.equal(preview, "10/20(화) 오전 10:00 전달");
   assert.equal(chatAppointmentPreview([slot("past", "2026-10-16T01:00:00Z", "PICKUP")], now), undefined);
 });
 

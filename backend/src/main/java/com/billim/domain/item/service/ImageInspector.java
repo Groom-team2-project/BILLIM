@@ -13,6 +13,7 @@ import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.MemoryCacheImageOutputStream;
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,8 +33,10 @@ public class ImageInspector {
     public static final long MAX_PIXELS = 40_000_000L;         // 40MP 디코딩 한도
 
     private static final float JPEG_QUALITY = 0.9f;
+    private static final int THUMBNAIL_MAX_EDGE = 128;
 
-    public record Result(byte[] bytes, String mimeType, String extension, int width, int height) {
+    public record Result(byte[] bytes, String mimeType, String extension, int width, int height,
+                         byte[] thumbnailBytes) {
     }
 
     private enum Format {
@@ -150,10 +153,42 @@ public class ImageInspector {
             if (out.length > MAX_BYTES) {
                 throw new BusinessException(ErrorCode.FILE_TOO_LARGE);
             }
-            return new Result(out, target.mime, target.ext, image.getWidth(), image.getHeight());
+            return new Result(out, target.mime, target.ext, image.getWidth(), image.getHeight(),
+                    encodeThumbnail(image));
         } catch (IOException e) {
             throw new BusinessException(ErrorCode.INVALID_IMAGE);
         }
+    }
+
+    /** 기존 원본의 첫 썸네일 조회에 사용. 생성 후 별도 파일로 보관한다. */
+    public byte[] thumbnail(byte[] data, String mimeType) {
+        Format format = detect(data);
+        if (format == null || !format.mime.equals(mimeType)) {
+            throw new BusinessException(ErrorCode.INVALID_IMAGE);
+        }
+        try {
+            return encodeThumbnail(decode(data, format));
+        } catch (IOException e) {
+            throw new BusinessException(ErrorCode.INVALID_IMAGE);
+        }
+    }
+
+    private static byte[] encodeThumbnail(BufferedImage image) throws IOException {
+        double scale = Math.min(1.0, (double) THUMBNAIL_MAX_EDGE / Math.max(image.getWidth(), image.getHeight()));
+        int width = Math.max(1, (int) Math.round(image.getWidth() * scale));
+        int height = Math.max(1, (int) Math.round(image.getHeight() * scale));
+        BufferedImage thumbnail = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = thumbnail.createGraphics();
+        try {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, width, height);
+            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            graphics.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            graphics.drawImage(image, 0, 0, width, height, null);
+        } finally {
+            graphics.dispose();
+        }
+        return writeJpeg(thumbnail);
     }
 
     private static BufferedImage toRgb(BufferedImage src) {

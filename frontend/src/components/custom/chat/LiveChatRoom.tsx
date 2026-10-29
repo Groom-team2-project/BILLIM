@@ -40,11 +40,12 @@ const reportReasons: Record<string, ReportReasonCode> = {
   "사기가 의심돼요": "FRAUD",
 };
 
-export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged }: {
+export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, targetRentalId }: {
   roomId: string;
   onRead: (roomId: string) => void;
   onMessage: (roomId: string, message: ApiChatMessage) => void;
   onAppointmentChanged: (room: ApiChatRoom) => void;
+  targetRentalId?: string;
 }) {
   const { confirm, report, toast } = useUi();
   const navigate = useNavigate();
@@ -181,7 +182,8 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged }
     Promise.all([getChatRoom(roomId), getChatMessages(roomId)]).then(([detail, page]) => {
       if (!active) return;
       setRoom(detail);
-      const rentalId = detail.access.allowedRentalIds[0] ?? detail.rentals[0]?.id;
+      const rentalId = targetRentalId && detail.access.allowedRentalIds.includes(targetRentalId)
+        ? targetRentalId : detail.access.allowedRentalIds[0] ?? detail.rentals[0]?.id;
       setSelectedRentalId(rentalId);
       setAppointmentLoading(Boolean(rentalId));
       receiveMessages(page.items);
@@ -195,7 +197,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged }
       if (active) setLoading(false);
     });
     return () => { active = false; };
-  }, [roomId, retry, receiveMessages]);
+  }, [roomId, retry, receiveMessages, targetRentalId]);
 
   useEffect(() => {
     if (!selectedRentalId) return;
@@ -487,7 +489,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged }
       try {
         await blockMember(memberId);
         toast("차단했어요");
-        navigate("/chat", { replace: true });
+        navigate("/chat", { replace: true, state: { blockedRoomId: roomId } });
       } catch (error) {
         toast(error instanceof ApiError ? error.message : "차단하지 못했어요");
       }

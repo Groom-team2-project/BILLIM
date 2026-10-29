@@ -10,10 +10,12 @@ export function chatAppointmentPreview(slots: ApiAppointmentSlot[], now = Date.n
     .sort((a, b) => Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt))[0];
   if (!next) return undefined;
   const date = new Date(next.scheduledAt);
-  const label = new Intl.DateTimeFormat("ko-KR", {
+  const parts = new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul", month: "numeric", day: "numeric", weekday: "short",
     hour: "numeric", minute: "2-digit", hour12: true,
-  }).format(date);
+  }).formatToParts(date);
+  const part = (type: string) => parts.find((entry) => entry.type === type)?.value ?? "";
+  const label = `${part("month")}/${part("day")}(${part("weekday")}) ${part("dayPeriod")} ${part("hour")}:${part("minute")}`;
   return `${label} ${next.kind === "PICKUP" ? "전달" : "반납"}`;
 }
 

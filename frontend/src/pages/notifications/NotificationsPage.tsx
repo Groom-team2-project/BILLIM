@@ -49,12 +49,13 @@ export function NotificationsPage() {
     if (openingId) return;
     setOpeningId(notification.id);
     try {
+      const destination = await notificationDestination(notification, getRental);
       try {
         await markOneRead(notification.id);
       } catch {
         toast("알림을 읽음 처리하지 못했어요. 다시 시도해 주세요.");
       }
-      navigate(await notificationDestination(notification, getRental));
+      navigate(destination);
     } catch (error) {
       toast(error instanceof ApiError && (error.status === 403 || error.status === 404)
         ? "이 알림의 거래를 더는 볼 수 없어요. 내 대여에서 확인해 주세요."

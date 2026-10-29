@@ -60,6 +60,18 @@ public class MediaController {
                 .body(c.bytes());
     }
 
+    /** 채팅 목록용 축소 사진. 원본과 같은 조회 권한을 매번 확인한다. */
+    @GetMapping("/{mediaId}/thumbnail")
+    public ResponseEntity<byte[]> thumbnail(@PathVariable String mediaId, Authentication authentication) {
+        long memberId = AuthenticatedMember.id(authentication);
+        MediaService.MediaContent image = mediaService.thumbnail(memberId, IdParser.parse(mediaId));
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_JPEG)
+                .cacheControl(CacheControl.noCache().cachePrivate())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(image.bytes());
+    }
+
     /** B_016 미연결 사진 삭제. 본인 TEMP만, 물건에 연결된 사진은 409 MEDIA_IN_USE */
     @DeleteMapping("/{mediaId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

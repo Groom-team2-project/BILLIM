@@ -176,7 +176,7 @@ class ChatRoomViewServiceTest {
 
         var response = viewService.get(ROOM_ID, MEMBER_ID);
 
-        assertThat(response.itemThumbnailUrl()).isEqualTo("/api/v1/media/77/content");
+        assertThat(response.itemThumbnailUrl()).isEqualTo("/api/v1/media/77/thumbnail");
     }
 
     @Test

@@ -145,7 +145,7 @@ public class ChatRoomViewService {
             if (item != null && itemAccessPolicy.canView(item, memberId)) {
                 urls.put(
                     thumbnail.getItemId(),
-                    MediaFileResponse.contentUrl(thumbnail.getMediaFileId())
+                    MediaFileResponse.thumbnailUrl(thumbnail.getMediaFileId())
                 );
             }
         }

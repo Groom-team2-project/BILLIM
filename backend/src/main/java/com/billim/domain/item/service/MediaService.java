@@ -19,10 +19,12 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.io.IOException;
+import java.nio.file.NoSuchFileException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.IntConsumer;
 
@@ -83,7 +85,9 @@ public class MediaService {
                 UUID.randomUUID(), r.extension());
         try {
             storage.save(key, r.bytes());
+            storage.save(thumbnailKey(key), r.thumbnailBytes());
         } catch (IOException e) {
+            deleteQuietly(key);
             log.error("사진 저장 실패", e);
             throw new BusinessException(ErrorCode.INTERNAL_ERROR);
         }
@@ -108,6 +112,42 @@ public class MediaService {
     /** TEMP는 업로더만. ATTACHED는 물건 조회 권한이 있는 회원만. 그 외는 존재를 숨기는 404 */
     @Transactional(readOnly = true)
     public MediaContent read(long memberId, long mediaId) {
+        MediaFile m = readableMedia(memberId, mediaId);
+        try {
+            return new MediaContent(storage.read(m.getStorageKey()), m.getMimeType());
+        } catch (IOException e) {
+            log.error("사진 파일 읽기 실패 mediaId={}", mediaId, e);
+            throw notFound();
+        }
+    }
+
+    /** 권한 검사를 마친 뒤 128px 이하의 별도 JPEG 파일만 읽는다. 이전 사진은 첫 요청 때 생성한다. */
+    @Transactional(readOnly = true)
+    public MediaContent thumbnail(long memberId, long mediaId) {
+        MediaFile m = readableMedia(memberId, mediaId);
+        String key = thumbnailKey(m.getStorageKey());
+        try {
+            return new MediaContent(storage.read(key), "image/jpeg");
+        } catch (NoSuchFileException missing) {
+            try {
+                byte[] small = inspector.thumbnail(storage.read(m.getStorageKey()), m.getMimeType());
+                try {
+                    storage.save(key, small);
+                } catch (IOException e) {
+                    log.warn("썸네일 저장 실패 mediaId={}", mediaId, e);
+                }
+                return new MediaContent(small, "image/jpeg");
+            } catch (IOException | BusinessException e) {
+                log.error("썸네일 생성 실패 mediaId={}", mediaId, e);
+                throw notFound();
+            }
+        } catch (IOException e) {
+            log.error("썸네일 파일 읽기 실패 mediaId={}", mediaId, e);
+            throw notFound();
+        }
+    }
+
+    private MediaFile readableMedia(long memberId, long mediaId) {
         MediaFile m = mediaFileRepository.findById(mediaId)
                 .filter(f -> f.getStatus() != MediaStatus.DELETED)
                 .orElseThrow(MediaService::notFound);
@@ -123,12 +163,7 @@ public class MediaService {
                 throw notFound();
             }
         }
-        try {
-            return new MediaContent(storage.read(m.getStorageKey()), m.getMimeType());
-        } catch (IOException e) {
-            log.error("사진 파일 읽기 실패 mediaId={}", mediaId, e);
-            throw notFound();
-        }
+        return m;
     }
 
     /** 업로더 자신의 TEMP만. ATTACHED는 409 MEDIA_IN_USE. 파일 삭제 실패는 DB 상태(DELETED)로 남겨 정리 때 재시도 */
@@ -163,11 +198,17 @@ public class MediaService {
     }
 
     private void deleteQuietly(String key) {
-        try {
-            storage.delete(key);
-        } catch (IOException e) {
-            log.warn("사진 파일 삭제 실패, 정리 작업에서 재시도 필요 key={}", key, e);
+        for (String target : List.of(key, thumbnailKey(key))) {
+            try {
+                storage.delete(target);
+            } catch (IOException e) {
+                log.warn("사진 파일 삭제 실패, 정리 작업에서 재시도 필요 key={}", target, e);
+            }
         }
+    }
+
+    private static String thumbnailKey(String key) {
+        return key + ".thumb.jpg";
     }
 
     private static BusinessException notFound() {
