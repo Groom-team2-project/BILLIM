@@ -29,6 +29,18 @@ function dateLabel(iso: string): string {
   return `${at.getFullYear()}년 ${at.getMonth() + 1}월 ${at.getDate()}일`;
 }
 
+/**
+ * 어떤 대상으로 조치됐는지 한 줄. 접수 시점 스냅샷이라 물건이 지워진 뒤에도 남는다.
+ * 회원 신고는 대상이 본인이라 쓸 말이 없다.
+ */
+function targetLine(row: ApiMySanction): string | null {
+  if (row.targetType === "MEMBER" || !row.targetLabel) {
+    return null;
+  }
+  const what = row.targetType === "ITEM" ? "물건" : "대화";
+  return `${what} · ${row.targetLabel}`;
+}
+
 /** 조치의 상태 한 줄. 경고는 기간이 없어 따로 쓸 말이 없다 */
 function periodLabel(row: ApiMySanction): string | null {
   if (row.revokedAt) {
@@ -48,7 +60,8 @@ function periodLabel(row: ApiMySanction): string | null {
  * 내가 받은 운영 조치 내역 (E_072).
  *
  * 처리 결과 알림이 "자세한 내용은 내 프로필에서 확인해 주세요"로 안내하는 그 화면이다.
- * 신고자·운영 메모·신고 대상 거래는 서버가 내려주지 않는다.
+ * 대상 물건·메시지는 보여준다 — 담기는 것은 모두 본인 것이다.
+ * 신고자와 운영 메모는 서버가 내려주지 않는다.
  * (도메인 가이드 결정 '조치 사유를 누구에게 보여줄지')
  */
 export function SanctionsPage() {
@@ -105,6 +118,7 @@ export function SanctionsPage() {
           ) : (
             list.rows.map((row) => {
               const period = periodLabel(row);
+              const target = targetLine(row);
               return (
                 <div key={row.id} className={c("sanctions-row")}>
                   <div className={c("sanctions-row-head")}>
@@ -122,6 +136,11 @@ export function SanctionsPage() {
                   </div>
                   {/* 운영자가 쓴 최소 사유. 이게 안 보여서 대상이 이유를 몰랐다 */}
                   <div className={c("t-caption sanctions-muted sanctions-reason")}>{row.publicReason}</div>
+                  {target ? <div className={c("t-caption sanctions-muted")}>{target}</div> : null}
+                  {/* 내가 올린 설명이나 내가 보낸 메시지. 무엇이 문제였는지 바로 보이게 */}
+                  {row.evidenceText ? (
+                    <blockquote className={c("t-caption sanctions-evidence")}>{row.evidenceText}</blockquote>
+                  ) : null}
                   <div className={c("t-caption sanctions-muted")}>{dateLabel(row.decidedAt)}</div>
                   {period ? <div className={c("t-caption sanctions-muted")}>{period}</div> : null}
                 </div>

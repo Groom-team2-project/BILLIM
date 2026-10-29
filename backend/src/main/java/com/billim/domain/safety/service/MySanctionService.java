@@ -2,10 +2,15 @@ package com.billim.domain.safety.service;
 
 import com.billim.domain.safety.dto.MySanctionPageResponse;
 import com.billim.domain.safety.dto.MySanctionResponse;
+import com.billim.domain.safety.entity.Report;
 import com.billim.domain.safety.entity.ReportAction;
 import com.billim.domain.safety.entity.Sanction;
 import com.billim.domain.safety.repository.ReportActionRepository;
+import com.billim.domain.safety.repository.ReportRepository;
 import com.billim.domain.safety.repository.SanctionRepository;
+import com.billim.global.json.JsonCodec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -13,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -36,15 +43,23 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class MySanctionService {
 
+    private static final Logger log = LoggerFactory.getLogger(MySanctionService.class);
+
     private final ReportActionRepository reportActionRepository;
+    private final ReportRepository reportRepository;
     private final SanctionRepository sanctionRepository;
+    private final JsonCodec jsonCodec;
     private final Clock clock;
 
     public MySanctionService(ReportActionRepository reportActionRepository,
+                             ReportRepository reportRepository,
                              SanctionRepository sanctionRepository,
+                             JsonCodec jsonCodec,
                              Clock clock) {
         this.reportActionRepository = reportActionRepository;
+        this.reportRepository = reportRepository;
         this.sanctionRepository = sanctionRepository;
+        this.jsonCodec = jsonCodec;
         this.clock = clock;
     }
 
@@ -54,13 +69,47 @@ public class MySanctionService {
                 reportActionRepository.findReceivedByMemberId(memberId, PageRequest.of(page, size));
 
         Map<Long, Sanction> sanctions = sanctionsByActionId(actions);
+        Map<Long, Report> reports = reportsByActionId(actions);
         Instant now = clock.instant();
 
+        List<MySanctionResponse> items = new ArrayList<>();
+        for (ReportAction action : actions.getContent()) {
+            Report report = reports.get(action.getReportId());
+            if (report == null) {
+                // 신고가 지워졌다면 조치만 남은 셈이다. 목록에서 빼기보다 건너뛰고 로그를 남긴다
+                log.warn("조치의 신고를 찾지 못함: actionId={} reportId={}", action.getId(), action.getReportId());
+                continue;
+            }
+            items.add(MySanctionResponse.of(
+                    action, report, readSnapshot(report), sanctions.get(action.getId()), now));
+        }
         return new MySanctionPageResponse(
-                actions.getContent().stream()
-                        .map(action -> MySanctionResponse.of(action, sanctions.get(action.getId()), now))
-                        .toList(),
-                page, size, actions.getTotalElements(), actions.hasNext());
+                items, page, size, actions.getTotalElements(), actions.hasNext());
+    }
+
+    /** 조치가 가리키는 신고를 한 번에 모아 붙인다 */
+    private Map<Long, Report> reportsByActionId(Page<ReportAction> actions) {
+        if (actions.isEmpty()) {
+            return Map.of();
+        }
+        return reportRepository.findAllById(
+                        actions.getContent().stream().map(ReportAction::getReportId).distinct().toList())
+                .stream()
+                .collect(Collectors.toMap(Report::getId, Function.identity()));
+    }
+
+    /**
+     * 접수 시점 스냅샷. 물건이 지워진 뒤에도 무엇으로 조치됐는지 남아야 한다.
+     *
+     * <p>스냅샷을 읽지 못해도 조치 정보는 돌려준다. 사유를 못 보는 쪽이 더 나쁘다.
+     */
+    private ReportTarget.ReportSnapshot readSnapshot(Report report) {
+        try {
+            return jsonCodec.read(report.getTargetSnapshot(), ReportTarget.ReportSnapshot.class);
+        } catch (RuntimeException e) {
+            log.warn("신고 스냅샷을 읽지 못함: reportId={}", report.getId(), e);
+            return null;
+        }
     }
 
     /** 조치별 제재를 한 번에 모아 붙인다. 건당 조회를 피한다 */

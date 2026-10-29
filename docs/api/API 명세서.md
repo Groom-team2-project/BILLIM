@@ -1,6 +1,6 @@
 # API 명세서
 
-> 버전 : v0.1.22\
+> 버전 : v0.1.23\
 > 수정일 : 2026.10.29
 
 ## 0. 공통 규약
@@ -908,7 +908,9 @@
 - `GET /api/v1/members/me/sanctions` · 노현섭 · P1
 - 설명: 본인만. E_057이 정한 "제재 대상에게 제공하는 최소 사유"의 전달 경로다. 처리 결과 알림이 "내 프로필에서 확인"으로 안내하는 화면이 쓴다. 제재 상태여도 조회할 수 있다 — 제한된 이유를 모르면 이의를 제기할 수 없다.
 - **`sanctions`가 아니라 `report_actions`를 읽는다.** 경고(WARN)는 제재 행을 만들지 않아 제재 테이블만 보면 보이지 않는다. 반려(DISMISS)는 목록에서 제외한다(대상에게 알리지도 않는 조치라, 넣으면 신고당한 사실만 알려 주게 된다).
-- **담지 않는 것**: 신고자 정보, `internalNote`, 신고 사유 코드, 신고 대상 거래·메시지. 대상 거래를 특정해 보여주면 그 거래 상대가 한 명인 경우 신고자가 사실상 특정되어 신고자 비공개 원칙과 충돌한다. 대상에게 알릴 맥락은 운영자가 `publicReason`에 적는다.
+- **담는 것**: 조치 종류, `publicReason`, 제재 기간, 그리고 **어떤 대상으로 조치됐는지**(`targetType`·`targetLabel`·`evidenceText`). 대상 정보는 모두 **대상 본인의 것**이다 — 본인이 등록한 물건의 제목·설명, 본인이 보낸 메시지 본문. 접수 시점 스냅샷이라 물건이 지워진 뒤에도 남는다.
+- **담지 않는 것**: 신고자 정보, `internalNote`, 신고 사유 코드.
+- **알려진 노출**: 대상 정보를 보여주면 대상이 어떤 거래로 조치됐는지 알게 되고, 그 거래의 상대가 한 명이면 **신고자를 추정할 수 있다**. 메시지 신고는 대화 상대가 곧 신고자라 추정이 아니라 특정이다. 대상이 무엇 때문에 조치됐는지 알아야 한다는 쪽을 택한 팀 결정이다.
 - 정렬: 조치 시각 내림차순
 
 | Query | 필수 | 타입 | 의미 |
@@ -1623,7 +1625,8 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | revokedAt | string(date-time) | N | — |
 | isEffective | boolean | Y | — |
 ### MySanction
-대상 본인에게 내려가는 조치 한 건. 신고자·`internalNote`·신고 사유 코드·대상 거래는 담지 않는다.
+대상 본인에게 내려가는 조치 한 건. 신고자·`internalNote`·신고 사유 코드는 담지 않는다.
+대상 정보는 접수 시점 스냅샷이며 모두 대상 본인의 것이다.
 
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
@@ -1631,6 +1634,10 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | action | string | Y | 값: WARN, SUSPEND_7D, SUSPEND_30D, BAN (DISMISS는 목록에 없음) |
 | publicReason | string | Y | 최대 길이 500. 운영자가 쓴 최소 사유 |
 | decidedAt | string(date-time) | Y | 조치 시각 |
+| targetType | string | Y | 값: MEMBER, ITEM, MESSAGE |
+| targetId | string | N | 물건·메시지 ID. 회원 신고는 대상이 본인이라 생략 |
+| targetLabel | string | N | 물건 제목. 메시지 신고는 그 대화가 붙은 물건의 제목 |
+| evidenceText | string | N | 최대 길이 3000. 물건 설명 또는 신고된 메시지 본문 |
 | kind | string | N | 값: SUSPEND, BAN. 경고는 제재 행이 없어 생략 |
 | startsAt | string(date-time) | N | 경고는 생략 |
 | endsAt | string(date-time) | N | 영구 정지·경고는 생략 |

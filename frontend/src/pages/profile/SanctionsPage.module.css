@@ -65,3 +65,15 @@
   background: var(--status-returned-bg);
   color: var(--status-returned-fg);
 }
+
+/* 신고된 내 메시지나 물건 설명. 운영자 문장과 구분되게 들여쓴다 */
+.sanctions-evidence {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--line);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

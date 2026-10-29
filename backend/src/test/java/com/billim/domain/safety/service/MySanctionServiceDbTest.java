@@ -1,6 +1,10 @@
 package com.billim.domain.safety.service;
 
 import com.billim.MockChatRedisListener;
+import com.billim.domain.item.entity.Category;
+import com.billim.domain.item.entity.Item;
+import com.billim.domain.item.repository.CategoryRepository;
+import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.member.entity.Member;
 import com.billim.domain.member.entity.MemberRole;
 import com.billim.domain.member.repository.MemberRepository;
@@ -25,6 +29,8 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.mysql.MySQLContainer;
 
+import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,6 +66,8 @@ class MySanctionServiceDbTest {
     @Autowired AdminReportService adminReportService;
     @Autowired SanctionService sanctionService;
     @Autowired MemberRepository memberRepository;
+    @Autowired ItemRepository itemRepository;
+    @Autowired CategoryRepository categoryRepository;
     @Autowired JdbcTemplate jdbc;
 
     private long reporter;
@@ -160,7 +168,7 @@ class MySanctionServiceDbTest {
     }
 
     @Test
-    @DisplayName("응답에 신고자·운영 메모·신고 사유 코드·대상 거래가 없다")
+    @DisplayName("응답에 신고자·운영 메모·신고 사유 코드가 없다")
     void hidesReporterAndInternalNote() {
         long reportId = report();
         adminReportService.resolve(admin, reportId, new ResolveReportRequest(
@@ -172,8 +180,47 @@ class MySanctionServiceDbTest {
         assertThat(MySanctionResponse.class.getRecordComponents())
                 .extracting(java.lang.reflect.RecordComponent::getName)
                 .containsExactly("id", "action", "publicReason", "decidedAt",
+                        "targetType", "targetId", "targetLabel", "evidenceText",
                         "kind", "startsAt", "endsAt", "revokedAt", "isEffective");
         assertThat(row.publicReason()).doesNotContain("내부 메모");
+    }
+
+    // ---------- 대상 정보 ----------
+
+    @Test
+    @DisplayName("회원 신고는 대상 ID를 주지 않는다. 본인이라 알려 줄 것이 없다")
+    void memberReportHasNoTargetId() {
+        resolve(report(), ReportActionType.WARN, "반복된 약속 위반입니다.");
+
+        MySanctionResponse row = mine().items().getFirst();
+
+        assertThat(row.targetType()).isEqualTo("MEMBER");
+        assertThat(row.targetId()).isNull();
+    }
+
+    @Test
+    @DisplayName("물건 신고는 그 물건의 제목·설명을 접수 시점 스냅샷으로 준다")
+    void itemReportShowsItemSnapshot() {
+        long itemId = saveItem(offender, "충전식 전동드릴 12V", "배터리 2개 포함");
+        long reportId = reportItem(itemId);
+        resolve(reportId, ReportActionType.WARN, "물건 설명이 실제와 달랐어요.");
+
+        MySanctionResponse row = mine().items().getFirst();
+
+        assertThat(row.targetType()).isEqualTo("ITEM");
+        assertThat(row.targetId()).isEqualTo(String.valueOf(itemId));
+        assertThat(row.targetLabel()).isEqualTo("충전식 전동드릴 12V");
+        assertThat(row.evidenceText()).isEqualTo("배터리 2개 포함");
+    }
+
+    @Test
+    @DisplayName("물건이 지워져도 무엇으로 조치됐는지 남는다. 스냅샷을 쓴다")
+    void itemSnapshotSurvivesDeletion() {
+        long itemId = saveItem(offender, "캠핑 의자 2개 세트", null);
+        resolve(reportItem(itemId), ReportActionType.WARN, "확인 후 조치했습니다.");
+        jdbc.update("UPDATE items SET visibility = 'DELETED', deleted_at = NOW(6) WHERE id = ?", itemId);
+
+        assertThat(mine().items().getFirst().targetLabel()).isEqualTo("캠핑 의자 2개 세트");
     }
 
     // ---------- 범위와 순서 ----------
@@ -239,6 +286,23 @@ class MySanctionServiceDbTest {
         return Long.parseLong(response.id());
     }
 
+    /** 소빈이 정우의 물건을 신고한다. 대상 회원은 소유자인 정우가 된다 */
+    private long reportItem(long itemId) {
+        ReportResponse response = reportService.create(reporter, new CreateReportRequest(
+                ReportTargetType.ITEM, String.valueOf(itemId),
+                ReportReasonCode.ITEM_MISMATCH, null));
+        return Long.parseLong(response.id());
+    }
+
+    /** 신고 가능한 물건. 신고자와 같은 동네여야 한다 */
+    private long saveItem(long ownerId, String title, String description) {
+        Category category = categoryRepository.findByActiveTrueOrderBySortOrderAscIdAsc().getFirst();
+        Item item = Item.create(ownerId, COMMUNITY, category.getId(), 1L, title, description,
+                LocalDate.of(2026, 10, 1), LocalDate.of(2026, 12, 31),
+                Instant.parse("2026-10-20T01:00:00Z"));
+        return itemRepository.save(item).getId();
+    }
+
     private void resolve(long reportId, ReportActionType action, String publicReason) {
         adminReportService.resolve(admin, reportId,
                 new ResolveReportRequest(0L, action, publicReason, null));
@@ -263,6 +327,8 @@ class MySanctionServiceDbTest {
         jdbc.update("DELETE FROM sanctions");
         jdbc.update("DELETE FROM report_actions");
         jdbc.update("DELETE FROM reports");
+        jdbc.update("DELETE FROM item_images");
+        jdbc.update("DELETE FROM items");
         jdbc.update("DELETE FROM members");
     }
 }
