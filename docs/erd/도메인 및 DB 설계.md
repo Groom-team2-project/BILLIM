@@ -1,7 +1,7 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.12\
-> 수정일 : 2026.10.28
+> 버전 : v0.1.13\
+> 수정일 : 2026.10.29
 
 ## 1. 공통 규칙
 
@@ -201,12 +201,17 @@ erDiagram
 | verified_at | datetime(6) | N | 마지막 성공 인증 시각 | — |
 | verification_expires_at | datetime(6) | N | verified_at + 30일 제안 | — |
 | left_at | datetime(6) | Y | 이전 소속에서 이탈한 시각 | — |
+| active_member_id | bigint | Y | 생성 컬럼(VIRTUAL). ACTIVE면 member_id, 아니면 NULL. 활성 소속 유일성 전용 (V21) | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
-인덱스: UNIQUE (member_id, community_id) · INDEX (community_id, status, verification_expires_at)
+인덱스: UNIQUE (member_id, community_id) · UNIQUE (active_member_id) — 활성 소속 유일 (V21) · INDEX (community_id, status, verification_expires_at)
 
-- 활성 소속은 회원당 하나. members 잠금 아래 검사한다.
+- 활성 소속은 회원당 하나. members 잠금 아래 검사하고 **DB도 보장한다**(V21).
+  MySQL에 부분 유니크 인덱스가 없어 ACTIVE일 때만 값이 생기는 생성 컬럼으로 대신한다.
+  유니크 인덱스는 NULL을 여러 개 허용하므로 이탈 행은 제한 없이 쌓인다.
+- 동네를 바꿀 때는 이전 소속을 **먼저 flush해** 이탈로 내린 뒤 새 소속을 세운다.
+  한 번에 flush하면 Hibernate가 INSERT를 UPDATE보다 앞세워 이 제약에 걸린다.
 - 개인 위치·정확도·이동 기록은 저장하지 않는다. 인증 재시도는 같은 행을 갱신한다.
 
 #### community_places — 물건과 약속이 공유하는 공용 장소 · P0

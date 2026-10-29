@@ -26,6 +26,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.mysql.MySQLContainer;
 
@@ -252,6 +253,39 @@ class CommunityFlowDbTest {
         assertThat(membershipRepository.findByMemberIdAndStatus(me, MembershipStatus.ACTIVE))
                 .get().extracting(CommunityMembership::getCommunityId).isEqualTo(neighborId);
         assertThat(activeCommunityIdOf(me)).isEqualTo(neighborId);
+    }
+
+    @Test
+    @DisplayName("활성 소속을 둘 만들 수 없다. 서비스를 우회해 넣어도 DB가 막는다 (V21)")
+    void activeMembershipIsUniquePerMember() {
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+
+        // 이 제약이 없으면 행이 둘이 되고 GET /members/me가 500으로 죽는다.
+        // 만료는 인증 시각보다 뒤여야 한다(ck_community_memberships_expires) — 그 제약에 먼저
+        // 걸리면 유니크를 검증하지 못하므로 30일 뒤로 둔다
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO community_memberships
+                    (member_id, community_id, status, verified_at, verification_expires_at,
+                     created_at, updated_at)
+                VALUES (?, ?, 'ACTIVE', NOW(6), DATE_ADD(NOW(6), INTERVAL 30 DAY), NOW(6), NOW(6))
+                """, me, neighborId))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @DisplayName("이탈한 소속은 여러 개 쌓일 수 있다. 제약은 ACTIVE에만 걸린다")
+    void leftMembershipsMayRepeat() {
+        long third = saveCommunity("정자마을", CENTER_LAT, CENTER_LON, CommunityStatus.ACTIVE);
+
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+        verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
+        verify(me, third, CENTER_LAT, CENTER_LON, 10);
+
+        assertThat(membershipRepository.findAll())
+                .filteredOn(membership -> membership.getStatus() == MembershipStatus.LEFT)
+                .hasSize(2);
+        assertThat(membershipRepository.findByMemberIdAndStatus(me, MembershipStatus.ACTIVE))
+                .get().extracting(CommunityMembership::getCommunityId).isEqualTo(third);
     }
 
     @Test
