@@ -173,6 +173,9 @@ billim:
     # 해시는 bcrypt: htpasswd -nbBC 12 "" '비밀번호' | tr -d ':'
     admin-login-id: ${ADMIN_LOGIN_ID:}
     admin-password-hash: ${ADMIN_PASSWORD_HASH:}
+    # 관리자 로그인 계정 단위 잠금. 집계 창 안의 연속 실패가 한도에 닿으면 같은 시간만큼 잠금
+    admin-login-max-failures: ${ADMIN_LOGIN_MAX_FAILURES:5}
+    admin-login-lock-duration: ${ADMIN_LOGIN_LOCK_DURATION:15m}
 
 logging:
   pattern:
