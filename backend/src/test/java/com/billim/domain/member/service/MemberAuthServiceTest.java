@@ -89,4 +89,26 @@ class MemberAuthServiceTest {
             assertThatCode(() -> Member.register(normalized)).doesNotThrowAnyException();
         }
     }
+
+    /** 거부하면 해당 닉네임 사용자는 가입 불가 — 제거 후 사용 */
+    @Test
+    @DisplayName("닉네임의 보이지 않는 문자는 제거하고 사용")
+    void stripsInvisibleCharacters() {
+        assertThat(MemberAuthService.normalizeDisplayName("홍\u200B길동")).isEqualTo("홍길동");
+    }
+
+    @Test
+    @DisplayName("보이지 않는 문자만인 닉네임은 기본 이름으로 대체")
+    void replacesInvisibleOnlyNickname() {
+        assertThat(MemberAuthService.normalizeDisplayName("\u200B\u200B\u200B")).matches("이웃\\d{4}");
+    }
+
+    @Test
+    @DisplayName("사칭 닉네임은 기본 이름으로 대체")
+    void replacesReservedNickname() {
+        String name = MemberAuthService.normalizeDisplayName("관리자");
+
+        assertThat(name).matches("이웃\\d{4}");
+        assertThatCode(() -> Member.register(name)).doesNotThrowAnyException();
+    }
 }
