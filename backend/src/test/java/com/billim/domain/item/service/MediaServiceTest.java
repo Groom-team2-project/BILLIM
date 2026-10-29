@@ -115,6 +115,9 @@ class MediaServiceTest {
         assertThat(saved.getExpiresAt()).isEqualTo(NOW.plusSeconds(24 * 3600));
         assertThat(saved.getStorageKey()).startsWith("2026/10/").endsWith(".jpg");
         assertThat(Files.readAllBytes(root.resolve(saved.getStorageKey()))).hasSize((int) saved.getByteSize());
+        BufferedImage thumbnail = ImageIO.read(root.resolve(saved.getStorageKey() + ".thumb.jpg").toFile());
+        assertThat(thumbnail).isNotNull();
+        assertThat(Math.max(thumbnail.getWidth(), thumbnail.getHeight())).isLessThanOrEqualTo(128);
 
         assertThat(res.id()).isEqualTo("5");
         assertThat(res.contentUrl()).isEqualTo("/api/v1/media/5/content");
@@ -173,6 +176,21 @@ class MediaServiceTest {
     }
 
     @Test
+    @DisplayName("기존 사진은 첫 조회에 썸네일을 생성하고 이후에는 원본 없이 읽는다")
+    void legacyThumbnailIsGeneratedOnce() throws IOException {
+        MediaFile m = stored(5, ME, "2026/10/legacy.jpg", jpg());
+        when(mediaFileRepository.findById(5L)).thenReturn(Optional.of(m));
+
+        MediaService.MediaContent first = service.thumbnail(ME, 5);
+        assertThat(first.mimeType()).isEqualTo("image/jpeg");
+        assertThat(Files.exists(root.resolve("2026/10/legacy.jpg.thumb.jpg"))).isTrue();
+
+        storage.delete(m.getStorageKey());
+        assertThat(service.thumbnail(ME, 5).bytes()).isEqualTo(first.bytes());
+        assertCode(() -> service.thumbnail(OTHER, 5), ErrorCode.RESOURCE_NOT_FOUND);
+    }
+
+    @Test
     @DisplayName("삭제 표시된 사진은 404다")
     void deletedMediaIsNotFound() throws IOException {
         MediaFile m = stored(5, ME, "2026/10/c.jpg", jpg());
@@ -187,12 +205,14 @@ class MediaServiceTest {
     @DisplayName("자신의 TEMP 사진을 지우면 DELETED가 되고 파일이 정리된다")
     void deleteOwnTempMarksDeletedAndRemovesFile() throws IOException {
         MediaFile m = stored(5, ME, "2026/10/d.jpg", jpg());
+        storage.save(m.getStorageKey() + ".thumb.jpg", new byte[]{1});
         when(mediaFileRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(m));
 
         service.deleteTemp(ME, 5);
 
         assertThat(m.getStatus()).isEqualTo(MediaStatus.DELETED);
         assertThat(Files.exists(root.resolve("2026/10/d.jpg"))).isFalse();
+        assertThat(Files.exists(root.resolve("2026/10/d.jpg.thumb.jpg"))).isFalse();
     }
 
     @Test

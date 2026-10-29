@@ -23,6 +23,15 @@
   color: var(--ink-muted);
 }
 
+.chat-room-mobile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
 .chat-rental-card {
   align-self: center;
   width: min(100%, 420px);

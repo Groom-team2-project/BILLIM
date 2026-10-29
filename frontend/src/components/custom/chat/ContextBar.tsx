@@ -6,9 +6,9 @@ import type { CategoryId } from "@/data/items";
 import type { RentalStatusView } from "@/components/custom/rentals/status";
 import type { ApiChatRoom } from "@/types/chat-api";
 import { chatDateRange, chatRentalStatus } from "@/utils/chat-view";
-import { Icon } from "@/components/ui/icon";
 import styles from "@/components/custom/chat/ContextBar.module.css";
 import { classes } from "@/utils/classes";
+import { ChatItemThumbnail } from "@/components/custom/chat/ChatItemThumbnail";
 
 const c = classes(styles);
 
@@ -33,7 +33,9 @@ export function ContextBar({ rental, room, selectedRentalId, action }: {
     const status = current ? chatRentalStatus(current) : null;
     return (
       <div className={c("context-bar")}>
-        <span className={c("context-bar-thumb context-bar-placeholder")}><Icon name="chat" size={18} /></span>
+        <ChatItemThumbnail key={room.itemThumbnailUrl ?? ""}
+          src={room.itemThumbnailUrl} title={room.itemTitle}
+          className={c("context-bar-thumb")} placeholderClassName={c("context-bar-placeholder")} />
         <div className={c("context-bar-body")}>
           <div className={c("context-bar-title")}>
             <strong className={c("t-label")}>{room.itemTitle}</strong>

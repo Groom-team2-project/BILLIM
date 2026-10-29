@@ -81,6 +81,7 @@
   height: 44px;
   aspect-ratio: auto;
   border-radius: var(--radius-md);
+  object-fit: cover;
 }
 
 .chat-row-placeholder {
