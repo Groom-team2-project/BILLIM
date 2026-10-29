@@ -234,6 +234,62 @@ class AuthSecurityTest {
         assertThat(setCookie).contains(SessionCookies.NAME + "=");
     }
 
+    /** 세션 복원이 요청마다 DB 조회 — 폐기 즉시 다른 기기 요청 거부 */
+    @Test
+    @DisplayName("다른 기기 로그아웃은 현재 세션만 남기고 같은 회원의 세션을 폐기한다")
+    void logoutOthersRevokesOtherSessionsOfSameMember() throws Exception {
+        LoggedIn current = loginAs("logout-others-me", "현재기기");
+        Cookie otherDevice = loginAgain(current.member());
+        LoggedIn otherMember = loginAs("logout-others-other", "다른회원");
+
+        mockMvc.perform(logoutOthers(current.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.revokedCount").value(1));
+
+        mockMvc.perform(get("/api/v1/members/me").cookie(current.cookie()))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/members/me").cookie(otherDevice))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/members/me").cookie(otherMember.cookie()))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("다른 기기가 없으면 폐기 건수 0")
+    void logoutOthersWithoutOtherSessions() throws Exception {
+        LoggedIn current = loginAs("logout-others-alone", "단독기기");
+
+        mockMvc.perform(logoutOthers(current.cookie()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.revokedCount").value(0));
+    }
+
+    /** /auth/** 공개 규칙보다 앞선 인증 규칙 — 빠지면 익명 세션으로 컨트롤러 진입 */
+    @Test
+    @DisplayName("비로그인 다른 기기 로그아웃은 401 UNAUTHENTICATED")
+    void anonymousLogoutOthersIsUnauthorized() throws Exception {
+        IssuedSession session = issueSession();
+
+        mockMvc.perform(post("/api/v1/auth/logout-others")
+                        .cookie(session.cookie())
+                        .header("X-CSRF-TOKEN", session.csrfToken()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"));
+    }
+
+    /** 다른 사이트가 유도한 요청으로 사용자의 모든 기기가 로그아웃되는 것 방지 */
+    @Test
+    @DisplayName("CSRF 토큰 없는 다른 기기 로그아웃은 403")
+    void logoutOthersRequiresCsrf() throws Exception {
+        LoggedIn current = loginAs("logout-others-csrf", "토큰없음");
+        Cookie otherDevice = loginAgain(current.member());
+
+        mockMvc.perform(post("/api/v1/auth/logout-others").cookie(current.cookie()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/members/me").cookie(otherDevice))
+                .andExpect(status().isOk());
+    }
+
     @Test
     @DisplayName("로그인 시작은 카카오로 302 이동하며 세션을 발급한다")
     void startsKakaoLogin() throws Exception {
@@ -390,5 +446,18 @@ class AuthSecurityTest {
     }
 
     private record LoggedIn(Member member, Cookie cookie) {
+    }
+
+    private Cookie loginAgain(Member member) {
+        return new Cookie(SessionCookies.NAME, authSessionService.rotateForMember(null, member.getId()).token());
+    }
+
+    /** 로그인 세션의 CSRF 토큰은 같은 쿠키로 재발급받아 사용 */
+    private MockHttpServletRequestBuilder logoutOthers(Cookie cookie) throws Exception {
+        String body = mockMvc.perform(get("/api/v1/auth/csrf").cookie(cookie))
+                .andReturn().getResponse().getContentAsString();
+        return post("/api/v1/auth/logout-others")
+                .cookie(cookie)
+                .header("X-CSRF-TOKEN", JsonPath.<String>read(body, "$.csrfToken"));
     }
 }
