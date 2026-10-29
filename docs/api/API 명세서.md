@@ -1,6 +1,6 @@
 # API 명세서
 
-> 버전 : v0.1.21\
+> 버전 : v0.1.22\
 > 수정일 : 2026.10.29
 
 ## 0. 공통 규약
@@ -78,6 +78,7 @@
 | [A_008](#25-a_008-네이버-로그인-시작) | 이지은 | P2 | GET | /api/v1/auth/naver | 네이버 로그인 시작 |
 | [A_009](#26-a_009-네이버-로그인-콜백) | 이지은 | P2 | GET | /api/v1/auth/naver/callback | 네이버 로그인 콜백 |
 | [A_010](#27-a_010-관리자-전용-로그인) | 이지은 | P2 | POST | /api/v1/auth/admin/login | 관리자 전용 로그인 |
+| [A_011](#28-a_011-다른-기기-로그아웃) | 이지은 | P2 | POST | /api/v1/auth/logout-others | 다른 기기 로그아웃 |
 | [A_005](#31-a_005-내-회원활성-소속-조회) | 이지은 | P0 | GET | /api/v1/members/me | 내 회원·활성 소속 조회 |
 | [A_006](#32-a_006-내-표시-이름-수정) | 이지은 | P1 | PATCH | /api/v1/members/me | 내 표시 이름 수정 |
 | [A_007](#33-a_007-이웃-공개-프로필) | 이지은 | P1 | GET | /api/v1/members/{memberId} | 이웃 공개 프로필 |
@@ -215,7 +216,7 @@
 ### 2.7 A_010 관리자 전용 로그인
 
 - `POST /api/v1/auth/admin/login` · 이지은 · P2
-- 설명: 소셜 계정 없이 서버 환경 변수 자격증명(`ADMIN_LOGIN_ID`·`ADMIN_PASSWORD_HASH`, bcrypt 해시)으로 ADMIN 세션 발급. 둘 중 하나라도 비면 404 — 배포 설정만으로 켜고 끈다. 자격증명 불일치는 401이며 ID·비밀번호 중 무엇이 틀렸는지 비노출. 성공 시 소셜 콜백과 같은 세션 회전, 이후 `/auth/csrf`와 `/members/me` 재조회. 로그인 전 세션의 CSRF 필요. 관리자 회원은 social_accounts(provider=LOCAL)로 식별하는 members 행 하나를 재사용.
+- 설명: 소셜 계정 없이 서버 환경 변수 자격증명(`ADMIN_LOGIN_ID`·`ADMIN_PASSWORD_HASH`, bcrypt 해시)으로 ADMIN 세션 발급. 둘 중 하나라도 비면 404 — 배포 설정만으로 켜고 끈다. 자격증명 불일치는 401이며 ID·비밀번호 중 무엇이 틀렸는지 비노출. 성공 시 소셜 콜백과 같은 세션 회전, 이후 `/auth/csrf`와 `/members/me` 재조회. 로그인 전 세션의 CSRF 필요. 관리자 회원은 social_accounts(provider=LOCAL)로 식별하는 members 행 하나를 재사용. 계정 단위 잠금: 15분 안에 5회 실패 시 15분간 429 `RATE_LIMITED`(올바른 자격증명 포함, `Retry-After` 없음 — 남은 시간은 메시지). IP별 요청 제한과 별개.
 
 | Body | 필수 | 타입 | 의미 |
 | --- | --- | --- | --- |
@@ -225,6 +226,15 @@
 - 성공 응답: 204 본문 없음
 - 관련 테이블: members, social_accounts, auth_sessions
 - 목업 연결: admin
+
+### 2.8 A_011 다른 기기 로그아웃
+
+- `POST /api/v1/auth/logout-others` · 이지은 · P2
+- 설명: 현재 세션을 제외한 같은 회원의 사용 가능한 세션 전부 폐기. 현재 세션·CSRF 토큰은 유지. 세션 복원이 요청마다 DB 조회라 폐기 즉시 모든 인스턴스에서 해당 쿠키는 401. 로그인 필요(`/auth/**` 중 예외), 로그인된 세션의 CSRF 필요.
+- 요청 본문: 없음
+- 성공 응답: 200 LogoutOthers
+- 관련 테이블: auth_sessions
+- 목업 연결: profile
 
 ## 3. 회원 (members)
 
@@ -242,7 +252,7 @@
 ### 3.2 A_006 내 표시 이름 수정
 
 - `PATCH /api/v1/members/me` · 이지은 · P1
-- 설명: 본인 ACTIVE 회원. 2~30자, version 불일치 409. 사진 편집은 범위 밖.
+- 설명: 본인 ACTIVE 회원. 2~30자, version 불일치 409. 사진 편집은 범위 밖. 제어·서식 문자(폭 없는 공백·방향 제어·ZWJ 등)와 운영자 사칭 이름(관리자·운영자·운영진·운영팀 포함, admin·billim으로 시작 — 전각·대소문자·공백·기호 정규화 후 비교)은 400 `INVALID_REQUEST`. 소셜 가입 닉네임은 거부 대신 금지 문자 제거, 사칭 이름은 기본 이름(`이웃` + 숫자 4자리)으로 대체.
 - 요청 본문: UpdateProfile
 - 성공 응답: 200 MyProfile
 - 관련 테이블: members
@@ -1094,6 +1104,10 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
 | csrfToken | string | Y | 최대 길이 128. BREACH 방어로 요청마다 값이 달라지는 마스킹 토큰이며, 세션의 원본 토큰은 유지된다. 받은 값을 `X-CSRF-TOKEN` 헤더로 되돌려주면 되고 캐싱해 재사용할 수 있다 |
+### LogoutOthers
+| 필드 | 타입 | 필수 | 제약·의미 |
+| --- | --- | --- | --- |
+| revokedCount | integer(int32) | Y | 최소 0. 폐기한 세션 수. 이미 만료·폐기된 세션 제외 |
 ### MemberSummary
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
