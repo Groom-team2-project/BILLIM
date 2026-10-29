@@ -78,7 +78,7 @@ public class Member extends BaseTimeEntity {
     }
 
     public void changeDisplayName(String displayName) {
-        this.displayName = requireValidDisplayName(displayName);
+        this.displayName = requireNotReserved(requireValidDisplayName(displayName));
     }
 
     public boolean isActive() {
@@ -91,6 +91,20 @@ public class Member extends BaseTimeEntity {
             throw new BusinessException(ErrorCode.INVALID_REQUEST,
                     "표시 이름은 %d~%d자로 입력해 주세요.".formatted(DISPLAY_NAME_MIN, DISPLAY_NAME_MAX));
         }
+        if (DisplayNamePolicy.hasForbiddenChar(trimmed)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "표시 이름에 사용할 수 없는 문자가 있습니다.");
+        }
         return trimmed;
+    }
+
+    /**
+     * 회원이 직접 입력하는 이름 수정 전용. 소셜 가입 닉네임은 MemberAuthService가 보정 단계에서 대체.
+     * 생성 경로에 두지 않는 이유: 관리자 전용 계정과 운영 데이터 생성은 운영 주체 이름을 정당하게 사용.
+     */
+    private static String requireNotReserved(String value) {
+        if (value != null && DisplayNamePolicy.isReserved(value)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "운영자로 오인될 수 있는 이름은 사용할 수 없습니다.");
+        }
+        return value;
     }
 }
