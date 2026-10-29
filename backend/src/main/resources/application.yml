@@ -19,7 +19,7 @@ spring:
 
   datasource:
     hikari:
-      # 기본값 10은 대기가 쌓여 처리량 천장 — 30에서 1.44배. 운영값은 RDS max_connections 확인 후
+      # 기본값 10은 대기가 쌓여 처리량 천장 — 30에서 1.44배. 2대 확장 시 25(RDS max_connections 61)
       maximum-pool-size: ${DB_POOL_SIZE:30}
 
   jpa:
