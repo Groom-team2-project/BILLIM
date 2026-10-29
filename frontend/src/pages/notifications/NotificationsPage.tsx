@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useUi } from "@/components/overlay/UiContext";
+import { getRental } from "@/api/rentals";
+import { ApiError } from "@/api/client";
 import { Icon } from "@/components/ui/icon";
 import { Button } from "@/components/ui/button";
 import { EmptyState, ErrorState, Loading, Skeleton } from "@/components/ui/state";
@@ -14,7 +16,7 @@ import {
 import type { ApiNotification } from "@/types/notification";
 import styles from "@/pages/notifications/NotificationsPage.module.css";
 import { classes } from "@/utils/classes";
-import { notificationAppearance, notificationTargetPath, notificationTime } from "@/utils/notification-view";
+import { notificationAppearance, notificationDestination, notificationTargetPath, notificationTime } from "@/utils/notification-view";
 import { PageHeader } from "@/components/layout/header";
 
 const c = classes(styles);
@@ -47,11 +49,18 @@ export function NotificationsPage() {
     if (openingId) return;
     setOpeningId(notification.id);
     try {
-      await markOneRead(notification.id);
-    } catch {
-      toast("알림을 읽음 처리하지 못했어요. 다시 시도해 주세요.");
+      const destination = await notificationDestination(notification, getRental);
+      try {
+        await markOneRead(notification.id);
+      } catch {
+        toast("알림을 읽음 처리하지 못했어요. 다시 시도해 주세요.");
+      }
+      navigate(destination);
+    } catch (error) {
+      toast(error instanceof ApiError && (error.status === 403 || error.status === 404)
+        ? "이 알림의 거래를 더는 볼 수 없어요. 내 대여에서 확인해 주세요."
+        : "알림의 이동 대상을 확인하지 못했어요. 다시 시도해 주세요.");
     } finally {
-      navigate(notificationTargetPath(notification));
       setOpeningId(null);
     }
   }

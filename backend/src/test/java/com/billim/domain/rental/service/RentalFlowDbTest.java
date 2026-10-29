@@ -83,6 +83,7 @@ class RentalFlowDbTest {
         jdbc.update("DELETE FROM rentals WHERE item_id = 9101");
         jdbc.update("DELETE FROM community_places WHERE community_id=9101");
         jdbc.update("DELETE FROM communities WHERE id=9101");
+        jdbc.update("DELETE FROM chat_participants WHERE room_id IN (SELECT id FROM chat_rooms WHERE item_id=9101)");
         jdbc.update("DELETE FROM chat_rooms WHERE item_id=9101");
         jdbc.update("DELETE FROM items WHERE id = 9101");
         jdbc.update("DELETE FROM members WHERE id IN (9101,9102)");
@@ -584,6 +585,19 @@ class RentalFlowDbTest {
         assertThat(result.history()).singleElement().satisfies(h -> assertThat(h.rentalVersion()).isZero());
         assertThat(jdbc.queryForObject("SELECT chat_room_id FROM rentals WHERE id=?", Long.class,
                 result.rental().id())).isEqualTo(9101);
+    }
+
+    @Test
+    @DisplayName("채팅방이 없어도 대여 요청과 함께 방·참여자를 생성")
+    void createOpensChatRoom() {
+        when(policy.requireRequestAllowed(any(), anyLong())).thenReturn("정문");
+        var result = service.createRental(key(), new CreateRentalRequest("9101",
+                LocalDate.parse("2026-10-20"), LocalDate.parse("2026-10-21")), BORROWER);
+        assertThat(result.chatRoomId()).isNotNull();
+        assertThat(jdbc.queryForObject("SELECT chat_room_id FROM rentals WHERE id=?", Long.class,
+                result.rental().id())).isEqualTo(Long.valueOf(result.chatRoomId()));
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM chat_participants WHERE room_id=?", Integer.class,
+                result.chatRoomId())).isEqualTo(2);
     }
 
     private void prepareAppointments() {

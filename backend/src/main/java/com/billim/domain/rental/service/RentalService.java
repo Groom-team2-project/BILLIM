@@ -1,6 +1,9 @@
 package com.billim.domain.rental.service;
 
 import com.billim.domain.chat.entity.ChatRoom;
+import com.billim.domain.chat.entity.ChatParticipant;
+import com.billim.domain.chat.repository.ChatRoomRepository;
+import com.billim.domain.chat.repository.ChatParticipantRepository;
 import com.billim.domain.rental.entity.AppointmentSlot;
 import com.billim.domain.rental.entity.AppointmentKind;
 import com.billim.domain.rental.repository.AppointmentSlotRepository;
@@ -51,11 +54,14 @@ public class RentalService {
     private final Clock clock;
     private final RentalQueryService queries;
     private final AppointmentSlotRepository appointmentSlots;
+    private final ChatRoomRepository chatRooms;
+    private final ChatParticipantRepository chatParticipants;
 
     public RentalService(RentalRepository rentals, RentalStatusHistoryRepository histories,
                          ItemRepository items, MemberRepository members, RentalRequestPolicy policy,
                          RentalRequestEffects effects, Clock clock, RentalQueryService queries,
-                         AppointmentSlotRepository appointmentSlots) {
+                         AppointmentSlotRepository appointmentSlots, ChatRoomRepository chatRooms,
+                         ChatParticipantRepository chatParticipants) {
         this.rentals = rentals;
         this.histories = histories;
         this.items = items;
@@ -65,6 +71,8 @@ public class RentalService {
         this.clock = clock;
         this.queries = queries;
         this.appointmentSlots = appointmentSlots;
+        this.chatRooms = chatRooms;
+        this.chatParticipants = chatParticipants;
     }
 
     @Transactional
@@ -146,10 +154,19 @@ public class RentalService {
                 request.startDate().plusDays(1).atStartOfDay(KST).toInstant(), // 시작일 다음 날 KST 00:00
                 request.endDate().plusDays(1).atStartOfDay(KST).toInstant(), // 종료일 다음 날 KST 00:00
                 item.getTitle(), item.getPlaceId(), placeName);
-        rentals.findChatRoomForRentalLink(itemId, borrower.getId())
-                .filter(room -> room.getOwnerId().equals(item.getOwnerId()))
-                .map(ChatRoom::getId)
-                .ifPresent(rental::linkChatRoom);
+        ChatRoom room = rentals.findChatRoomForRentalLink(itemId, borrower.getId())
+                .orElseGet(() -> {
+                    ChatRoom created = chatRooms.saveAndFlush(
+                            ChatRoom.open(itemId, item.getOwnerId(), borrower.getId(), now));
+                    chatParticipants.saveAll(List.of(
+                            ChatParticipant.join(created.getId(), item.getOwnerId(), now),
+                            ChatParticipant.join(created.getId(), borrower.getId(), now)));
+                    return created;
+                });
+        if (!room.getOwnerId().equals(item.getOwnerId())) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        rental.linkChatRoom(room.getId());
         rental = rentals.saveAndFlush(rental);
         /** 최초 요청 상태 이력 저장 */
         RentalStatusHistory history = histories.saveAndFlush(RentalStatusHistory.requested(rental));

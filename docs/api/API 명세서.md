@@ -1,7 +1,7 @@
 # API 명세서
 
-> 버전 : v0.1.18\
-> 수정일 : 2026.10.28
+> 버전 : v0.1.21\
+> 수정일 : 2026.10.29
 
 ## 0. 공통 규약
 
@@ -90,6 +90,7 @@
 | [B_014](#52-b_014-사진-업로드) | 주정현 | P0 | POST | /api/v1/media | 사진 업로드 |
 | [B_015](#53-b_015-권한-있는-사진-읽기) | 주정현 | P0 | GET | /api/v1/media/{mediaId}/content | 권한 있는 사진 읽기 |
 | [B_016](#54-b_016-미연결-업로드-삭제) | 주정현 | P0 | DELETE | /api/v1/media/{mediaId} | 미연결 업로드 삭제 |
+| [B_028](#55-b_028-권한-있는-축소-사진-읽기) | 박선우 | P1 | GET | /api/v1/media/{mediaId}/thumbnail | 권한 있는 축소 사진 읽기 |
 | [B_017](#61-b_017-물건-검색-목록) | 주정현 | P0 | GET | /api/v1/items | 물건 검색 목록 |
 | [B_018](#62-b_018-물건-검색-지도-집계) | 주정현 | P0 | GET | /api/v1/items/map | 물건 검색 지도 집계 |
 | [B_019](#63-b_019-물건-등록) | 주정현 | P0 | POST | /api/v1/items | 물건 등록 |
@@ -363,6 +364,15 @@
 - 관련 테이블: media_files
 - 목업 연결: register
 
+### 5.5 B_028 권한 있는 축소 사진 읽기
+
+- `GET /api/v1/media/{mediaId}/thumbnail` · 박선우 · P1
+- 설명: B_015와 같은 사진 조회 권한. 긴 변 128px 이하 JPEG 썸네일을 반환한다. 새 업로드는 원본과 함께 별도 파일로 저장하고, 기존 사진은 첫 조회 때 생성해 보관한다. 권한은 매 요청마다 다시 확인하며 private no-cache를 적용한다.
+- 요청 본문: 없음
+- 성공 응답: 200 image/jpeg 바이너리
+- 관련 테이블: media_files, item_images, items
+- 목업 연결: chat
+
 ## 6. 물건 (items)
 
 > `items`, `categories`, `item_images`, `rentals`, `blocks`, `community_places`, `media_files`, `members`
@@ -534,8 +544,8 @@
 - `POST /api/v1/rentals` · 박소빈 · P0
 - 설명: 유효 소속·본인 물건 아님·차단 없음. 시작일은 KST 오늘부터 허용. 공개(PUBLIC)이며 삭제되지 않은 물건만 신규 요청·승인 허용. 별도 수동 대여 가능 설정 없음. 날짜 양끝 포함, 최대 30일. 물건 잠금 아래 가능 기간/연체/승인 점유 재검사. 동일인의 겹치는 대기 요청 거부, 다른 사람의 대기 요청 겹침 허용.
 - 요청 본문: CreateRental
-- 성공 응답: 201 RentalDetail
-- 관련 테이블: rentals, rental_status_histories, outbox_events
+- 성공 응답: 201 RentalDetail (`chatRoomId` 포함)
+- 관련 테이블: rentals, rental_status_histories, chat_rooms, chat_participants, outbox_events
 - 구현 상태: 요청 서비스·컨트롤러 연결. 멱등 기록·outbox 저장 연결. 공개 상태·양측 활성 회원·유효 소속·양방향 차단·제재·활성 공용 장소 검사 연결.
 - 목업 연결: request
 
@@ -667,7 +677,7 @@
 
 - `RentalQueryService.getRentalSummary(rentalId, memberId)`: 거래 당사자 검사 후 RentalSummaryResponse 반환. 무관한 회원은 404. 기존 거래는 현재 동네·차단 상태와 무관하게 조회. 거절·취소·전달·반납에도 신규 관계 정책 미적용.
 - 채팅방 개설·재개설 시 기존 대여 연결은 채팅 담당의 후속 연동 대상. 대여의 `RentalRepository.linkChatRoom`은 같은 물건·소유자·요청자의 미연결 거래만 연결하는 내부 기능 제공.
-- 신규 대여 생성 시 같은 물건·소유자·요청자의 기존 채팅방 연결. 방이 없으면 NULL 유지.
+- 신규 대여 생성 시 같은 물건·소유자·요청자의 기존 채팅방 연결. 방이 없으면 요청 저장과 같은 트랜잭션에서 채팅방·양쪽 참여자를 생성하고 응답에 `chatRoomId` 반환. 이후 채팅 SYSTEM 메시지가 요청을 표시.
 - APPROVED 진입 시 PICKUP/RETURN 슬롯 생성. V13은 기존 APPROVED/ACTIVE/RETURNED 거래의 누락 슬롯만 보충.
 - C_038~040은 회원 ID순 → 물건 → 거래 → 슬롯 순으로 직렬화하고 슬롯 version 비교. 제안·수락·철회와 슬롯 버전·outbox 사건을 같은 트랜잭션에 저장.
 - 제안 교체·철회는 기존 확정 약속 유지. 새 제안 수락 시 이전 확정은 SUPERSEDED. 수락 시 활성 공용 장소와 KST 날짜·미래 시각·대여 상태 재검사.
@@ -959,7 +969,10 @@
 ### 13.6 E_069 동네 운영 통계
 
 - `GET /api/v1/admin/statistics` · 노현섭 · P2
-- 설명: ADMIN만. from/to 최대 31일 KST 포함. 현재 누적 등록/활성/미처리와 기간 신규/성사율/일자별 요청·인기 완료 건수를 구분. 구체 집계 정의는 설계 규칙 7절.
+- 설명: ADMIN만. from/to 최대 31일 KST 포함. 현재 누적 등록/활성/미처리와 기간 신규/성사율/일자별 요청·인기 완료 건수를 구분. 구체 집계 정의는 도메인 가이드 결정 '운영 통계'.
+- 집계 기준: 누적은 `registeredItems`·`activeRentals`(APPROVED·ACTIVE)·`pendingReports`·`categoryCounts`. 기간은 나머지이고 모두 **그 기간에 생성된 대여 요청**을 같은 모집단으로 쓴다. 물건은 `visibility='DELETED'`만 제외한다. 카테고리 합계는 `registeredItems`와 일치한다.
+- 오류: 400 INVALID_REQUEST (from > to, 기간 31일 초과, 필수 쿼리 누락·형식 오류) · 403 FORBIDDEN (ADMIN 아님) · 404 RESOURCE_NOT_FOUND (없는 동네)
+- **비활성 동네는 404가 아니다.** E_010과 다르다 — 운영자는 비활성화한 동네의 지표를 사후에 확인해야 한다. 동네 선택 목록(E_009)이 활성 동네만 주므로 화면에서는 고를 수 없고, 직접 호출만 가능하다.
 
 | Query | 필수 | 타입 | 의미 |
 | --- | --- | --- | --- |
@@ -1436,6 +1449,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | itemId | string | Y | ID 문자열 |
 | communityId | string | Y | 방의 물건이 등록된 동네 ID. 비공개 물건·동네 변경 후에도 기존 거래 약속 장소 조회에 사용 |
 | itemTitle | string | Y | 최대 길이 100 |
+| itemThumbnailUrl | string | N | 조회 권한이 있는 대표 사진의 128px 이하 JPEG 썸네일 URL. 사진이 없거나 볼 수 없으면 생략 |
 | otherMember | MemberSummary | Y | — |
 | unreadCount | integer(int32) | Y | 최소 0 |
 | lastMessagePreview | string | N | 최대 길이 200 |

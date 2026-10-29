@@ -1,10 +1,49 @@
-import type { ApiChatRental } from "@/types/chat-api";
+import type { ApiChatMessage, ApiChatRental, ApiChatRoom } from "@/types/chat-api";
 import type { RentalStatusView } from "@/components/custom/rentals/status";
 
 export function chatRentalStatus(rental: ApiChatRental): RentalStatusView | null {
   if (rental.overdue) return "overdue";
   if (rental.status === "EXPIRED") return null;
   return rental.status.toLowerCase() as RentalStatusView;
+}
+
+export function selectableChatRentals(room: ApiChatRoom): ApiChatRental[] {
+  if (room.access.reason !== "EXISTING_RENTAL_ONLY") return room.rentals;
+  return room.rentals.filter((rental) => room.access.allowedRentalIds.includes(rental.id));
+}
+
+export function chatRentalResponse(rental: ApiChatRental | undefined, memberId: string | null) {
+  if (!rental || rental.status !== "REQUESTED") return null;
+  const isOwner = rental.owner.id === memberId;
+  return {
+    isOwner,
+    canApprove: isOwner && rental.allowedActions.includes("APPROVE"),
+    canReject: isOwner && rental.allowedActions.includes("REJECT"),
+  };
+}
+
+export type ChatTimelineEntry =
+  | { kind: "message"; message: ApiChatMessage; index: number }
+  | { kind: "rental-request" }
+  | { kind: "rental-approved" };
+
+/** 거래 카드를 발생한 사건 옆에 둔다. 사건이 아직 없으면 요청 시각으로 위치를 고정한다. */
+export function chatTimeline(messages: ApiChatMessage[], rental?: ApiChatRental, showApproval = false): ChatTimelineEntry[] {
+  const entries: ChatTimelineEntry[] = messages.map((message, index) => ({ kind: "message", message, index }));
+  if (!rental) return entries;
+
+  const requestIndex = entries.findIndex((entry) => entry.kind === "message"
+    && entry.message.rentalId === rental.id && entry.message.system?.eventType === "RENTAL_REQUESTED");
+  const laterIndex = messages.findIndex((message) => Date.parse(message.createdAt) > Date.parse(rental.createdAt));
+  const requestPosition = requestIndex >= 0 ? requestIndex + 1 : laterIndex >= 0 ? laterIndex : entries.length;
+  entries.splice(requestPosition, 0, { kind: "rental-request" });
+
+  if (showApproval) {
+    const approvalIndex = entries.findIndex((entry) => entry.kind === "message"
+      && entry.message.rentalId === rental.id && entry.message.system?.eventType === "RENTAL_APPROVED");
+    entries.splice(approvalIndex >= 0 ? approvalIndex + 1 : requestPosition + 1, 0, { kind: "rental-approved" });
+  }
+  return entries;
 }
 
 export function chatTimeLabel(value?: string): string {

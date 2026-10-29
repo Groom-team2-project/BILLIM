@@ -5,7 +5,9 @@ import com.billim.domain.chat.repository.ChatRoomRepository;
 import com.billim.domain.community.service.CommunityMembershipQuery;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
+import com.billim.domain.item.repository.ItemImageRepository;
 import com.billim.domain.item.repository.ItemRepository;
+import com.billim.domain.item.service.ItemAccessPolicy;
 import com.billim.domain.rental.dto.RentalSummaryResponse;
 import com.billim.domain.rental.entity.Rental;
 import com.billim.domain.rental.entity.RentalStatus;
@@ -14,6 +16,7 @@ import com.billim.domain.safety.service.BlockQuery;
 import com.billim.domain.safety.service.SanctionService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -38,13 +41,16 @@ class ChatRoomViewServiceTest {
     private final RentalQueryService rentalQueryService = mock(RentalQueryService.class);
     private final ChatRoomRepository roomRepository = mock(ChatRoomRepository.class);
     private final ItemRepository itemRepository = mock(ItemRepository.class);
+    private final ItemImageRepository itemImageRepository = mock(ItemImageRepository.class);
+    private final ItemAccessPolicy itemAccessPolicy = mock(ItemAccessPolicy.class);
     private final CommunityMembershipQuery membershipQuery = mock(CommunityMembershipQuery.class);
     private final BlockQuery blockQuery = mock(BlockQuery.class);
     private final SanctionService sanctionService = mock(SanctionService.class);
     private final ChatRoomViewService viewService = new ChatRoomViewService(
         openService, baseService, listBaseService, linkedRentalService, rentalQueryService,
         new ChatRoomAccessPolicy(linkedRentalService),
-        roomRepository, itemRepository, membershipQuery, blockQuery, sanctionService
+        roomRepository, itemRepository, itemImageRepository, itemAccessPolicy,
+        membershipQuery, blockQuery, sanctionService
     );
 
     @Test
@@ -156,6 +162,37 @@ class ChatRoomViewServiceTest {
         assertThat(response.rentals()).containsExactly(summary);
     }
 
+    @Test
+    @DisplayName("사진 조회 권한이 있으면 채팅방에 대표 사진 URL을 제공한다")
+    void visibleItemReturnsThumbnailUrl() {
+        givenRoom();
+        ItemImageRepository.Thumbnail thumbnail = mock(ItemImageRepository.Thumbnail.class);
+        when(thumbnail.getItemId()).thenReturn(ITEM_ID);
+        when(thumbnail.getMediaFileId()).thenReturn(77L);
+        when(itemImageRepository.findThumbnails(List.of(ITEM_ID))).thenReturn(List.of(thumbnail));
+        when(itemAccessPolicy.canView(org.mockito.ArgumentMatchers.any(Item.class),
+            org.mockito.ArgumentMatchers.eq(MEMBER_ID))).thenReturn(true);
+        when(membershipQuery.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.of(COMMUNITY_ID));
+
+        var response = viewService.get(ROOM_ID, MEMBER_ID);
+
+        assertThat(response.itemThumbnailUrl()).isEqualTo("/api/v1/media/77/thumbnail");
+    }
+
+    @Test
+    @DisplayName("사진 조회 권한이 없으면 채팅방 대표 사진 URL을 생략한다")
+    void inaccessibleItemOmitsThumbnailUrl() {
+        givenRoom();
+        ItemImageRepository.Thumbnail thumbnail = mock(ItemImageRepository.Thumbnail.class);
+        when(thumbnail.getItemId()).thenReturn(ITEM_ID);
+        when(thumbnail.getMediaFileId()).thenReturn(77L);
+        when(itemImageRepository.findThumbnails(List.of(ITEM_ID))).thenReturn(List.of(thumbnail));
+
+        var response = viewService.get(ROOM_ID, MEMBER_ID);
+
+        assertThat(response.itemThumbnailUrl()).isNull();
+    }
+
     private void givenRoom() {
         when(baseService.get(ROOM_ID, MEMBER_ID)).thenReturn(
             new ChatRoomBaseService.RoomBase(
@@ -168,13 +205,16 @@ class ChatRoomViewServiceTest {
             ChatRoom.open(ITEM_ID, 1L, MEMBER_ID, Instant.parse("2026-10-14T00:00:00Z"))
         ));
         when(itemRepository.findById(ITEM_ID)).thenReturn(Optional.of(item()));
+        when(itemRepository.findAllById(List.of(ITEM_ID))).thenReturn(List.of(item()));
     }
 
     private Item item() {
-        return Item.create(
+        Item item = Item.create(
             1L, COMMUNITY_ID, 1L, 1L, "전동드릴", null,
             LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31),
             Instant.parse("2026-10-14T00:00:00Z")
         );
+        ReflectionTestUtils.setField(item, "id", ITEM_ID);
+        return item;
     }
 }

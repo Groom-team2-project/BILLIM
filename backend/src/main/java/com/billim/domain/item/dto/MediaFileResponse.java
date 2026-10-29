@@ -22,6 +22,10 @@ public record MediaFileResponse(
         return "/api/v1/media/" + mediaId + "/content";
     }
 
+    public static String thumbnailUrl(Long mediaId) {
+        return "/api/v1/media/" + mediaId + "/thumbnail";
+    }
+
     public static MediaFileResponse from(MediaFile m) {
         return new MediaFileResponse(
                 String.valueOf(m.getId()), m.getMimeType(), m.getByteSize(), m.getWidth(), m.getHeight(),

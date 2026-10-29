@@ -134,6 +134,28 @@ class MediaAndCategoryControllerTest {
     }
 
     @Test
+    @DisplayName("축소 사진은 JPEG 바이너리와 private 캐시 헤더를 돌려준다")
+    void thumbnailReturnsJpegWithPrivateCache() throws Exception {
+        when(mediaService.thumbnail(1L, 5L))
+                .thenReturn(new MediaService.MediaContent(new byte[]{1, 2, 3}, "image/jpeg"));
+
+        mvc.perform(get("/api/v1/media/5/thumbnail"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/jpeg"))
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("private")))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"));
+    }
+
+    @Test
+    @DisplayName("권한 없는 축소 사진은 404다")
+    void thumbnailNotVisibleReturns404() throws Exception {
+        when(mediaService.thumbnail(anyLong(), anyLong()))
+                .thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        mvc.perform(get("/api/v1/media/5/thumbnail")).andExpect(status().isNotFound());
+    }
+
+    @Test
     @DisplayName("볼 수 없는 사진은 404다")
     void contentNotVisibleReturns404() throws Exception {
         when(mediaService.read(anyLong(), anyLong())).thenThrow(new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));

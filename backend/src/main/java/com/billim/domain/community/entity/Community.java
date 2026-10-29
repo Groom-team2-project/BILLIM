@@ -16,6 +16,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 
 /**
  * communities — 생활권 커뮤니티 기준 정보.
@@ -69,6 +71,17 @@ public class Community extends BaseTimeEntity {
     @Column(nullable = false, length = 10)
     private CommunityStatus status = CommunityStatus.ACTIVE;
 
+    /**
+     * 공용 장소 자동 보충을 마지막으로 시도한 시각.
+     *
+     * <p>채울 수 없는 동네를 매 조회마다 다시 시도하지 않기 위한 값이다. 인메모리로 두면
+     * 인스턴스마다 따로 세어 여러 대로 늘렸을 때 외부 호출이 그만큼 늘어난다.
+     * 성공하면 장소가 생겨 보충이 다시 돌지 않으므로, 사실상 실패한 시도를 기억한다.
+     * (도메인 가이드 결정 '공용 장소 자동 보충')
+     */
+    @Column(name = "place_supply_attempted_at")
+    private Instant placeSupplyAttemptedAt;
+
     /** 운영 seed·테스트 픽스처용 생성 */
     public static Community of(String name, String displayAddress,
                                BigDecimal centerLatitude, BigDecimal centerLongitude,
@@ -109,6 +122,16 @@ public class Community extends BaseTimeEntity {
 
     public boolean isActive() {
         return status == CommunityStatus.ACTIVE;
+    }
+
+    /** 장소 보충을 다시 시도할 때가 됐는지 */
+    public boolean canAttemptPlaceSupply(Instant now, Duration retryAfter) {
+        return placeSupplyAttemptedAt == null
+                || !placeSupplyAttemptedAt.plus(retryAfter).isAfter(now);
+    }
+
+    public void markPlaceSupplyAttempted(Instant now) {
+        this.placeSupplyAttemptedAt = now;
     }
 
     public double centerLatitudeValue() {

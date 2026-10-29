@@ -69,6 +69,20 @@ class ImageInspectorTest {
     }
 
     @Test
+    @DisplayName("업로드 사진의 축소본은 긴 변이 128px 이하인 JPEG다")
+    void thumbnailIsBoundedJpeg() throws IOException {
+        ImageInspector.Result result = inspector.inspect(
+                image("png", 800, 400, BufferedImage.TYPE_INT_ARGB), "image/png");
+        BufferedImage thumbnail = ImageIO.read(new ByteArrayInputStream(result.thumbnailBytes()));
+
+        assertThat(thumbnail).isNotNull();
+        assertThat(thumbnail.getWidth()).isEqualTo(128);
+        assertThat(thumbnail.getHeight()).isEqualTo(64);
+        assertThat(result.thumbnailBytes()[0] & 0xff).isEqualTo(0xff);
+        assertThat(result.thumbnailBytes()[1] & 0xff).isEqualTo(0xd8);
+    }
+
+    @Test
     @DisplayName("정상 WebP")
     void acceptsWebp() {
         // 1x1 WebP. 디코딩에는 imageio-webp 의존성이 필요하다.

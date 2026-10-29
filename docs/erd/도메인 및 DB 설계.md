@@ -1,6 +1,6 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.10\
+> 버전 : v0.1.12\
 > 수정일 : 2026.10.28
 
 ## 1. 공통 규칙
@@ -181,6 +181,7 @@ erDiagram
 | center_longitude | decimal(10,7) | N | -180~180 | — |
 | verification_radius_m | int | N | 양수 인증 반경 | — |
 | status | varchar(10) | N | ACTIVE / INACTIVE | — |
+| place_supply_attempted_at | datetime(6) | Y | 공용 장소 자동 보충을 마지막으로 시도한 시각. 재시도 간격 판단용 | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
@@ -341,7 +342,7 @@ erDiagram
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
-인덱스: INDEX (item_id, status, start_date, end_date) · INDEX (borrower_id, status, created_at, id) · INDEX (owner_id, status, created_at, id) · INDEX (status, request_expires_at) · INDEX (chat_room_id, id)
+인덱스: INDEX (item_id, status, start_date, end_date) · INDEX (borrower_id, status, created_at, id) · INDEX (owner_id, status, created_at, id) · INDEX (status, request_expires_at) · INDEX (chat_room_id, id) · INDEX (community_id, created_at, status, item_id) — 동네 운영 통계 (V20)
 
 - CHECK start_date <= end_date, owner_id <> borrower_id. item의 owner/community와 일치하는지는 서비스 검사.
 - 기간 중복은 트랜잭션으로 검사한다. RETURNED도 종료일까지 점유를 유지한다.

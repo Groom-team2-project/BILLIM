@@ -6,9 +6,12 @@ import com.billim.domain.chat.dto.ChatRoomResponse;
 import com.billim.domain.chat.entity.ChatRoom;
 import com.billim.domain.chat.repository.ChatRoomRepository;
 import com.billim.domain.community.service.CommunityMembershipQuery;
+import com.billim.domain.item.dto.MediaFileResponse;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
+import com.billim.domain.item.repository.ItemImageRepository;
 import com.billim.domain.item.repository.ItemRepository;
+import com.billim.domain.item.service.ItemAccessPolicy;
 import com.billim.domain.rental.dto.RentalSummaryResponse;
 import com.billim.domain.rental.service.RentalQueryService;
 import com.billim.domain.safety.service.BlockQuery;
@@ -19,7 +22,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +38,8 @@ public class ChatRoomViewService {
     private final ChatRoomAccessPolicy accessPolicy;
     private final ChatRoomRepository roomRepository;
     private final ItemRepository itemRepository;
+    private final ItemImageRepository itemImageRepository;
+    private final ItemAccessPolicy itemAccessPolicy;
     private final CommunityMembershipQuery membershipQuery;
     private final BlockQuery blockQuery;
     private final SanctionService sanctionService;
@@ -45,7 +52,9 @@ public class ChatRoomViewService {
 
     @Transactional(readOnly = true)
     public ChatRoomResponse get(Long roomId, Long memberId) {
-        return toResponse(baseService.get(roomId, memberId), memberId);
+        ChatRoomBaseService.RoomBase base = baseService.get(roomId, memberId);
+        Map<Long, String> thumbnails = thumbnailUrls(List.of(base), memberId);
+        return toResponse(base, memberId, thumbnails);
     }
 
     @Transactional(readOnly = true)
@@ -53,8 +62,9 @@ public class ChatRoomViewService {
         ChatRoomListBaseService.RoomBasePage basePage =
             listBaseService.getFiltered(memberId, filter, page, size);
 
+        Map<Long, String> thumbnails = thumbnailUrls(basePage.items(), memberId);
         List<ChatRoomResponse> items = basePage.items().stream()
-            .map(base -> toResponse(base, memberId))
+            .map(base -> toResponse(base, memberId, thumbnails))
             .toList();
 
         return ChatRoomPageResponse.from(basePage, items);
@@ -62,7 +72,8 @@ public class ChatRoomViewService {
 
     private ChatRoomResponse toResponse(
         ChatRoomBaseService.RoomBase base,
-        Long memberId
+        Long memberId,
+        Map<Long, String> thumbnails
     ) {
         Long roomId = Long.valueOf(base.id());
 
@@ -76,7 +87,7 @@ public class ChatRoomViewService {
         ChatAccessResponse access =
             accessPolicy.resolve(roomId, memberId, restriction);
 
-        return ChatRoomResponse.from(base, rentals, access);
+        return ChatRoomResponse.from(base, rentals, access, thumbnails.get(Long.valueOf(base.itemId())));
     }
 
     private ChatRoomAccessPolicy.Restriction resolveRestriction(
@@ -110,5 +121,34 @@ public class ChatRoomViewService {
         }
 
         return ChatRoomAccessPolicy.Restriction.NONE;
+    }
+
+
+    private Map<Long, String> thumbnailUrls(List<ChatRoomBaseService.RoomBase> bases, Long memberId) {
+        if (bases.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Long> itemIds = bases.stream()
+            .map(base -> Long.valueOf(base.itemId()))
+            .distinct()
+            .toList();
+
+        Map<Long, Item> items = new HashMap<>();
+        itemRepository.findAllById(itemIds)
+            .forEach(item -> items.put(item.getId(), item));
+
+        Map<Long, String> urls = new HashMap<>();
+        for (ItemImageRepository.Thumbnail thumbnail :
+            itemImageRepository.findThumbnails(itemIds)) {
+            Item item = items.get(thumbnail.getItemId());
+            if (item != null && itemAccessPolicy.canView(item, memberId)) {
+                urls.put(
+                    thumbnail.getItemId(),
+                    MediaFileResponse.thumbnailUrl(thumbnail.getMediaFileId())
+                );
+            }
+        }
+        return urls;
     }
 }

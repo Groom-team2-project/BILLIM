@@ -6,7 +6,7 @@ import {
   applyNotificationRead,
   observedThroughId,
 } from "../src/utils/notification-state.ts";
-import { notificationTargetPath } from "../src/utils/notification-view.ts";
+import { notificationDestination, notificationTargetPath } from "../src/utils/notification-view.ts";
 
 function notification(id: string, readAt?: string): ApiNotification {
   return {
@@ -54,4 +54,23 @@ test("대여 알림은 대상 ID를 보존하고 다른 알림은 해당 화면�
   assert.equal(notificationTargetPath({ ...notification("1"), targetId: "7&state=conflict" }), "/rentals?rentalId=7%26state%3Dconflict");
   assert.equal(notificationTargetPath({ ...notification("2"), targetType: "REPORT" }), "/reports");
   assert.equal(notificationTargetPath({ ...notification("3"), targetType: "MEMBER_SELF" }), "/profile");
+});
+
+test("요청·승인·약속 알림은 연결된 채팅방으로 이동하고 방이 없으면 대여 화면으로 이동한다", async () => {
+  const room = async (id: string) => {
+    assert.equal(id, "7");
+    return { chatRoomId: "12" };
+  };
+  for (const type of ["RENTAL_REQUESTED", "RENTAL_APPROVED", "APPOINTMENT_PROPOSED", "APPOINTMENT_CONFIRMED"]) {
+    assert.equal(await notificationDestination({ ...notification("1"), type }, room), "/chat/12?rentalId=7");
+  }
+  assert.equal(await notificationDestination({ ...notification("1"), targetId: "7&x=1" },
+    async () => ({ chatRoomId: "12" })), "/chat/12?rentalId=7%26x%3D1");
+  assert.equal(await notificationDestination(notification("1"), async () => ({})), "/rentals?rentalId=7");
+});
+
+test("거절·신고 알림은 거래 상세 조회 없이 기존 대상으로 이동한다", async () => {
+  const noFetch = async () => { throw new Error("호출되면 안 됨"); };
+  assert.equal(await notificationDestination({ ...notification("1"), type: "RENTAL_REJECTED" }, noFetch), "/rentals?rentalId=7");
+  assert.equal(await notificationDestination({ ...notification("1"), targetType: "REPORT" }, noFetch), "/reports");
 });

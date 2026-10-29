@@ -95,7 +95,9 @@ export function RequestPage() {
     try {
       const result = await createRental(body, submission.current.key);
       toast("대여 요청을 보냈어요 · 승인되면 알려드려요");
-      navigate(`/rentals?rentalId=${encodeURIComponent(result.rental.id)}`);
+      navigate(result.chatRoomId
+        ? `/chat/${encodeURIComponent(result.chatRoomId)}`
+        : `/rentals?rentalId=${encodeURIComponent(result.rental.id)}`);
     } catch (e) {
       if (e instanceof ApiError && e.unauthenticated) navigate("/login");
       else setSubmitError(e instanceof ApiError ? e.message : "요청을 보내지 못했어요. 다시 시도해 주세요.");

@@ -10,7 +10,7 @@ const c = classes(styles);
 
 /** 헤더 계정 메뉴 — 관리자 콘솔은 관리자에게만 노출 */
 export function ProfileMenu() {
-  const { admin } = useSession();
+  const { admin, displayName } = useSession();
   const { confirm, toast } = useUi();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -30,7 +30,8 @@ export function ProfileMenu() {
         aria-expanded={open ? "true" : "false"}
         onClick={() => setOpen(!open)}
       >
-        <Avatar name="나" size={30} />
+        {/* 이름 저장 전 세션은 프로필 조회 때 채워짐 — 그 전까지 "나" */}
+        <Avatar name={displayName || "나"} size={30} />
       </button>
       {open ? <div className={c("pmenu-back")} onClick={() => setOpen(false)} /> : null}
       {open ? (

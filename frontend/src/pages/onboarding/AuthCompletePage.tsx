@@ -16,7 +16,7 @@ export function AuthCompletePage() {
     getMyProfile()
       .then((profile) => {
         if (canceled) return;
-        signIn(profile.role, profile.member.id);
+        signIn(profile.role, profile.member.id, profile.member.displayName);
         // 활성 동네가 없으면 동네 찾기부터. 판정은 서버의 onboardingRequired
         navigate(profile.onboardingRequired ? "/join" : "/", { replace: true });
       })

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getChatRooms } from "@/api/chat";
+import { getAppointments } from "@/api/appointments";
 import { LiveChatRoom } from "@/components/custom/chat/LiveChatRoom";
 import { ChatListItem } from "@/components/custom/chat/ChatListItem";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/state";
 import { refreshChatUnreadCount } from "@/stores/chat-unread";
 import type { ApiChatMessage, ApiChatRoom, ChatRoomFilter } from "@/types/chat-api";
 import { classes } from "@/utils/classes";
+import { loadChatAppointmentPreviews } from "@/utils/chat-appointment-preview";
 import styles from "@/pages/chat/ChatPage.module.css";
 
 const c = classes(styles);
@@ -17,10 +19,22 @@ const PAGE_SIZE = 20;
 
 export function LiveChatPage() {
   const { chatId } = useParams();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const blockedState = (location.state as { blockedRoomId?: unknown } | null)?.blockedRoomId;
+  const blockedRoomId = typeof blockedState === "string" ? blockedState : undefined;
+  const targetRentalId = searchParams.get("rentalId") ?? undefined;
+  const previewVersions = useRef(new Map<string, number>());
+  const nextPreviewVersion = useCallback((roomId: string) => {
+    const version = (previewVersions.current.get(roomId) ?? 0) + 1;
+    previewVersions.current.set(roomId, version);
+    return version;
+  }, []);
   const [desktop, setDesktop] = useState(() => window.matchMedia("(min-width: 760px)").matches);
   const [filter, setFilter] = useState<ChatRoomFilter>("ALL");
   const [rooms, setRooms] = useState<ApiChatRoom[]>([]);
+  const [appointmentPreviews, setAppointmentPreviews] = useState<Record<string, string>>({});
   const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -38,6 +52,8 @@ export function LiveChatPage() {
     let active = true;
     let busy = false;
     let loaded = false;
+    let previewAt = 0;
+    let previewSignature = "";
     const refresh = async () => {
       if (!active || busy || document.hidden) return;
       busy = true;
@@ -45,7 +61,26 @@ export function LiveChatPage() {
         const pages = await Promise.all(Array.from({ length: page + 1 }, (_, index) =>
           getChatRooms({ filter, page: index, size: PAGE_SIZE })));
         if (!active) return;
-        setRooms([...new Map(pages.flatMap((result) => result.items).map((room) => [room.id, room])).values()]);
+        const nextRooms = [...new Map(pages.flatMap((result) => result.items).map((room) => [room.id, room])).values()];
+        setRooms(nextRooms);
+        const signature = nextRooms.map((room) => `${room.id}:${room.rentals.map((rental) => `${rental.id}-${rental.status}`).join(",")}`).join("|");
+        if (signature !== previewSignature || Date.now() - previewAt >= 60000) {
+          previewSignature = signature;
+          previewAt = Date.now();
+          const versions = new Map(nextRooms.map((room) => [room.id, nextPreviewVersion(room.id)]));
+          void loadChatAppointmentPreviews(nextRooms, getAppointments, () => active).then((previews) => {
+            if (!active) return;
+            setAppointmentPreviews((previous) => {
+              const next = { ...previous };
+              for (const room of nextRooms) {
+                if (previewVersions.current.get(room.id) !== versions.get(room.id)) continue;
+                if (previews[room.id]) next[room.id] = previews[room.id];
+                else delete next[room.id];
+              }
+              return next;
+            });
+          });
+        }
         setHasNext(pages.at(-1)?.hasNext ?? false);
         setError(false);
         loaded = true;
@@ -67,10 +102,11 @@ export function LiveChatPage() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [filter, page, retry]);
+  }, [filter, page, retry, nextPreviewVersion]);
 
   const changeFilter = (next: ChatRoomFilter) => {
     setRooms([]);
+    setAppointmentPreviews({});
     setPage(0);
     setFilter(next);
     setLoading(true);
@@ -97,7 +133,20 @@ export function LiveChatPage() {
       ];
     });
   }, []);
-  const selectedId = chatId ?? (desktop ? rooms[0]?.id : undefined);
+  const onAppointmentChanged = useCallback((room: ApiChatRoom) => {
+    const version = nextPreviewVersion(room.id);
+    void loadChatAppointmentPreviews([room], getAppointments).then((previews) => {
+      if (previewVersions.current.get(room.id) !== version) return;
+      setAppointmentPreviews((previous) => {
+        const next = { ...previous };
+        if (previews[room.id]) next[room.id] = previews[room.id];
+        else delete next[room.id];
+        return next;
+      });
+    });
+  }, [nextPreviewVersion]);
+  const selectedId = chatId ?? (desktop
+    ? rooms.find((room) => room.id !== blockedRoomId)?.id : undefined);
 
   return (
     <div className={c(`chat-page${chatId ? " chat-page--room" : ""}`)}>
@@ -125,7 +174,8 @@ export function LiveChatPage() {
                 <Button icon="search" onClick={() => navigate("/search")}>물건 찾아보기</Button>
               }>물건 상세에서 ‘채팅으로 물어보기’를 누르면 빌리기 전에 궁금한 걸 물어볼 수 있어요.</EmptyState>
             ) : <>
-              {rooms.map((room) => <ChatListItem key={room.id} room={room} selected={room.id === selectedId} />)}
+              {rooms.map((room) => <ChatListItem key={room.id} room={room} selected={room.id === selectedId}
+                appointment={appointmentPreviews[room.id]} />)}
               {hasNext ? <Button variant="secondary" onClick={() => { setLoading(true); setPage((value) => value + 1); }} disabled={loading}>
                 {loading ? "불러오는 중" : "더 보기"}
               </Button> : null}
@@ -134,7 +184,9 @@ export function LiveChatPage() {
         </section>
       </div>
       <div className={c(chatId ? "chat-page-room" : "only-desk chat-page-room")}>
-        {selectedId ? <LiveChatRoom key={selectedId} roomId={selectedId} onRead={onRead} onMessage={onMessage} /> : null}
+        {selectedId ? <LiveChatRoom key={`${selectedId}:${targetRentalId ?? ""}`} roomId={selectedId} onRead={onRead}
+          onMessage={onMessage} onAppointmentChanged={onAppointmentChanged}
+          targetRentalId={targetRentalId} /> : null}
       </div>
     </div>
   );
