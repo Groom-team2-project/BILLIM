@@ -9,10 +9,11 @@
   # CI(.github/workflows/ci.yml)와 동일하게 고정
   NODE_VERSION = "22"
 
-# API 프록시 — 백엔드로 전달
+# API 프록시 — CloudFront(billim-api, E76578PCJ6C22) 경유 백엔드 전달
+# HTTPS → VPC 오리진(사설망) → EC2 8080. EC2 공인 IP 직접 호출(평문 HTTP) 대체
 [[redirects]]
   from = "/api/*"
-  to = "http://52.78.14.19:8080/api/:splat"
+  to = "https://de69ozplh2sjv.cloudfront.net/api/:splat"
   status = 200
   force = true
   # 요청마다 x-nf-sign(HS256 JWS) 부착 — 백엔드가 직접 호출과 구분해 IP 헤더 위조 차단.
