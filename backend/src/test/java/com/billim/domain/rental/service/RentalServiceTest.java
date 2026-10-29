@@ -1,5 +1,8 @@
 package com.billim.domain.rental.service;
 
+import com.billim.domain.chat.entity.ChatRoom;
+import com.billim.domain.chat.repository.ChatParticipantRepository;
+import com.billim.domain.chat.repository.ChatRoomRepository;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.item.repository.ItemRepository;
@@ -44,6 +47,8 @@ class RentalServiceTest {
     private MemberRepository members;
     private RentalRequestPolicy policy;
     private RentalRequestEffects effects;
+    private ChatRoomRepository chatRooms;
+    private ChatParticipantRepository chatParticipants;
     private RentalService service;
     private Item item;
 
@@ -55,8 +60,11 @@ class RentalServiceTest {
         members = mock(MemberRepository.class);
         policy = mock(RentalRequestPolicy.class);
         effects = mock(RentalRequestEffects.class);
+        chatRooms = mock(ChatRoomRepository.class);
+        chatParticipants = mock(ChatParticipantRepository.class);
         service = new RentalService(rentals, histories, items, members, policy, effects,
-                Clock.fixed(NOW, ZoneOffset.UTC), mock(RentalQueryService.class), mock(com.billim.domain.rental.repository.AppointmentSlotRepository.class));
+                Clock.fixed(NOW, ZoneOffset.UTC), mock(RentalQueryService.class), mock(com.billim.domain.rental.repository.AppointmentSlotRepository.class),
+                chatRooms, chatParticipants);
         Member borrower = member(2L, "요청자");
         when(members.findByIdForUpdate(2L)).thenReturn(Optional.of(borrower));
         when(members.findById(1L)).thenReturn(Optional.of(member(1L, "소유자")));
@@ -68,6 +76,11 @@ class RentalServiceTest {
         ReflectionTestUtils.setField(item, "id", 10L);
         when(items.findByIdForUpdate(10L)).thenReturn(Optional.of(item));
         when(policy.requireRequestAllowed(item, 2L)).thenReturn("정문");
+        when(chatRooms.saveAndFlush(any())).thenAnswer(invocation -> {
+            ChatRoom room = invocation.getArgument(0);
+            ReflectionTestUtils.setField(room, "id", 200L);
+            return room;
+        });
         when(rentals.saveAndFlush(any())).thenAnswer(invocation -> {
             Rental rental = invocation.getArgument(0);
             ReflectionTestUtils.setField(rental, "id", 100L);
@@ -98,7 +111,18 @@ class RentalServiceTest {
             assertThat(h.actorId()).isEqualTo("2");
         });
         assertThat(response.appointments()).isEmpty();
+        assertThat(response.chatRoomId()).isEqualTo("200");
         verify(policy).requireAvailable(item);
+        verify(chatRooms).saveAndFlush(any());
+        verify(chatParticipants).saveAll(argThat(participants -> {
+            int count = 0;
+            for (var participant : participants) {
+                if (participant.getRoomId() != 200L ||
+                    (participant.getMemberId() != 1L && participant.getMemberId() != 2L)) return false;
+                count++;
+            }
+            return count == 2;
+        }));
         verify(effects).recordSuccess(eq(2L), eq(KEY), any(), any(), eq(response), eq(NOW));
         var order = inOrder(members, items, rentals, histories, effects);
         order.verify(members).findByIdForUpdate(2L);

@@ -1,7 +1,7 @@
 # API 명세서
 
-> 버전 : v0.1.19\
-> 수정일 : 2026.10.28
+> 버전 : v0.1.20\
+> 수정일 : 2026.10.29
 
 ## 0. 공통 규약
 
@@ -534,8 +534,8 @@
 - `POST /api/v1/rentals` · 박소빈 · P0
 - 설명: 유효 소속·본인 물건 아님·차단 없음. 시작일은 KST 오늘부터 허용. 공개(PUBLIC)이며 삭제되지 않은 물건만 신규 요청·승인 허용. 별도 수동 대여 가능 설정 없음. 날짜 양끝 포함, 최대 30일. 물건 잠금 아래 가능 기간/연체/승인 점유 재검사. 동일인의 겹치는 대기 요청 거부, 다른 사람의 대기 요청 겹침 허용.
 - 요청 본문: CreateRental
-- 성공 응답: 201 RentalDetail
-- 관련 테이블: rentals, rental_status_histories, outbox_events
+- 성공 응답: 201 RentalDetail (`chatRoomId` 포함)
+- 관련 테이블: rentals, rental_status_histories, chat_rooms, chat_participants, outbox_events
 - 구현 상태: 요청 서비스·컨트롤러 연결. 멱등 기록·outbox 저장 연결. 공개 상태·양측 활성 회원·유효 소속·양방향 차단·제재·활성 공용 장소 검사 연결.
 - 목업 연결: request
 
@@ -667,7 +667,7 @@
 
 - `RentalQueryService.getRentalSummary(rentalId, memberId)`: 거래 당사자 검사 후 RentalSummaryResponse 반환. 무관한 회원은 404. 기존 거래는 현재 동네·차단 상태와 무관하게 조회. 거절·취소·전달·반납에도 신규 관계 정책 미적용.
 - 채팅방 개설·재개설 시 기존 대여 연결은 채팅 담당의 후속 연동 대상. 대여의 `RentalRepository.linkChatRoom`은 같은 물건·소유자·요청자의 미연결 거래만 연결하는 내부 기능 제공.
-- 신규 대여 생성 시 같은 물건·소유자·요청자의 기존 채팅방 연결. 방이 없으면 NULL 유지.
+- 신규 대여 생성 시 같은 물건·소유자·요청자의 기존 채팅방 연결. 방이 없으면 요청 저장과 같은 트랜잭션에서 채팅방·양쪽 참여자를 생성하고 응답에 `chatRoomId` 반환. 이후 채팅 SYSTEM 메시지가 요청을 표시.
 - APPROVED 진입 시 PICKUP/RETURN 슬롯 생성. V13은 기존 APPROVED/ACTIVE/RETURNED 거래의 누락 슬롯만 보충.
 - C_038~040은 회원 ID순 → 물건 → 거래 → 슬롯 순으로 직렬화하고 슬롯 version 비교. 제안·수락·철회와 슬롯 버전·outbox 사건을 같은 트랜잭션에 저장.
 - 제안 교체·철회는 기존 확정 약속 유지. 새 제안 수락 시 이전 확정은 SUPERSEDED. 수락 시 활성 공용 장소와 KST 날짜·미래 시각·대여 상태 재검사.
