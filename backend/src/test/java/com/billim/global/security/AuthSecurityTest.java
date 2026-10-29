@@ -45,7 +45,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest(properties = {
         "spring.security.oauth2.client.registration.kakao.client-id=test-client-id",
-        "spring.security.oauth2.client.registration.kakao.client-secret=test-client-secret"
+        "spring.security.oauth2.client.registration.kakao.client-secret=test-client-secret",
+        "server.forward-headers-strategy=framework"   // 운영(prod)과 같은 프록시 헤더 처리
 })
 @AutoConfigureMockMvc
 @Import(AuthSecurityTest.MySql.class)
@@ -395,6 +396,29 @@ class AuthSecurityTest {
             }
         }
         fail("요청 61회 안에 429가 발생해야 한다");
+    }
+
+    /**
+     * forward-headers-strategy=framework의 ForwardedHeaderFilter가 getRemoteAddr()를 X-Forwarded-For로 교체.
+     * 서명 없는 직접 호출이 헤더를 바꿔 가며 보내도 실제 접속 주소로 계수되어야 함
+     */
+    @Test
+    @DisplayName("X-Forwarded-For를 바꿔 보내도 같은 접속 주소면 429")
+    void spoofedForwardedForDoesNotBypassRateLimit() throws Exception {
+        for (int i = 0; i < 61; i++) {
+            String spoofed = "10.0.0." + i;
+            var response = mockMvc.perform(get("/api/v1/auth/csrf")
+                            .header("X-Forwarded-For", spoofed)
+                            .with(request -> {
+                                request.setRemoteAddr("203.0.113.10");
+                                return request;
+                            }))
+                    .andReturn().getResponse();
+            if (response.getStatus() == 429) {
+                return;
+            }
+        }
+        fail("헤더 위조와 무관하게 요청 61회 안에 429가 발생해야 한다");
     }
 
     private Long countSessions() {
