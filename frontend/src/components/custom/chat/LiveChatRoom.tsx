@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { useNavigate } from "react-router-dom";
 import { getChatMessages, getChatRoom, issueChatSocketTicket, sendChatMessage, updateChatReadPosition } from "@/api/chat";
 import { acceptAppointment, getAppointments, proposeAppointment, withdrawAppointment } from "@/api/appointments";
+import { commandRental, getRental } from "@/api/rentals";
 import { getCommunityPlaces, type ApiCommunityPlace } from "@/api/communities";
 import { newIdempotencyKey } from "@/api/client";
 import { createReport, reportMessage, type ReportReasonCode } from "@/api/reports";
@@ -15,15 +16,17 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/state";
 import { Bubble, DateDivider, SystemMessage } from "@/components/custom/chat/Bubble";
 import { Composer } from "@/components/custom/chat/Composer";
 import { ContextBar } from "@/components/custom/chat/ContextBar";
+import { STATUS_UI } from "@/components/custom/rentals/status";
 import { AppointmentCard } from "@/components/custom/chat/AppointmentCard";
 import { AppointmentSheet } from "@/components/custom/chat/AppointmentSheet";
+import { StatusBadge } from "@/components/custom/rentals/StatusBadge";
 import { refreshChatUnreadCount } from "@/stores/chat-unread";
 import { useSession } from "@/stores/session";
 import type { ApiChatMessage, ApiChatMessagePage, ApiChatRoom } from "@/types/chat-api";
 import type { ApiAppointmentSlot, AppointmentKind } from "@/types/appointment-api";
 import { ApiError } from "@/api/client";
 import { appointmentView } from "@/utils/appointment-view";
-import { chatBlockedMessage, chatTimeLabel, isMoneyRequest } from "@/utils/chat-view";
+import { chatBlockedMessage, chatDateRange, chatRentalResponse, chatRentalStatus, chatTimeLabel, chatTimeline, isMoneyRequest, selectableChatRentals } from "@/utils/chat-view";
 import { countNewChatMessages, isChatAtBottom, isChatMessageEndVisible, mergeChatMessages } from "@/utils/chat-state";
 import { readPendingChatMessages, writePendingChatMessages, type PendingChatMessage } from "@/utils/chat-pending";
 import { chatSocketUrl, parseChatSocketMessage } from "@/utils/chat-realtime";
@@ -47,7 +50,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
   onAppointmentChanged: (room: ApiChatRoom) => void;
   targetRentalId?: string;
 }) {
-  const { confirm, report, toast } = useUi();
+  const { confirm, reason, report, toast } = useUi();
   const navigate = useNavigate();
   const { memberId } = useSession();
   const [room, setRoom] = useState<ApiChatRoom | null>(null);
@@ -67,6 +70,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
   const [appointmentError, setAppointmentError] = useState(false);
   const [appointmentRevision, setAppointmentRevision] = useState(0);
   const [appointmentBusy, setAppointmentBusy] = useState(false);
+  const [rentalActionBusy, setRentalActionBusy] = useState(false);
   const [places, setPlaces] = useState<ApiCommunityPlace[]>([]);
   const [sheetKind, setSheetKind] = useState<"give" | "back">();
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(() => new Set());
@@ -76,6 +80,8 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const followLatestRef = useRef(true);
+  const manualRentalSelectionRef = useRef(false);
+  const rentalActionInFlightRef = useRef(false);
   const olderAnchorRef = useRef<{ id: string; bottom: number } | null>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [seenSequence, setSeenSequence] = useState(0);
@@ -102,12 +108,8 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
   const scrollToLatestMessage = useCallback(() => {
     const element = scrollRef.current;
     if (!element) return;
-    // 카드·전송 대기 영역에 가려지지 않도록 최신 확정 메시지 끝부분으로 이동.
-    const messages = element.querySelectorAll<HTMLElement>("[data-message-sequence]");
-    const target = messages.item(messages.length - 1);
-    if (target) element.scrollTop += target.getBoundingClientRect().bottom
-      - element.getBoundingClientRect().top - element.clientHeight;
-    else element.scrollTop = element.scrollHeight;
+    // 최신 메시지 아래의 약속 카드·전송 대기 영역까지 보이도록 실제 끝으로 이동.
+    element.scrollTop = element.scrollHeight;
   }, []);
 
   const jumpToLatest = () => {
@@ -182,8 +184,9 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
     Promise.all([getChatRoom(roomId), getChatMessages(roomId)]).then(([detail, page]) => {
       if (!active) return;
       setRoom(detail);
-      const rentalId = targetRentalId && detail.access.allowedRentalIds.includes(targetRentalId)
-        ? targetRentalId : detail.access.allowedRentalIds[0] ?? detail.rentals[0]?.id;
+      const targetAllowed = Boolean(targetRentalId && detail.access.allowedRentalIds.includes(targetRentalId));
+      const rentalId = targetAllowed ? targetRentalId : selectableChatRentals(detail)[0]?.id;
+      manualRentalSelectionRef.current = targetAllowed;
       setSelectedRentalId(rentalId);
       setAppointmentLoading(Boolean(rentalId));
       receiveMessages(page.items);
@@ -213,11 +216,27 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
   }, [selectedRentalId, appointmentRevision]);
 
   useEffect(() => {
+    if (appointmentRevision === 0) return;
+    let active = true;
+    getChatRoom(roomId).then((detail) => {
+      if (!active) return;
+      setRoom(detail);
+      const selectableRentals = selectableChatRentals(detail);
+      setSelectedRentalId((current) => manualRentalSelectionRef.current
+        && selectableRentals.some((rental) => rental.id === current)
+        ? current : selectableRentals[0]?.id);
+    }).catch(() => {
+      // 다음 시스템 메시지·주기 조회에서 다시 갱신한다.
+    });
+    return () => { active = false; };
+  }, [roomId, appointmentRevision]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => {
-      if (!document.hidden && selectedRentalId) setAppointmentRevision((value) => value + 1);
+      if (!document.hidden) setAppointmentRevision((value) => value + 1);
     }, 30000);
     return () => window.clearInterval(timer);
-  }, [selectedRentalId]);
+  }, []);
 
   useEffect(() => {
     if (loading || error) return;
@@ -390,6 +409,57 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
     void send(entry);
   };
 
+  const respondToRental = async (rentalId: string, action: "approve" | "reject", rejectionReason?: string) => {
+    if (rentalActionInFlightRef.current) return;
+    rentalActionInFlightRef.current = true;
+    setRentalActionBusy(true);
+    try {
+      const latest = await getRental(rentalId);
+      if (latest.rental.status !== "REQUESTED" || !latest.rental.allowedActions.includes(action.toUpperCase())) {
+        toast("대여 요청이 변경됐어요. 다시 확인해 주세요.");
+        setAppointmentRevision((value) => value + 1);
+        return;
+      }
+      const updated = await commandRental(rentalId, action, latest.rental.version, rejectionReason);
+      setRoom((current) => current ? {
+        ...current,
+        rentals: current.rentals.map((entry) => entry.id === rentalId ? updated.rental : entry),
+      } : current);
+      if (action === "approve") setAppointmentLoading(true);
+      setAppointmentRevision((value) => value + 1);
+      toast(action === "approve" ? "요청을 승인했어요. 이제 약속을 잡아 주세요." : "요청을 거절했어요.");
+    } catch (failure) {
+      if (failure instanceof ApiError && failure.status === 409) setAppointmentRevision((value) => value + 1);
+      toast(failure instanceof ApiError ? failure.message : "요청을 처리하지 못했어요. 다시 시도해 주세요.");
+    } finally {
+      rentalActionInFlightRef.current = false;
+      setRentalActionBusy(false);
+    }
+  };
+
+  const approveRental = (rentalId: string) => confirm({
+    title: "대여 요청을 승인할까요?",
+    body: "승인하면 채팅에서 전달 약속을 잡아요.",
+    confirm: "승인",
+    onConfirm: () => { void respondToRental(rentalId, "approve"); },
+  });
+
+  const rejectRental = (rentalId: string) => reason({
+    title: "대여 요청을 거절할까요?",
+    body: "거절 사유를 남기면 이웃에게 함께 전달돼요.",
+    placeholder: "거절 사유 (필수, 최대 500자)",
+    required: true,
+    confirm: "거절",
+    danger: true,
+    onConfirm: (value) => {
+      if (value.trim().length > 500) {
+        toast("사유는 500자까지 입력해 주세요.");
+        return;
+      }
+      void respondToRental(rentalId, "reject", value.trim());
+    },
+  });
+
   const openAppointmentSheet = async (kind: "give" | "back") => {
     const slot = slots.find((entry) => entry.rentalId === selectedRentalId && entry.kind === (kind === "give" ? "PICKUP" : "RETURN"));
     if (!room || !slot?.allowedActions.includes("PROPOSE")) return;
@@ -510,10 +580,14 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
     { label: "신고하기", danger: true, onSelect: () => openMemberReport(room.otherMember.id, other) },
     { label: "차단", danger: true, onSelect: () => openBlockConfirm(room.otherMember.id, other) },
   ];
-  const allowedRentals = room.rentals.filter((rental) => room.access.allowedRentalIds.includes(rental.id));
+  const selectableRentals = selectableChatRentals(room);
   const selectedRental = room.rentals.find((entry) => entry.id === selectedRentalId);
+  const selectedRentalStatus = selectedRental && chatRentalStatus(selectedRental);
+  const rentalResponse = chatRentalResponse(selectedRental, memberId);
   const visibleSlots = slots.filter((slot) => slot.rentalId === selectedRentalId);
   const proposalKinds = visibleSlots.filter((slot) => slot.allowedActions.includes("PROPOSE"));
+  const showApprovalCard = selectedRental?.status === "APPROVED" || selectedRental?.status === "ACTIVE";
+  const timeline = chatTimeline(messages, selectedRental, showApprovalCard);
   const newMessageCount = countNewChatMessages(messages, seenSequence, room.otherMember.id);
 
   return (
@@ -527,22 +601,21 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
         <span className={c("t-caption chat-room-muted")}>{other} 님과의 대화</span>
         <MoreMenu label="이웃 메뉴" items={safetyItems} />
       </div>
-      <ContextBar room={room} selectedRentalId={selectedRentalId} action={proposalKinds.length > 0 ?
-        <Button size="sm" variant="secondary" icon="clock" disabled={appointmentBusy}
-          onClick={() => void openAppointmentSheet(proposalKinds[0].kind === "PICKUP" ? "give" : "back")}>약속 잡기</Button> : null} />
+      <ContextBar room={room} selectedRentalId={selectedRentalId} />
       {connectionState === "reconnecting" ? <Alert tone="warning" title="실시간 연결을 다시 시도하고 있어요">
         새 메시지는 주기적으로 확인하고 있어요. 일시적으로 늦게 표시될 수 있어요.
       </Alert> : null}
       {connectionState === "unauthorized" ? <Alert tone="warning" title="로그인이 만료됐어요">
         다시 로그인한 뒤 채팅을 이용해 주세요.
       </Alert> : null}
-      {allowedRentals.length > 1 ? <label className={c("chat-rental-picker")}>
+      {selectableRentals.length > 1 ? <label className={c("chat-rental-picker")}>
         대여 건 <select value={selectedRentalId} onChange={(event) => {
+          manualRentalSelectionRef.current = true;
           setAppointmentLoading(true);
           setSelectedRentalId(event.target.value);
         }}>
-          {allowedRentals.map((rental) => <option key={rental.id} value={rental.id}>
-            {rental.startDate} – {rental.endDate}
+          {selectableRentals.map((rental) => <option key={rental.id} value={rental.id}>
+            {rental.startDate} – {rental.endDate} · {STATUS_UI[chatRentalStatus(rental) ?? "expired"].label}
           </option>)}
         </select>
       </label> : null}
@@ -551,9 +624,51 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
         {older ? <Button size="sm" variant="secondary" disabled={loadingOlder} onClick={() => void loadOlder()}>
           {loadingOlder ? "불러오는 중" : "이전 대화 보기"}
         </Button> : null}
-        {messages.length === 0 && pending.length === 0 && visibleSlots.every((slot) => !slot.pendingProposal && !slot.confirmedProposal) ?
+        {messages.length === 0 && pending.length === 0 && !selectedRental && visibleSlots.every((slot) => !slot.pendingProposal && !slot.confirmedProposal) ?
           <EmptyState icon="chat" title="대화를 시작해 보세요" /> : null}
-        {messages.map((message, index) => {
+        {timeline.map((entry) => {
+          if (entry.kind === "rental-request" && selectedRental) return <div key={`rental-request-${selectedRental.id}`}
+            className={c("chat-rental-card")} role="group" aria-label={`${selectedRental.itemTitle} 대여 요청`}>
+            <div className={c("chat-rental-card-head")}>
+              <strong className={c("t-label")}>{selectedRental.itemTitle}</strong>
+              {selectedRentalStatus ? <StatusBadge status={selectedRentalStatus} /> : null}
+            </div>
+            <p className={c("t-body chat-rental-card-dates")}>{chatDateRange(selectedRental)}</p>
+            <p className={c("t-caption chat-rental-card-note")}>
+              {rentalResponse ? rentalResponse.isOwner
+                ? "대여 요청이 도착했어요. 승인하면 여기서 약속을 잡을 수 있어요."
+                : "대여 요청을 보냈어요. 승인을 기다리고 있어요."
+                : selectedRental.status === "APPROVED" || selectedRental.status === "ACTIVE"
+                  ? "대여 요청이 승인됐어요."
+                  : "처리된 대여 요청이에요."}
+            </p>
+            {rentalResponse?.isOwner ? <div className={c("chat-rental-card-actions")}>
+              <Button size="sm" variant="secondary" disabled={rentalActionBusy || !rentalResponse.canReject}
+                onClick={() => rejectRental(selectedRental.id)}>거절</Button>
+              <Button size="sm" disabled={rentalActionBusy || !rentalResponse.canApprove}
+                onClick={() => approveRental(selectedRental.id)}>승인</Button>
+            </div> : null}
+          </div>;
+          if (entry.kind === "rental-approved" && selectedRental) return <div key={`rental-approved-${selectedRental.id}`}
+            className={c("chat-rental-card")} role="group" aria-label={`${selectedRental.itemTitle} 약속 잡기`}>
+            <div className={c("chat-rental-card-head")}>
+              <strong className={c("t-label")}>전달·반납 약속</strong>
+              {selectedRentalStatus ? <StatusBadge status={selectedRentalStatus} /> : null}
+            </div>
+            <p className={c("t-caption chat-rental-card-note")}>
+              {proposalKinds.length > 0 ? "대여가 승인됐어요. 전달·반납 약속을 잡아 주세요."
+                : "대여가 승인됐어요. 약속 제안을 확인해 주세요."}
+            </p>
+            {proposalKinds.length > 0 ? <div className={c("chat-rental-card-actions")}>
+              {proposalKinds.map((slot) => <Button key={slot.kind} size="sm" variant="secondary" icon="clock"
+                disabled={appointmentBusy} onClick={() => void openAppointmentSheet(slot.kind === "PICKUP" ? "give" : "back")}>
+                {slot.kind === "PICKUP" ? "전달 약속 잡기" : "반납 약속 잡기"}
+              </Button>)}
+            </div> : null}
+            {appointmentLoading ? <p className={c("t-caption chat-rental-card-note")}>약속을 확인하고 있어요…</p> : null}
+          </div>;
+          if (entry.kind !== "message") return null;
+          const { message, index } = entry;
           const date = new Date(message.createdAt).toDateString();
           const divider = index === 0 || date !== new Date(messages[index - 1].createdAt).toDateString();
           return <div key={message.id} data-message-id={message.id} data-message-sequence={message.sequence} className={c("chat-message-group")}>

@@ -32,6 +32,40 @@
   border-bottom: 1px solid var(--line);
 }
 
+.chat-rental-card {
+  align-self: center;
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-lg);
+}
+
+.chat-rental-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.chat-rental-card-head strong { min-width: 0; overflow-wrap: anywhere; }
+
+.chat-rental-card-dates,
+.chat-rental-card-note { margin: 0; }
+
+.chat-rental-card-note { color: var(--ink-muted); }
+
+.chat-rental-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chat-rental-card-actions > * { flex: 1 1 130px; }
+
 /* 스크롤 영역 + 메시지 목록 (nb-room__scroll + nb-msgs) */
 .chat-room-scroll {
   flex: 1;
