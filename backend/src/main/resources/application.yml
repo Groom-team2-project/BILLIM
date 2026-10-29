@@ -165,6 +165,8 @@ billim:
     rate-limit-client-ip-header: ${AUTH_RATE_LIMIT_IP_HEADER:x-nf-client-connection-ip}
     # Netlify 서명 프록시 비밀값(netlify.toml의 signed와 같은 값). 서명이 맞을 때만 위 헤더 신뢰, 비우면 헤더 무시
     rate-limit-proxy-signature-secret: ${PROXY_SIGNATURE_SECRET:}
+    # /api 요청에 Netlify 서명 필수(없으면 403). 옵트인 — 켤 때 위 비밀값 필수, 없으면 기동 거부
+    require-proxy-signature: ${REQUIRE_PROXY_SIGNATURE:false}
     rate-limit-csrf-per-minute: ${AUTH_RATE_LIMIT_CSRF_PER_MINUTE:30}
     rate-limit-login-per-minute: ${AUTH_RATE_LIMIT_LOGIN_PER_MINUTE:10}
     # 추적 키 상한. 위조 헤더로 키가 늘어도 메모리 유한
