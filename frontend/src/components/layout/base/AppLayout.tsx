@@ -29,6 +29,7 @@ const OWN_HEADER = [
   /^\/profile$/,
   /^\/blocked$/,
   /^\/reports$/,
+  /^\/sanctions$/,
   /^\/register$/,
   /^\/notifications$/,
   /^\/neighborhoods$/,

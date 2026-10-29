@@ -19,6 +19,7 @@ import { BlockedPage } from "@/pages/profile";
 import { NeighborPage, NeighborhoodsPage } from "@/pages/neighbors";
 import { PolicyPage } from "@/pages/policy";
 import { ReportsPage } from "@/pages/profile";
+import { SanctionsPage } from "@/pages/profile";
 import { AdminLayout } from "@/pages/admin";
 import { AdminDashboardPage } from "@/pages/admin";
 import { AdminReportsPage } from "@/pages/admin";
@@ -57,6 +58,7 @@ const router = createBrowserRouter([
       { path: "rentals", element: <RentalsPage /> },
       { path: "notifications", element: <NotificationsPage /> },
       { path: "profile", element: <ProfilePage /> },
+      { path: "sanctions", element: <SanctionsPage /> },
       { path: "members/:memberId", element: <NeighborPage /> },
     ],
   },
