@@ -27,6 +27,25 @@ export function notificationTime(createdAt: string): string {
   }).format(new Date(createdAt));
 }
 
+/** 채팅에서 바로 처리할 수 있는 거래 알림. 연결된 방이 없으면 대여 화면으로 이동한다. */
+export function notificationOpensChat(notification: ApiNotification): boolean {
+  return notification.targetType === "RENTAL" && (
+    notification.type === "RENTAL_REQUESTED" ||
+    notification.type === "RENTAL_APPROVED" ||
+    notification.type.startsWith("APPOINTMENT_")
+  );
+}
+
+export async function notificationDestination(
+  notification: ApiNotification,
+  getRentalRoom: (rentalId: string) => Promise<{ chatRoomId?: string }>,
+): Promise<string> {
+  const fallback = notificationTargetPath(notification);
+  if (!notificationOpensChat(notification)) return fallback;
+  const rental = await getRentalRoom(notification.targetId);
+  return rental.chatRoomId ? `/chat/${encodeURIComponent(rental.chatRoomId)}` : fallback;
+}
+
 export function notificationTargetPath(notification: ApiNotification): string {
   switch (notification.targetType) {
     case "RENTAL":

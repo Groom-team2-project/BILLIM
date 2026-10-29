@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getChatMessages, getChatRoom, issueChatSocketTicket, sendChatMessage, updateChatReadPosition } from "@/api/chat";
 import { acceptAppointment, getAppointments, proposeAppointment, withdrawAppointment } from "@/api/appointments";
 import { getCommunityPlaces, type ApiCommunityPlace } from "@/api/communities";
 import { newIdempotencyKey } from "@/api/client";
-import { reportMessage, type ReportReasonCode } from "@/api/reports";
+import { createReport, reportMessage, type ReportReasonCode } from "@/api/reports";
+import { blockMember } from "@/api/blocks";
 import { useUi } from "@/components/overlay/UiContext";
 import { Alert } from "@/components/ui/alert";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { MoreMenu } from "@/components/ui/more-menu";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/state";
 import { Bubble, DateDivider, SystemMessage } from "@/components/custom/chat/Bubble";
 import { Composer } from "@/components/custom/chat/Composer";
@@ -25,6 +28,7 @@ import { countNewChatMessages, isChatAtBottom, isChatMessageEndVisible, mergeCha
 import { readPendingChatMessages, writePendingChatMessages, type PendingChatMessage } from "@/utils/chat-pending";
 import { chatSocketUrl, parseChatSocketMessage } from "@/utils/chat-realtime";
 import { classes } from "@/utils/classes";
+import { toReasonCode, toReasonDetail } from "@/utils/reportReason";
 import styles from "@/components/custom/chat/ChatRoom.module.css";
 
 const c = classes(styles);
@@ -36,12 +40,14 @@ const reportReasons: Record<string, ReportReasonCode> = {
   "사기가 의심돼요": "FRAUD",
 };
 
-export function LiveChatRoom({ roomId, onRead, onMessage }: {
+export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged }: {
   roomId: string;
   onRead: (roomId: string) => void;
   onMessage: (roomId: string, message: ApiChatMessage) => void;
+  onAppointmentChanged: (room: ApiChatRoom) => void;
 }) {
-  const { report, toast } = useUi();
+  const { confirm, report, toast } = useUi();
+  const navigate = useNavigate();
   const { memberId } = useSession();
   const [room, setRoom] = useState<ApiChatRoom | null>(null);
   const [messages, setMessages] = useState<ApiChatMessage[]>([]);
@@ -420,6 +426,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
         : await withdrawAppointment(proposal.id, slot.version);
       setSlots((previous) => previous.map((entry) => entry.id === updated.id ? updated : entry));
       setAppointmentRevision((value) => value + 1);
+      if (room) onAppointmentChanged(room);
       toast(action === "ACCEPT" ? "약속을 수락했어요." : "제안을 철회했어요.");
     } catch (error) {
       appointmentFailed(error);
@@ -438,6 +445,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
       });
       setSlots((previous) => previous.map((entry) => entry.id === updated.id ? updated : entry));
       setAppointmentRevision((value) => value + 1);
+      if (room) onAppointmentChanged(room);
       toast("약속을 보냈어요.");
       return true;
     } catch (error) {
@@ -456,6 +464,36 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
     },
   });
 
+  const openMemberReport = (memberId: string, name: string) => report({
+    name,
+    onConfirm: async (selectedReason) => {
+      try {
+        await createReport({
+          targetType: "MEMBER", targetId: memberId,
+          reasonCode: toReasonCode(selectedReason), detail: toReasonDetail(selectedReason),
+        });
+        toast("신고를 접수했어요");
+      } catch (error) {
+        toast(error instanceof ApiError ? error.message : "신고를 접수하지 못했어요");
+      }
+    },
+  });
+
+  const openBlockConfirm = (memberId: string, name: string) => confirm({
+    title: `${name} 님을 차단할까요?`,
+    body: "차단하면 서로 대화할 수 없고 물건도 볼 수 없어요.",
+    confirm: "차단", danger: true,
+    onConfirm: async () => {
+      try {
+        await blockMember(memberId);
+        toast("차단했어요");
+        navigate("/chat", { replace: true });
+      } catch (error) {
+        toast(error instanceof ApiError ? error.message : "차단하지 못했어요");
+      }
+    },
+  });
+
   if (loading) return <section className={c("chat-room")} aria-label="대화 불러오는 중"><div className={c("chat-room-scroll")}>
     <Skeleton w="60%" h={40} r={16} /><Skeleton w="45%" h={40} r={16} />
   </div></section>;
@@ -465,6 +503,11 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
   }} /></section>;
 
   const other = room.otherMember.displayName;
+  const safetyItems = [
+    { label: "이웃 프로필", onSelect: () => navigate(`/members/${encodeURIComponent(room.otherMember.id)}`) },
+    { label: "신고하기", danger: true, onSelect: () => openMemberReport(room.otherMember.id, other) },
+    { label: "차단", danger: true, onSelect: () => openBlockConfirm(room.otherMember.id, other) },
+  ];
   const allowedRentals = room.rentals.filter((rental) => room.access.allowedRentalIds.includes(rental.id));
   const selectedRental = room.rentals.find((entry) => entry.id === selectedRentalId);
   const visibleSlots = slots.filter((slot) => slot.rentalId === selectedRentalId);
@@ -476,6 +519,11 @@ export function LiveChatRoom({ roomId, onRead, onMessage }: {
       <div className={c("chat-room-head only-desk")}>
         <Avatar name={other} size={36} />
         <div className={c("chat-room-head-body")}><div className={c("t-label")}>{other}</div></div>
+        <MoreMenu label="이웃 메뉴" items={safetyItems} />
+      </div>
+      <div className={c("chat-room-mobile-actions only-mobile")}>
+        <span className={c("t-caption chat-room-muted")}>{other} 님과의 대화</span>
+        <MoreMenu label="이웃 메뉴" items={safetyItems} />
       </div>
       <ContextBar room={room} selectedRentalId={selectedRentalId} action={proposalKinds.length > 0 ?
         <Button size="sm" variant="secondary" icon="clock" disabled={appointmentBusy}

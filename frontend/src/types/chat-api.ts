@@ -48,6 +48,7 @@ export type ApiChatRoom = {
   itemId: string;
   communityId: string;
   itemTitle: string;
+  itemThumbnailUrl?: string;
   otherMember: ApiChatMember;
   unreadCount: number;
   lastMessagePreview?: string;
