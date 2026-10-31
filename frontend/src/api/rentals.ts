@@ -1,10 +1,14 @@
 import { availabilityWindows } from "@/utils/rentalAvailability";
 import { api } from "@/api/client";
-import type { ApiRentalDetail, ApiRentalPage, RentalRole } from "@/types/rental-api";
+import type { ApiRentalDetail, ApiRentalPage, ApiRentalQuery, ApiMyRentalSummary, RentalRole } from "@/types/rental-api";
 
-export function getRentals(role: RentalRole, page = 0): Promise<ApiRentalPage> {
-  return api("/rentals", { query: { role, page, size: 50 } });
+export function getRentals(role: RentalRole, page = 0, query: ApiRentalQuery = {}): Promise<ApiRentalPage> {
+  return api("/rentals", { query: { role, page, size: 50, ...query,
+    overdueOnly: query.overdueOnly === undefined ? undefined : String(query.overdueOnly),
+  } });
 }
+
+export const getRentalSummary = () => api<ApiMyRentalSummary>("/rentals/summary");
 
 export function getRental(rentalId: string): Promise<ApiRentalDetail> {
   return api(`/rentals/${encodeURIComponent(rentalId)}`);

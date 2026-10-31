@@ -1,26 +1,8 @@
 import { api } from "@/api/client";
 import type { ApiCommunity } from "@/api/communities";
 import type { ApiCategory, ApiItemSummary } from "@/api/items";
-import type { ApiRental } from "@/types/rental-api";
-
-/** 상태별 대여 건수 (API 명세 RentalCounts) */
-export type ApiRentalCounts = {
-  requested: number;
-  approved: number;
-  active: number;
-  overdue: number;
-  returned: number;
-  rejected: number;
-  canceled: number;
-  expired: number;
-};
-
-/** 내 대여 요약 (API 명세 MyRentalSummary) */
-export type ApiMyRentalSummary = {
-  borrowed: ApiRentalCounts;
-  lent: ApiRentalCounts;
-  nextRentals: ApiRental[];
-};
+import type { ApiMyRentalSummary } from "@/types/rental-api";
+export type { ApiRentalCounts, ApiMyRentalSummary } from "@/types/rental-api";
 
 /** 홈 화면 조립 응답 (API 명세 Home) */
 export type ApiHome = {
