@@ -94,6 +94,9 @@ public class Member extends BaseTimeEntity {
         if (DisplayNamePolicy.hasForbiddenChar(trimmed)) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST, "표시 이름에 사용할 수 없는 문자가 있습니다.");
         }
+        if (!DisplayNamePolicy.hasVisibleChar(trimmed)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "표시 이름에는 보이는 글자가 필요합니다.");
+        }
         return trimmed;
     }
 

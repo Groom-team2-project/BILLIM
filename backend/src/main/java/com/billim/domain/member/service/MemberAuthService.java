@@ -78,8 +78,9 @@ public class MemberAuthService {
             trimmed = truncate(trimmed);
         }
         // 하한 검사는 절단 이후. 자른 결과가 공백뿐인 경우도 여기서 처리
-        // 사칭 이름도 기본 이름으로 대체 — Member.register가 거부하는 값
-        return trimmed.length() < Member.DISPLAY_NAME_MIN || DisplayNamePolicy.isReserved(trimmed)
+        // 보이는 글자 없는 이름·사칭 이름도 기본 이름으로 대체
+        return trimmed.length() < Member.DISPLAY_NAME_MIN || !DisplayNamePolicy.hasVisibleChar(trimmed)
+                || DisplayNamePolicy.isReserved(trimmed)
                 ? FALLBACK_NAME_PREFIX + (1000 + RANDOM.nextInt(9000))
                 : trimmed;
     }
