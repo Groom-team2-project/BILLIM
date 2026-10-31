@@ -199,16 +199,17 @@ class AdminLoginServiceTest {
             }));
         }
         start.countDown();
-        int verified = 0;
+        List<ErrorCode> codes = new ArrayList<>();
         for (Future<ErrorCode> result : results) {
-            if (result.get() != ErrorCode.RATE_LIMITED) {
-                verified++;
-            }
+            codes.add(result.get());
         }
         pool.shutdown();
 
+        // null은 틀린 비밀번호로 로그인 성공 — 그 자체로 결함
+        assertThat(codes).doesNotContainNull()
+                .allMatch(code -> code == ErrorCode.UNAUTHENTICATED || code == ErrorCode.RATE_LIMITED);
         // 한도 도달 실패는 429로 응답하므로 401은 한도 - 1 이하, 대조 자체는 한도 이하
-        assertThat(verified).isLessThan(MAX_FAILURES);
+        assertThat(codes).filteredOn(code -> code == ErrorCode.UNAUTHENTICATED).hasSizeLessThan(MAX_FAILURES);
     }
 
     @Test
