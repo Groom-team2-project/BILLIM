@@ -139,8 +139,19 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         if (first == null) {
             return;
         }
-        long throughSequence = accessService
-            .findLastSequenceForParticipant(roomId, first.memberId).orElseThrow();
+        long throughSequence;
+        try {
+            throughSequence = accessService
+                .findLastSequenceForParticipant(roomId, first.memberId).orElseThrow();
+        } catch (Exception exception) {
+            log.warn("채팅 WebSocket 전달 복구 실패: roomId={}", roomId, exception);
+            for (Map.Entry<String, SessionState> entry : sessions.entrySet()) {
+                synchronized (entry.getValue()) {
+                    closeAndRemove(roomId, entry.getKey(), entry.getValue().session);
+                }
+            }
+            return;
+        }
         for (Map.Entry<String, SessionState> entry : sessions.entrySet()) {
             SessionState state = entry.getValue();
             synchronized (state) {

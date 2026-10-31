@@ -24,7 +24,9 @@ const idleSocket = testCase === 'chat-idle';
 export const options = {
   scenarios: testCase === 'notification-read'
     ? { selected: { executor: 'shared-iterations', vus, iterations: 80, maxDuration: '1m' } }
-    : stableSocket || realisticSocket || pairedSocket || idleSocket
+    : idleSocket
+      ? { selected: { executor: 'per-vu-iterations', vus, iterations: 1, maxDuration: '60s' } }
+    : stableSocket || realisticSocket || pairedSocket
       ? { selected: { executor: 'per-vu-iterations', vus, iterations: 1, maxDuration: '30s' } }
       : { selected: { executor: 'constant-vus', vus, duration } },
   thresholds: {
@@ -100,8 +102,12 @@ export default function (context) {
       { headers: headers(user), tags: { endpoint: 'chat-list' } }), 200);
   } else if (testCase === 'chat-room-list') {
     const size = Number(__ENV.INBOX_PAGE_SIZE || 20);
-    verify(http.get(`${baseUrl}/api/v1/chat/rooms?filter=ALL&page=0&size=${size}`,
-      { headers: headers(current.owner), tags: { endpoint: 'chat-room-list' } }), 200);
+    const response = http.get(`${baseUrl}/api/v1/chat/rooms?filter=ALL&page=0&size=${size}`,
+      { headers: headers(current.owner), tags: { endpoint: 'chat-room-list' } });
+    const ok = check(response, {
+      'room list has requested size': (r) => r.status === 200 && r.json('items').length === size,
+    });
+    failures.add(!ok);
     sleep(0.2);
   } else if (testCase === 'chat-inbox') {
     verify(http.get(`${baseUrl}/api/v1/chat/rooms?filter=ALL&page=0&size=20`,
@@ -120,7 +126,8 @@ export default function (context) {
   } else if (idleSocket) {
     const wsUrl = baseUrl.replace(/^http/, 'ws') + `/ws/chat?roomId=${current.roomId}`;
     const result = ws.connect(wsUrl, { headers: headers(user) }, (socket) => {
-      socket.setTimeout(() => socket.close(), 20000);
+      socket.on('open', () => console.log(`PERF_IDLE_READY ${__VU}`));
+      socket.setTimeout(() => socket.close(), 45000);
     });
     verify(result, 101);
   } else if (testCase === 'chat-websocket') {

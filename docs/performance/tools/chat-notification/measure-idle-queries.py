@@ -1,7 +1,9 @@
 """Count DB SELECTs while chat sockets stay connected without sending messages."""
 
 import argparse
+import re
 import subprocess
+import threading
 import time
 from pathlib import Path
 
@@ -40,16 +42,38 @@ def main():
         ]
         process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                    text=True, encoding="utf-8", errors="replace")
-        time.sleep(6)
-        if process.poll() is not None:
-            output = process.communicate()[0]
-            raise SystemExit(f"k6 exited before sample: {output[-1500:]}")
+        ready = set()
+        output_lines = []
+        condition = threading.Condition()
+
+        def collect_output():
+            for line in process.stdout:
+                with condition:
+                    output_lines.append(line)
+                    match = re.search(r"PERF_IDLE_READY (\d+)", line)
+                    if match:
+                        ready.add(int(match.group(1)))
+                    condition.notify_all()
+            with condition:
+                condition.notify_all()
+
+        reader = threading.Thread(target=collect_output, daemon=True)
+        reader.start()
+        deadline = time.monotonic() + 20
+        with condition:
+            while len(ready) < args.vus and time.monotonic() < deadline and reader.is_alive():
+                condition.wait(timeout=min(1, deadline - time.monotonic()))
+        if len(ready) != args.vus:
+            process.terminate()
+            process.wait(timeout=5)
+            raise SystemExit(f"only {len(ready)}/{args.vus} sockets opened: {''.join(output_lines)[-1500:]}")
         before = select_count()
         time.sleep(10)
         after = select_count()
-        output = process.communicate(timeout=30)[0]
+        process.wait(timeout=45)
+        reader.join(timeout=2)
         if process.returncode:
-            raise SystemExit(f"k6 failed: {output[-1500:]}")
+            raise SystemExit(f"k6 failed: {''.join(output_lines)[-1500:]}")
         print(f"{args.label} run={run} sockets={args.vus} SELECT/10s={after - before}", flush=True)
 
 

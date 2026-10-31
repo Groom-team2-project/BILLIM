@@ -38,6 +38,9 @@ public class OutboxDispatcher {
             @Value("${billim.notification.outbox.lease:1m}") Duration lease,
             @Value("${billim.notification.outbox.retry-backoff:10s}") Duration retryBackoff,
             @Value("${billim.notification.outbox.max-attempts:5}") int maxAttempts) {
+        if (batchSize < 1) {
+            throw new IllegalArgumentException("billim.notification.outbox.batch-size must be at least 1");
+        }
         this.store = store;
         this.consumers = List.copyOf(consumers);
         this.clock = clock;

@@ -117,6 +117,29 @@ class ChatWebSocketHandlerTest {
     }
 
     @Test
+    @DisplayName("공유 순번 조회가 실패하면 해당 방의 모든 연결을 종료한다")
+    void refreshRoomClosesSessionsWhenSharedSequenceLookupFails() throws Exception {
+        WebSocketSession owner = session("session-owner", 2L, 55L);
+        WebSocketSession requester = session("session-requester", 3L, 56L);
+        when(accessService.canReceive(901L, 2L, 55L)).thenReturn(true);
+        when(accessService.canReceive(901L, 3L, 56L)).thenReturn(true);
+        when(accessService.findLastSequenceForParticipant(901L, 2L)).thenReturn(Optional.of(0L));
+        when(accessService.findLastSequenceForParticipant(901L, 3L)).thenReturn(Optional.of(0L));
+
+        handler.afterConnectionEstablished(owner);
+        handler.afterConnectionEstablished(requester);
+        when(accessService.findLastSequenceForParticipant(
+            org.mockito.ArgumentMatchers.eq(901L), org.mockito.ArgumentMatchers.anyLong()))
+            .thenThrow(new IllegalStateException("database unavailable"));
+
+        handler.refreshRoom(901L);
+
+        verify(owner).close(CloseStatus.POLICY_VIOLATION);
+        verify(requester).close(CloseStatus.POLICY_VIOLATION);
+        verifyNoInteractions(messageQueryService);
+    }
+
+    @Test
     @DisplayName("로컬 커밋 메시지는 DB 재조회 없이 한 번만 전달한다")
     void committedMessageUsesDirectDeliveryOnce() throws Exception {
         WebSocketSession session = session("session-1", 2L, 55L);

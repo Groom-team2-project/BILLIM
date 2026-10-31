@@ -13,6 +13,8 @@ $env:PERF_PAIRS = '8'
 $env:PERF_NOTIFICATIONS_PER_MEMBER = '0'
 docker compose -p billim-perf-multi-20261031 -f docs/performance/tools/chat-notification/compose.multi.correctness.yaml up -d --build mysql redis backend-a backend-b
 python docs/performance/tools/chat-notification/seed.py
+docker compose -p billim-perf-multi-20261031 -f docs/performance/tools/chat-notification/compose.multi.correctness.yaml run -d --no-deps --name billim-perf-multi-20261031-benchmark benchmark
+docker wait billim-perf-multi-20261031-benchmark
 docker compose -p billim-perf-multi-20261031 -f docs/performance/tools/chat-notification/compose.multi.correctness.yaml run -d --no-deps --name billim-perf-multi-20261031-resilience resilience
 ```
 

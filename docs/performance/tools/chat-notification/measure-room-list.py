@@ -30,6 +30,11 @@ def main():
         parser.error("runs and vus must be positive")
     if not (OUTPUT / "fixtures-followup.json").exists():
         parser.error("isolated fixtures-followup.json is missing")
+    fixtures = json.loads((OUTPUT / "fixtures-followup.json").read_text(encoding="utf-8"))
+    pairs = fixtures["pairs"]
+    owner_ids = {pair["owner"]["memberId"] for pair in pairs}
+    if len(pairs) < args.vus or len(owner_ids) != 1 or len(pairs) < max(sizes):
+        parser.error("fixture needs one shared owner and at least max(sizes) rooms and vus pairs")
 
     results = []
     for size in sizes:
