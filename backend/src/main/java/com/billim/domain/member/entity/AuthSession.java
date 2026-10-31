@@ -13,13 +13,20 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.time.Duration;
 import java.time.Instant;
 
-/** auth_sessions */
+/**
+ * auth_sessions
+ *
+ * <p>@DynamicUpdate: 바뀐 컬럼만 UPDATE. 유휴 만료 연장과 다른 기기 로그아웃(일괄 폐기)이 엇갈려 커밋될 때,
+ * 전체 컬럼 UPDATE면 먼저 읽은 연장 쪽이 revoked_at을 null로 되돌림.
+ */
 @Entity
 @Table(name = "auth_sessions")
+@DynamicUpdate
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class AuthSession extends BaseTimeEntity {

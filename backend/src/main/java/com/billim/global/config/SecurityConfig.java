@@ -54,6 +54,8 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(PUBLIC_PATHS).permitAll()
+                        // /auth/** 공개 규칙의 예외 — 로그인 회원 대상 동작
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/logout-others").authenticated()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         // 쿠키 없는 별도 WSS 연결은 핸드셰이크에서 일회용 연결권 검증.
                         .requestMatchers(HttpMethod.GET, "/ws/chat").permitAll()
