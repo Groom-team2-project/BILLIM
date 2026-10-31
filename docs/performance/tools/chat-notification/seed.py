@@ -13,9 +13,13 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 COMPOSE = HERE / "compose.yaml"
-OUTPUT = HERE / "local" / "fixtures.json"
+FIXTURE_NAME = os.environ.get("PERF_FIXTURE_NAME", "fixtures.json")
+if Path(FIXTURE_NAME).name != FIXTURE_NAME or not FIXTURE_NAME.endswith(".json"):
+    raise SystemExit("PERF_FIXTURE_NAME must be a JSON filename")
+OUTPUT = HERE / "local" / FIXTURE_NAME
 PAIRS = int(os.environ.get("PERF_PAIRS", "8"))
 NOTIFICATIONS_PER_MEMBER = int(os.environ.get("PERF_NOTIFICATIONS_PER_MEMBER", "100"))
+SHARED_OWNER = os.environ.get("PERF_SHARED_OWNER", "false").lower() == "true"
 
 
 def sql_string(value):
@@ -45,11 +49,15 @@ def main():
     event_id = 920000
     notification_id = 930000
 
+    shared_owner = None
     for pair in range(PAIRS):
         room_id = 911000 + pair
         item_id = 912000 + pair
         users = []
         for side in range(2):
+            if SHARED_OWNER and side == 0 and shared_owner is not None:
+                users.append(shared_owner)
+                continue
             member_id = 913000 + pair * 2 + side
             token = secrets.token_urlsafe(32)
             csrf = secrets.token_urlsafe(32)
@@ -57,6 +65,9 @@ def main():
             statements.append(f"INSERT INTO community_memberships (member_id,community_id,status,verified_at,verification_expires_at,created_at,updated_at) VALUES ({member_id},910000,'ACTIVE',UTC_TIMESTAMP(6),DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 30 DAY),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6));")
             statements.append(f"INSERT INTO auth_sessions (member_id,token_hash,csrf_token,last_seen_at,expires_at,absolute_expires_at,created_at,updated_at) VALUES ({member_id},'{hashlib.sha256(token.encode()).hexdigest()}',{sql_string(csrf)},UTC_TIMESTAMP(6),DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 2 HOUR),DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 24 HOUR),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6));")
             users.append({"memberId": member_id, "token": token, "csrf": csrf})
+
+        if SHARED_OWNER and shared_owner is None:
+            shared_owner = users[0]
 
         statements.append(f"INSERT INTO items (id,owner_id,community_id,category_id,place_id,title,available_start_date,available_end_date,visibility,version,created_at,updated_at) VALUES ({item_id},{users[0]['memberId']},910000,(SELECT id FROM categories WHERE code='LIFE'),910000,'Performance Test Item',UTC_DATE(),DATE_ADD(UTC_DATE(),INTERVAL 30 DAY),'PUBLIC',0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6));")
         statements.append(f"INSERT INTO chat_rooms (id,item_id,owner_id,requester_id,next_sequence,created_at,updated_at) VALUES ({room_id},{item_id},{users[0]['memberId']},{users[1]['memberId']},1,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6));")
@@ -98,7 +109,8 @@ def refresh_and_save_csrf(fixtures):
 
 
 def refresh_csrf(fixtures):
-    users = [user for pair in fixtures for user in (pair["owner"], pair["requester"])]
+    users = list({user["memberId"]: user for pair in fixtures
+                  for user in (pair["owner"], pair["requester"]) }.values())
 
     def verify(user):
         request = urllib.request.Request(
@@ -111,6 +123,10 @@ def refresh_csrf(fixtures):
     with ThreadPoolExecutor(max_workers=8) as pool:
         for user, csrf in zip(users, pool.map(verify, users)):
             user["csrf"] = csrf
+    csrf_by_member = {user["memberId"]: user["csrf"] for user in users}
+    for pair in fixtures:
+        for user in (pair["owner"], pair["requester"]):
+            user["csrf"] = csrf_by_member[user["memberId"]]
 
 
 if __name__ == "__main__":

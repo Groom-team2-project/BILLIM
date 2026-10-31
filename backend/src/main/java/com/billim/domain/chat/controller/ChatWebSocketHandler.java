@@ -132,14 +132,20 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
 
     public void refreshRoom(Long roomId) {
         Map<String, SessionState> sessions = sessionByRoom.get(roomId);
-        if (sessions == null) {
+        if (sessions == null || sessions.isEmpty()) {
             return;
         }
+        SessionState first = sessions.values().stream().findFirst().orElse(null);
+        if (first == null) {
+            return;
+        }
+        long throughSequence = accessService
+            .findLastSequenceForParticipant(roomId, first.memberId).orElseThrow();
         for (Map.Entry<String, SessionState> entry : sessions.entrySet()) {
             SessionState state = entry.getValue();
             synchronized (state) {
                 try {
-                    replayMissedMessages(roomId, state);
+                    replayMissedMessages(roomId, state, throughSequence);
                 } catch (Exception exception) {
                     log.warn("채팅 WebSocket 전달 복구 실패: roomId={}, sessionId={}",
                         roomId, entry.getKey(), exception);
@@ -150,6 +156,11 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void replayMissedMessages(Long roomId, SessionState state) throws Exception {
+        replayMissedMessages(roomId, state, null);
+    }
+
+    private void replayMissedMessages(Long roomId, SessionState state,
+                                      Long knownThroughSequence) throws Exception {
         long startedAt = System.nanoTime();
         long accessNs = 0;
         long sequenceNs = 0;
@@ -164,8 +175,9 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             }
             accessNs += System.nanoTime() - stageAt;
             stageAt = System.nanoTime();
-            long throughSequence = accessService
-                .findLastSequenceForParticipant(roomId, state.memberId).orElseThrow();
+            long throughSequence = knownThroughSequence == null
+                ? accessService.findLastSequenceForParticipant(roomId, state.memberId).orElseThrow()
+                : knownThroughSequence;
             sequenceNs += System.nanoTime() - stageAt;
             while (state.lastSequence < throughSequence) {
                 stageAt = System.nanoTime();

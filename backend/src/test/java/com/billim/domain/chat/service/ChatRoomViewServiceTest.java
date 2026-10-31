@@ -48,7 +48,7 @@ class ChatRoomViewServiceTest {
     private final SanctionService sanctionService = mock(SanctionService.class);
     private final ChatRoomViewService viewService = new ChatRoomViewService(
         openService, baseService, listBaseService, linkedRentalService, rentalQueryService,
-        new ChatRoomAccessPolicy(linkedRentalService),
+        new ChatRoomAccessPolicy(),
         roomRepository, itemRepository, itemImageRepository, itemAccessPolicy,
         membershipQuery, blockQuery, sanctionService
     );

@@ -1,0 +1,90 @@
+name: billim-perf-multi
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: billim_perf
+      MYSQL_USER: billim_perf
+      MYSQL_PASSWORD: local_perf_only
+      MYSQL_ROOT_PASSWORD: local_perf_root_only
+    healthcheck:
+      test: [CMD-SHELL, "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - multi-mysql:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+
+  backend-a:
+    image: billim-perf-multi-backend:local
+    build:
+      context: ../../../../backend
+    ports:
+      - "127.0.0.1:18080:8080"
+    environment: &backend-environment
+      SPRING_PROFILES_ACTIVE: perf
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/billim_perf
+      SPRING_DATASOURCE_USERNAME: billim_perf
+      SPRING_DATASOURCE_PASSWORD: local_perf_only
+      KAKAO_CLIENT_ID: local-perf-id
+      KAKAO_CLIENT_SECRET: local-perf-secret
+      AUTH_RATE_LIMIT_CSRF_PER_MINUTE: 1000
+      REDIS_URL: redis://redis:6379
+      CHAT_REDIS_ENABLED: "true"
+      OUTBOX_ENABLED: "true"
+      OUTBOX_BATCH_SIZE: 50
+      DB_POOL_SIZE: 10
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    mem_limit: 1g
+
+  backend-b:
+    image: billim-perf-multi-backend:local
+    ports:
+      - "127.0.0.1:18081:8080"
+    environment: *backend-environment
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    mem_limit: 1g
+
+  benchmark:
+    profiles: [test]
+    build:
+      context: .
+      dockerfile: Dockerfile.multi-benchmark
+    volumes:
+      - ./:/scripts:ro
+      - ./local:/results
+    depends_on:
+      - backend-a
+      - backend-b
+    mem_limit: 512m
+
+  resilience:
+    profiles: [test]
+    build:
+      context: .
+      dockerfile: Dockerfile.multi-benchmark
+    entrypoint: ["python", "/scripts/multi-instance-resilience.py"]
+    volumes:
+      - ./:/scripts:ro
+      - ./local:/results
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - backend-a
+      - backend-b
+      - redis
+    mem_limit: 512m
+
+volumes:
+  multi-mysql:

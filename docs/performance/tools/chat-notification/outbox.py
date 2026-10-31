@@ -1,6 +1,7 @@
 """Measure local outbox-to-notification processing on the isolated DB only."""
 
 import json
+import os
 import secrets
 import subprocess
 import sys
@@ -10,7 +11,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 COMPOSE = HERE / "compose.yaml"
-FIXTURE = HERE / "local" / "fixtures.json"
+FIXTURE = HERE / "local" / os.environ.get("PERF_FIXTURE_NAME", "fixtures.json")
 
 
 def query(sql):
