@@ -43,11 +43,18 @@ class RentalQueryServiceTest {
         items = mock(ItemRepository.class);
         policy = mock(RentalRequestPolicy.class);
         service = new RentalQueryService(rentals, histories, members, items, policy, Clock.fixed(NOW, ZoneOffset.UTC), appointments);
+        var fixtureMembers = new ArrayList<Member>();
         for (long id = 1; id <= 3; id++) {
             Member member = Member.register("회원" + id);
             ReflectionTestUtils.setField(member, "id", id);
             when(members.findById(id)).thenReturn(Optional.of(member));
+            fixtureMembers.add(member);
         }
+        when(members.findAllById(any())).thenAnswer(invocation -> {
+            var ids = new HashSet<Long>();
+            invocation.<Iterable<Long>>getArgument(0).forEach(ids::add);
+            return fixtureMembers.stream().filter(member -> ids.contains(member.getId())).toList();
+        });
         Item item = Item.create(1L, 1L, 1L, 1L, "수정한 제목", null, TODAY, TODAY.plusDays(60), NOW);
         when(items.findById(10L)).thenReturn(Optional.of(item));
     }

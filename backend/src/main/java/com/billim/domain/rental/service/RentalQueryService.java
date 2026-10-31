@@ -28,6 +28,13 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -84,8 +91,39 @@ public class RentalQueryService implements RentalPartyQuery {
         };
         var result = rentals.findAll(filter, PageRequest.of(page, size,
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))));
-        return new RentalListResponse(result.getContent().stream().map(r -> summary(r, memberId, now)).toList(),
+        var content = result.getContent();
+        var reads = preloadList(content, memberId, now);
+        return new RentalListResponse(content.stream().map(r -> summary(r, memberId, now, reads)).toList(),
                 page, size, result.getTotalElements(), result.hasNext());
+    }
+
+    /** 페이지 안의 회원·물건·점유만 일괄 조회. 다른 요청과 결과를 공유하지 않는 읽기 문맥. */
+    private record ListReads(Map<Long, Member> members, Map<Long, Item> items,
+                             Map<Long, Instant> activeDueAt, Set<Long> conflictingRequests) {}
+
+    private ListReads preloadList(List<Rental> page, long memberId, Instant now) {
+        if (page.isEmpty()) return new ListReads(Map.of(), Map.of(), Map.of(), Set.of());
+        var memberIds = new HashSet<Long>();
+        page.forEach(r -> { memberIds.add(r.getOwnerId()); memberIds.add(r.getBorrowerId()); });
+        var pageMembers = members.findAllById(memberIds).stream()
+                .collect(Collectors.toMap(Member::getId, Function.identity()));
+        LocalDate today = LocalDate.ofInstant(now, KST);
+        var requests = page.stream().filter(r -> r.getOwnerId().equals(memberId)
+                && r.getStatus() == RentalStatus.REQUESTED && r.getRequestExpiresAt().isAfter(now)
+                && !r.getStartDate().isBefore(today)).toList();
+        var requestItems = requests.stream().map(Rental::getItemId).collect(Collectors.toSet());
+        var pageItems = requestItems.isEmpty() ? Map.<Long, Item>of() : items.findAllById(requestItems).stream()
+                .collect(Collectors.toMap(Item::getId, Function.identity()));
+        var activeItems = new HashSet<>(requestItems);
+        page.stream().filter(r -> r.getOwnerId().equals(memberId) && r.getStatus() == RentalStatus.APPROVED
+                        && !today.isBefore(r.getStartDate()) && !today.isAfter(r.getEndDate()))
+                .map(Rental::getItemId).forEach(activeItems::add);
+        var activeDueAt = new HashMap<Long, Instant>();
+        if (!activeItems.isEmpty()) rentals.findActiveDueDatesByItemIds(activeItems).forEach(row ->
+                activeDueAt.merge(row.getItemId(), row.getDueAt(), (a, b) -> a.isBefore(b) ? a : b));
+        var conflicts = requests.isEmpty() ? Set.<Long>of() : Set.copyOf(rentals.findConflictingRequestIds(
+                requests.stream().map(Rental::getId).toList(), OCCUPYING_STATUSES));
+        return new ListReads(pageMembers, pageItems, activeDueAt, conflicts);
     }
 
     public RentalCountStatusResponse getRentalCountStatus(LoginMember member) {
@@ -172,9 +210,15 @@ public class RentalQueryService implements RentalPartyQuery {
     }
 
     private RentalSummaryResponse summary(Rental rental, long memberId, Instant now) {
-        Member owner = members.findById(rental.getOwnerId())
+        return summary(rental, memberId, now, null);
+    }
+
+    private RentalSummaryResponse summary(Rental rental, long memberId, Instant now, ListReads reads) {
+        Member owner = (reads == null ? members.findById(rental.getOwnerId())
+                : Optional.ofNullable(reads.members().get(rental.getOwnerId())))
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-        Member borrower = members.findById(rental.getBorrowerId())
+        Member borrower = (reads == null ? members.findById(rental.getBorrowerId())
+                : Optional.ofNullable(reads.members().get(rental.getBorrowerId())))
                 .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         LocalDate today = LocalDate.ofInstant(now, KST);
         LocalDate targetDate = rental.getStatus() == RentalStatus.ACTIVE ? rental.getEndDate() : rental.getStartDate();
@@ -182,32 +226,48 @@ public class RentalQueryService implements RentalPartyQuery {
                 rental.getItemTitleSnapshot(), MemberSummaryResponse.from(owner), MemberSummaryResponse.from(borrower),
                 rental.getStartDate(), rental.getEndDate(), rental.getStatus(), rental.isOverdue(now),
                 Math.toIntExact(ChronoUnit.DAYS.between(today, targetDate)), rental.getPlaceNameSnapshot(),
-                rental.getVersion(), allowedActions(rental, memberId, today), rental.getCreatedAt());
+                rental.getVersion(), allowedActions(rental, memberId, today, reads), rental.getCreatedAt());
     }
 
-    private List<String> allowedActions(Rental rental, long memberId, LocalDate today) {
+    private List<String> allowedActions(Rental rental, long memberId, LocalDate today, ListReads reads) {
         boolean owner = rental.getOwnerId().equals(memberId);
         return switch (rental.getStatus()) {
             case REQUESTED -> owner
-                    ? (canApprove(rental, today) ? List.of("APPROVE", "REJECT") : List.of("REJECT"))
+                    ? (canApprove(rental, today, reads) ? List.of("APPROVE", "REJECT") : List.of("REJECT"))
                     : List.of("CANCEL");
             case APPROVED -> owner && !today.isBefore(rental.getStartDate()) && !today.isAfter(rental.getEndDate())
-                    && !rentals.existsByItemIdAndStatus(rental.getItemId(), RentalStatus.ACTIVE)
+                    && !hasActive(rental.getItemId(), reads)
                     ? List.of("CANCEL", "HANDOVER") : List.of("CANCEL");
             case ACTIVE -> owner ? List.of("RETURN") : List.of();
             default -> List.of();
         };
     }
 
-    private boolean canApprove(Rental rental, LocalDate today) {
+    private boolean canApprove(Rental rental, LocalDate today, ListReads reads) {
         Instant now = clock.instant();
         if (!rental.getRequestExpiresAt().isAfter(now) || rental.getStartDate().isBefore(today)) return false;
-        return items.findById(rental.getItemId()).filter(item -> policy.canApprove(item, rental)
+        return (reads == null ? items.findById(rental.getItemId()) : Optional.ofNullable(reads.items().get(rental.getItemId())))
+                .filter(item -> policy.canApprove(item, rental)
                 && !rental.getStartDate().isBefore(item.getAvailableStartDate())
                 && !rental.getEndDate().isAfter(item.getAvailableEndDate())
-                && !rentals.existsByItemIdAndStatusAndDueAtLessThanEqual(item.getId(), RentalStatus.ACTIVE, now)
-                && !rentals.hasOccupiedDates(item.getId(), OCCUPYING_STATUSES,
-                        rental.getStartDate(), rental.getEndDate())).isPresent();
+                && !hasOverdue(item.getId(), now, reads)
+                && !hasOccupiedDates(rental, reads)).isPresent();
+    }
+
+    private boolean hasActive(long itemId, ListReads reads) {
+        return reads == null ? rentals.existsByItemIdAndStatus(itemId, RentalStatus.ACTIVE)
+                : reads.activeDueAt().containsKey(itemId);
+    }
+
+    private boolean hasOverdue(long itemId, Instant now, ListReads reads) {
+        if (reads == null) return rentals.existsByItemIdAndStatusAndDueAtLessThanEqual(itemId, RentalStatus.ACTIVE, now);
+        Instant due = reads.activeDueAt().get(itemId);
+        return due != null && !due.isAfter(now);
+    }
+
+    private boolean hasOccupiedDates(Rental rental, ListReads reads) {
+        return reads == null ? rentals.hasOccupiedDates(rental.getItemId(), OCCUPYING_STATUSES,
+                rental.getStartDate(), rental.getEndDate()) : reads.conflictingRequests().contains(rental.getId());
     }
 
     private RentalCountStatusResponse.RentalCounts counts(long memberId, boolean owner, Instant now) {

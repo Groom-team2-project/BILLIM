@@ -1,8 +1,16 @@
-import type { ApiRental, ApiRentalDetail } from "@/types/rental-api";
+import type { ApiRental, ApiRentalDetail, ApiRentalCounts } from "@/types/rental-api";
 import type { Rental, RentalStatusView } from "@/types/rental";
 
 export type RentalTab = "borrowed" | "lent";
 export type RentalFilter = "all" | "requested" | "approved" | "active" | "overdue" | "done";
+
+export function rentalFilterCount(counts: ApiRentalCounts, filter: RentalFilter) {
+  const done = counts.returned + counts.rejected + counts.canceled + counts.expired;
+  if (filter === "all") return counts.requested + counts.approved + counts.active + done;
+  if (filter === "done") return done;
+  if (filter === "active") return counts.active - counts.overdue;
+  return counts[filter];
+}
 
 export function matchesRental(rental: Rental, filter: RentalFilter) {
   if (filter === "all") return true;
@@ -15,6 +23,7 @@ export function rentalTab(rental: ApiRental, memberId: string): RentalTab {
 }
 
 export function toRental(r: ApiRental, detail?: ApiRentalDetail): Rental {
+  r = detail?.rental ?? r;
   const date = (value: string): [number, number, number] => {
     const [year, month, day] = value.split("-").map(Number);
     return [month, day, year];

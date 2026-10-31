@@ -36,6 +36,18 @@ test("요청 만료 및 종료 상태 필터, 연체 플래그는 ACTIVE에만 �
   }
 });
 
+test("연체 필터는 연체 ACTIVE만 표시하고 다른 상태는 제외", () => {
+  const entries = [
+    rental,
+    { ...rental, id: "2", overdue: false },
+    { ...rental, id: "3", status: "RETURNED" as const },
+    { ...rental, id: "4", status: "APPROVED" as const },
+  ].map((entry) => toRental(entry));
+  assert.deepEqual(entries.filter((entry) => matchesRental(entry, "overdue")).map((entry) => entry.id), [rental.id]);
+  assert.deepEqual(entries.filter((entry) => matchesRental(entry, "active")).map((entry) => entry.id), ["2"]);
+  assert.equal(entries.filter((entry) => matchesRental(entry, "all")).length, 4);
+});
+
 test("알림 거래 당사자에 맞는 탭 선택", () => {
   assert.equal(rentalTab(rental, "1"), "lent");
   assert.equal(rentalTab(rental, "2"), "borrowed");
@@ -66,4 +78,17 @@ test("상세 응답의 사유·채팅방·확정 전달 약속 표시", () => {
   assert.equal(view.chatRoomId, "99");
   assert.match(view.appt!, /정문/);
   assert.match(view.appt!, /10:00/);
+});
+
+test("재조회한 상세의 최신 상태·허용 행동·반납 약속을 목록보다 우선", () => {
+  const old = { ...rental, status: "APPROVED" as const, overdue: false, version: 1, allowedActions: ["HANDOVER"] };
+  const view = toRental(old, {
+    rental, chatRoomId: "99",
+    appointments: [{ kind: "RETURN", confirmedProposal: { scheduledAt: "2028-01-02T02:00:00Z", place: { name: "반납 장소" } } }],
+  });
+  assert.equal(view.status, "overdue");
+  assert.deepEqual(view.allowedActions, ["RETURN"]);
+  assert.equal(view.chatRoomId, "99");
+  assert.match(view.appt!, /반납 장소/);
+  assert.match(view.appt!, /11:00/);
 });

@@ -1,0 +1,85 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /Users/sobean/IdeaProjects/BILLIM/docs/performance/scripts/rental-list-compare.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 10 max VUs, 40s max duration (incl. graceful stop):
+              * default: 10 looping VUs for 10s (gracefulStop: 30s)
+
+
+running (01.0s), 10/10 VUs, 30 complete and 0 interrupted iterations
+default   [  10% ] 10 VUs  01.0s/10s
+
+running (02.0s), 10/10 VUs, 80 complete and 0 interrupted iterations
+default   [  20% ] 10 VUs  02.0s/10s
+
+running (03.0s), 10/10 VUs, 120 complete and 0 interrupted iterations
+default   [  30% ] 10 VUs  03.0s/10s
+
+running (04.0s), 10/10 VUs, 166 complete and 0 interrupted iterations
+default   [  40% ] 10 VUs  04.0s/10s
+
+running (05.0s), 10/10 VUs, 210 complete and 0 interrupted iterations
+default   [  50% ] 10 VUs  05.0s/10s
+
+running (06.0s), 10/10 VUs, 250 complete and 0 interrupted iterations
+default   [  60% ] 10 VUs  06.0s/10s
+
+running (07.0s), 10/10 VUs, 300 complete and 0 interrupted iterations
+default   [  70% ] 10 VUs  07.0s/10s
+
+running (08.0s), 10/10 VUs, 343 complete and 0 interrupted iterations
+default   [  80% ] 10 VUs  08.0s/10s
+
+running (09.0s), 10/10 VUs, 390 complete and 0 interrupted iterations
+default   [  90% ] 10 VUs  09.0s/10s
+
+running (10.0s), 10/10 VUs, 431 complete and 0 interrupted iterations
+default   [ 100% ] 10 VUs  10.0s/10s
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate==1' rate=100.00%
+
+    http_req_failed
+    ✓ 'rate==0' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 448     43.787245/s
+    checks_succeeded...: 100.00% 448 out of 448
+    checks_failed......: 0.00%   0 out of 448
+
+    ✓ 목록 200·응답·허용 행동 동일
+
+    HTTP
+    http_req_duration..............: avg=22.26ms  min=5.5ms    med=19.1ms   max=84.97ms  p(90)=39.41ms  p(95)=50.04ms  p(99)=71.96ms 
+      { expected_response:true }...: avg=22.26ms  min=5.5ms    med=19.1ms   max=84.97ms  p(90)=39.41ms  p(95)=50.04ms  p(99)=71.96ms 
+    http_req_failed................: 0.00%  0 out of 448
+    http_reqs......................: 448    43.787245/s
+
+    EXECUTION
+    iteration_duration.............: avg=227.18ms min=207.75ms med=223.98ms max=290.03ms p(90)=246.11ms p(95)=255.12ms p(99)=275.36ms
+    iterations.....................: 448    43.787245/s
+    vus............................: 10     min=10       max=10
+    vus_max........................: 10     min=10       max=10
+
+    NETWORK
+    data_received..................: 4.5 MB 439 kB/s
+    data_sent......................: 82 kB  8.0 kB/s
+
+
+
+
+running (10.2s), 00/10 VUs, 448 complete and 0 interrupted iterations
+default ✓ [ 100% ] 10 VUs  10s

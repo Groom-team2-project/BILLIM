@@ -54,6 +54,27 @@ public interface RentalRepository extends JpaRepository<Rental, Long>, JpaSpecif
 
     boolean existsByItemIdAndStatusAndDueAtLessThanEqual(Long itemId, RentalStatus status, Instant now);
 
+    interface ActiveDueDate {
+        Long getItemId();
+        Instant getDueAt();
+    }
+
+    @Query("""
+            select r.itemId as itemId, r.dueAt as dueAt from Rental r
+            where r.itemId in :itemIds and r.status = com.billim.domain.rental.entity.RentalStatus.ACTIVE
+            """)
+    List<ActiveDueDate> findActiveDueDatesByItemIds(Collection<Long> itemIds);
+
+    @Query("""
+            select candidate.id from Rental candidate
+            where candidate.id in :requestIds and exists (
+                select occupied.id from Rental occupied
+                where occupied.itemId = candidate.itemId and occupied.status in :statuses
+                  and occupied.startDate <= candidate.endDate and occupied.endDate >= candidate.startDate
+            )
+            """)
+    List<Long> findConflictingRequestIds(Collection<Long> requestIds, Collection<RentalStatus> statuses);
+
     @Query("""
             select (count(r) > 0) from Rental r
             where r.itemId = :itemId and r.status in :statuses
