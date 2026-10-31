@@ -256,7 +256,7 @@ class CommunityFlowDbTest {
     }
 
     @Test
-    @DisplayName("활성 소속을 둘 만들 수 없다. 서비스를 우회해 넣어도 DB가 막는다 (V21)")
+    @DisplayName("활성 소속을 둘 만들 수 없다. 서비스를 우회해 넣어도 DB가 막는다 (V22)")
     void activeMembershipIsUniquePerMember() {
         verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
 

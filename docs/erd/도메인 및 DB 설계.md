@@ -1,7 +1,7 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.13\
-> 수정일 : 2026.10.29
+> 버전 : v0.1.14\
+> 수정일 : 2026.10.31
 
 ## 1. 공통 규칙
 
@@ -87,6 +87,7 @@ erDiagram
 | [sanctions](#sanctions--회원-이용-제한과-해제-이력--p1-e-결정--a-적용) | E 결정 / A 적용 | P1 | 회원 이용 제한과 해제 이력 |
 | [notices](#notices--커뮤니티-공지--p2) | E 노현섭 | P2 | 커뮤니티 공지 |
 | [idempotency_records](#idempotency_records--post-명령의-안전한-재전송--p0-공통--a-기반) | 공통 / A 기반 | P0 | POST 명령의 안전한 재전송 |
+| [shedlock](#shedlock--다중-인스턴스-배치-잠금-a-이지은) | A 기반 | P0 | 다중 인스턴스 배치 잠금 |
 
 ## 4. 테이블 상세
 
@@ -201,13 +202,13 @@ erDiagram
 | verified_at | datetime(6) | N | 마지막 성공 인증 시각 | — |
 | verification_expires_at | datetime(6) | N | verified_at + 30일 제안 | — |
 | left_at | datetime(6) | Y | 이전 소속에서 이탈한 시각 | — |
-| active_member_id | bigint | Y | 생성 컬럼(VIRTUAL). ACTIVE면 member_id, 아니면 NULL. 활성 소속 유일성 전용 (V21) | — |
+| active_member_id | bigint | Y | 생성 컬럼(VIRTUAL). ACTIVE면 member_id, 아니면 NULL. 활성 소속 유일성 전용 (V22) | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
-인덱스: UNIQUE (member_id, community_id) · UNIQUE (active_member_id) — 활성 소속 유일 (V21) · INDEX (community_id, status, verification_expires_at)
+인덱스: UNIQUE (member_id, community_id) · UNIQUE (active_member_id) — 활성 소속 유일 (V22) · INDEX (community_id, status, verification_expires_at)
 
-- 활성 소속은 회원당 하나. members 잠금 아래 검사하고 **DB도 보장한다**(V21).
+- 활성 소속은 회원당 하나. members 잠금 아래 검사하고 **DB도 보장한다**(V22).
   MySQL에 부분 유니크 인덱스가 없어 ACTIVE일 때만 값이 생기는 생성 컬럼으로 대신한다.
   유니크 인덱스는 NULL을 여러 개 허용하므로 이탈 행은 제한 없이 쌓인다.
 - 동네를 바꿀 때는 이전 소속을 **먼저 flush해** 이탈로 내린 뒤 새 소속을 세운다.
@@ -648,6 +649,18 @@ erDiagram
 - 회원 행 잠금 후 조회하고, 부수효과와 결과 기록을 하나의 트랜잭션에서 커밋한다. 중간 IN_PROGRESS 행은 외부에 노출하지 않는다.
 - 멱등 재응답도 인증·리소스 조회 권한을 재검사한다. 명령 상태/version 검사는 최초 실행에만 적용한다.
 - multipart 이미지는 재인코딩 전 입력 바이트 해시를 포함한다. 24시간 이후 재요청은 신규 처리될 수 있으므로 거래 자체의 중복 제약도 필요하다.
+
+#### shedlock — 다중 인스턴스 배치 잠금 (A 이지은)
+
+- V21 마이그레이션 적용. ShedLock 라이브러리 표준 스키마. 같은 이름의 `@SchedulerLock` 작업은 한 인스턴스만 실행, 나머지는 건너뜀.
+- 잠금 시각은 DB 시계 기준. 적용 작업: 만료 세션·OAuth 시도 정리(`auth-expired-cleanup`).
+
+| 컬럼 | 타입 | NULL | 규칙·의미 | 참조 |
+| --- | --- | --- | --- | --- |
+| name | varchar(64) | N | PK · 작업 이름 | — |
+| lock_until | timestamp(3) | N | 잠금 유지 시각. 지나면 다른 인스턴스 획득 가능 | — |
+| locked_at | timestamp(3) | N | 잠금 획득 시각 | — |
+| locked_by | varchar(255) | N | 획득 인스턴스 호스트명 | — |
 
 ## 5. 마이그레이션과 구현 순서
 

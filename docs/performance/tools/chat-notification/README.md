@@ -1,5 +1,25 @@
 # 채팅·알림 로컬 성능 테스트
 
+후속 목록·유휴 연결·전송·outbox 비교는 [2026.10.31 후속 측정](../../박선우-채팅알림-후속측정.md)에 조건과 결과를 기록했다. `PERF_SHARED_OWNER=true`와 `PERF_FIXTURE_NAME=fixtures-followup.json`을 사용하면 한 회원이 여러 채팅방을 가진 독립 fixture를 생성한다. 이 시험은 Compose 프로젝트를 `billim-perf-followup`으로 지정해 기존 `billim-perf` 볼륨과 분리한다. `measure-room-list.py`, `count-room-list-sql.py`, `measure-idle-queries.py`, `measure-send.py`가 각 경로를 측정한다. outbox 50/100 비교는 `Dockerfile.outbox-benchmark`와 `run-outbox-benchmark.sh`로 만든 Docker 컨테이너 안에서 실행하며, 컨테이너 종료 코드로 완료 여부를 확인한다.
+
+멀티 인스턴스 동작 검증은 `compose.multi.correctness.yaml`을 `billim-perf-multi-20261031` 프로젝트로 띄우고 `fixtures-multi.json`을 시드한 뒤, `benchmark` 서비스를 실행한다. 기존 `compose.multi.yaml`의 k6 성능 실험과 별도 구성이다. Docker Desktop에서 `billim-perf-multi-20261031-benchmark`의 종료 코드 0과 `local/multi-instance-result-20261031.json`의 `status: passed`를 함께 확인한다. 이 결과 파일에는 세션 원문이 없다.
+
+Redis 장애·서버 재시작·지속 부하는 같은 프로젝트의 `resilience` 서비스로 실행한다. 이 컨테이너는 **해당 프로젝트의 Redis와 `backend-b`만** 잠시 중단·재시작하고, 최종적으로 두 컨테이너를 실행 상태로 되돌린다. `SOAK_SECONDS=600`, `SOAK_WORKERS=24`가 기본값이다. Docker Desktop에서 `billim-perf-multi-20261031-resilience`의 종료 코드와 `local/multi-instance-resilience-20261031.json`을 확인한다. 시험 중에는 이 Compose 프로젝트를 다른 테스트에 재사용하지 않는다.
+
+```powershell
+$env:COMPOSE_PROJECT_NAME = 'billim-perf-multi-20261031'
+$env:PERF_FIXTURE_NAME = 'fixtures-multi.json'
+$env:PERF_PAIRS = '8'
+$env:PERF_NOTIFICATIONS_PER_MEMBER = '0'
+docker compose -p billim-perf-multi-20261031 -f docs/performance/tools/chat-notification/compose.multi.correctness.yaml up -d --build mysql redis backend-a backend-b
+python docs/performance/tools/chat-notification/seed.py
+docker compose -p billim-perf-multi-20261031 -f docs/performance/tools/chat-notification/compose.multi.correctness.yaml run -d --no-deps --name billim-perf-multi-20261031-benchmark benchmark
+docker wait billim-perf-multi-20261031-benchmark
+docker compose -p billim-perf-multi-20261031 -f docs/performance/tools/chat-notification/compose.multi.correctness.yaml run -d --no-deps --name billim-perf-multi-20261031-resilience resilience
+```
+
+백엔드가 아직 기동 중이라 시드의 CSRF 확인만 실패하면 DB와 세션 fixture는 이미 생성된 상태다. 다시 시드하지 말고 `python docs/performance/tools/chat-notification/seed.py --refresh-csrf`를 실행한다. 동일한 fixture 이름과 컨테이너 이름으로 재실행하려면 먼저 격리 프로젝트의 이전 시험 데이터를 정리하거나 새 이름·프로젝트를 지정한다.
+
 배포 환경과 개발 DB를 사용하지 않는 별도 `billim-perf` Compose 프로젝트입니다. 테스트 계정의 세션은 이 DB에만 넣으며, 실제 카카오 키는 필요하지 않습니다. `docs/performance/tools/chat-notification/local/`에는 테스트 세션 원문이 있으므로 Git에서 제외합니다. 스크립트와 컨테이너는 본인 PC에서만 실행하세요.
 
 ## 준비 (PowerShell, 저장소 루트)

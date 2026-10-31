@@ -1,0 +1,118 @@
+{
+  "environment": "2 Spring Boot / 1 MySQL / 1 Redis",
+  "status": "passed",
+  "soak_target_seconds": 600,
+  "soak_workers": 24,
+  "redis_outage": {
+    "during_outage_sent": 3,
+    "during_outage_received": 3,
+    "recovery_latency_ms": [
+      1383.9,
+      2011.0,
+      2009.6
+    ],
+    "redis_subscribers_after": 2,
+    "after_restart_received": 1
+  },
+  "server_restart": {
+    "a_send_while_b_down": 1,
+    "b_history_after_restart": 1,
+    "b_live_delivery_after_restart": 1,
+    "redis_subscribers_after": 2
+  },
+  "sustained_load": {
+    "duration_s": 600,
+    "workers": 24,
+    "requests": 86441,
+    "success": 86441,
+    "failures": 0,
+    "p95_ms": 31.5,
+    "p99_ms": 53.0,
+    "per_minute": [
+      {
+        "minute": 1,
+        "requests": 8876,
+        "success": 8876,
+        "failures": 0,
+        "p95_ms": 18.9,
+        "rps": 147.93
+      },
+      {
+        "minute": 2,
+        "requests": 8919,
+        "success": 8919,
+        "failures": 0,
+        "p95_ms": 20.2,
+        "rps": 148.65
+      },
+      {
+        "minute": 3,
+        "requests": 9011,
+        "success": 9011,
+        "failures": 0,
+        "p95_ms": 14.3,
+        "rps": 150.18
+      },
+      {
+        "minute": 4,
+        "requests": 9006,
+        "success": 9006,
+        "failures": 0,
+        "p95_ms": 14.5,
+        "rps": 150.1
+      },
+      {
+        "minute": 5,
+        "requests": 8945,
+        "success": 8945,
+        "failures": 0,
+        "p95_ms": 22.5,
+        "rps": 149.08
+      },
+      {
+        "minute": 6,
+        "requests": 8332,
+        "success": 8332,
+        "failures": 0,
+        "p95_ms": 38.4,
+        "rps": 138.87
+      },
+      {
+        "minute": 7,
+        "requests": 8323,
+        "success": 8323,
+        "failures": 0,
+        "p95_ms": 39.9,
+        "rps": 138.72
+      },
+      {
+        "minute": 8,
+        "requests": 8301,
+        "success": 8301,
+        "failures": 0,
+        "p95_ms": 39.0,
+        "rps": 138.35
+      },
+      {
+        "minute": 9,
+        "requests": 8347,
+        "success": 8347,
+        "failures": 0,
+        "p95_ms": 38.1,
+        "rps": 139.12
+      },
+      {
+        "minute": 10,
+        "requests": 8381,
+        "success": 8381,
+        "failures": 0,
+        "p95_ms": 37.2,
+        "rps": 139.68
+      }
+    ],
+    "db_messages": 86441,
+    "outbox_events": 400,
+    "outbox_notifications": 400,
+    "issues": []
+  }
+}

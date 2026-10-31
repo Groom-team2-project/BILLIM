@@ -3,7 +3,7 @@ import ws from 'k6/ws';
 import { check, sleep } from 'k6';
 import { Rate, Trend } from 'k6/metrics';
 
-const data = JSON.parse(open('./local/fixtures.json'));
+const data = JSON.parse(open(`./local/${__ENV.FIXTURE_NAME || 'fixtures.json'}`));
 const baseUrl = __ENV.BASE_URL || 'http://backend:8080';
 const testCase = __ENV.CASE || 'chat-send';
 const vus = Number(__ENV.VUS || 2);
@@ -19,10 +19,13 @@ const deliveryMs = new Trend('chat_delivery_ms', true);
 const stableSocket = testCase === 'chat-websocket-stable';
 const realisticSocket = testCase === 'chat-realistic';
 const pairedSocket = testCase === 'chat-paired';
+const idleSocket = testCase === 'chat-idle';
 
 export const options = {
   scenarios: testCase === 'notification-read'
     ? { selected: { executor: 'shared-iterations', vus, iterations: 80, maxDuration: '1m' } }
+    : idleSocket
+      ? { selected: { executor: 'per-vu-iterations', vus, iterations: 1, maxDuration: '60s' } }
     : stableSocket || realisticSocket || pairedSocket
       ? { selected: { executor: 'per-vu-iterations', vus, iterations: 1, maxDuration: '30s' } }
       : { selected: { executor: 'constant-vus', vus, duration } },
@@ -48,7 +51,7 @@ export const options = {
 };
 
 function pair() {
-  if (pairedSocket) return data.pairs[Math.floor((__VU - 1) / 2)];
+  if (pairedSocket || idleSocket) return data.pairs[Math.floor((__VU - 1) / 2)];
   return data.pairs[__ENV.HOT_ROOM === 'true' ? 0 : (__VU - 1) % data.pairs.length];
 }
 
@@ -90,13 +93,22 @@ export default function (context) {
     throw new Error('chat-paired needs an even VUS and one unique room per two VUs');
   }
   const current = pair();
-  const user = current.requester;
+  const user = idleSocket && __VU % 2 === 1 ? current.owner : current.requester;
 
   if (testCase === 'chat-send') {
     verify(send(current.roomId, user, uuid()), 201);
   } else if (testCase === 'chat-list') {
     verify(http.get(`${baseUrl}/api/v1/chat/rooms/${current.roomId}/messages?limit=20`,
       { headers: headers(user), tags: { endpoint: 'chat-list' } }), 200);
+  } else if (testCase === 'chat-room-list') {
+    const size = Number(__ENV.INBOX_PAGE_SIZE || 20);
+    const response = http.get(`${baseUrl}/api/v1/chat/rooms?filter=ALL&page=0&size=${size}`,
+      { headers: headers(current.owner), tags: { endpoint: 'chat-room-list' } });
+    const ok = check(response, {
+      'room list has requested size': (r) => r.status === 200 && r.json('items').length === size,
+    });
+    failures.add(!ok);
+    sleep(0.2);
   } else if (testCase === 'chat-inbox') {
     verify(http.get(`${baseUrl}/api/v1/chat/rooms?filter=ALL&page=0&size=20`,
       { headers: headers(user), tags: { endpoint: 'chat-rooms' } }), 200);
@@ -111,6 +123,13 @@ export default function (context) {
     const id = current.notificationIds[__ITER % current.notificationIds.length];
     verify(http.put(`${baseUrl}/api/v1/notifications/${id}/read`, null,
       { headers: headers(user), tags: { endpoint: 'notification-read' } }), 200);
+  } else if (idleSocket) {
+    const wsUrl = baseUrl.replace(/^http/, 'ws') + `/ws/chat?roomId=${current.roomId}`;
+    const result = ws.connect(wsUrl, { headers: headers(user) }, (socket) => {
+      socket.on('open', () => console.log(`PERF_IDLE_READY ${__VU}`));
+      socket.setTimeout(() => socket.close(), 45000);
+    });
+    verify(result, 101);
   } else if (testCase === 'chat-websocket') {
     const clientMessageId = uuid();
     const wsUrl = baseUrl.replace(/^http/, 'ws') + `/ws/chat?roomId=${current.roomId}`;
@@ -294,5 +313,5 @@ export default function (context) {
     throw new Error(`Unknown CASE: ${testCase}`);
   }
 
-  if (testCase !== 'notification-read' && !realisticSocket && !pairedSocket) sleep(0.2);
+  if (testCase !== 'notification-read' && !realisticSocket && !pairedSocket && !idleSocket) sleep(0.2);
 }

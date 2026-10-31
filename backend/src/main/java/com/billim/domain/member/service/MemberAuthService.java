@@ -1,5 +1,6 @@
 package com.billim.domain.member.service;
 
+import com.billim.domain.member.entity.DisplayNamePolicy;
 import com.billim.domain.member.entity.Member;
 import com.billim.domain.member.entity.MemberRole;
 import com.billim.domain.member.entity.SocialAccount;
@@ -67,16 +68,19 @@ public class MemberAuthService {
     }
 
     /**
-     * 제공자 닉네임을 표시 이름 규격(2~30자)으로 보정.
+     * 제공자 닉네임을 표시 이름 규격(2~30자, 금지 문자·사칭 이름 제외)으로 보정.
      * 규격 이탈 닉네임으로 인한 가입 실패 방지. 표시 이름은 중복 허용.
      */
     static String normalizeDisplayName(String nickname) {
-        String trimmed = nickname == null ? "" : nickname.strip();
+        // 금지 문자는 거부 대신 제거 — 제공자 닉네임 때문에 가입이 막히지 않도록
+        String trimmed = nickname == null ? "" : DisplayNamePolicy.stripForbidden(nickname).strip();
         if (trimmed.length() > Member.DISPLAY_NAME_MAX) {
             trimmed = truncate(trimmed);
         }
         // 하한 검사는 절단 이후. 자른 결과가 공백뿐인 경우도 여기서 처리
-        return trimmed.length() < Member.DISPLAY_NAME_MIN
+        // 보이는 글자 없는 이름·사칭 이름도 기본 이름으로 대체
+        return trimmed.length() < Member.DISPLAY_NAME_MIN || !DisplayNamePolicy.hasVisibleChar(trimmed)
+                || DisplayNamePolicy.isReserved(trimmed)
                 ? FALLBACK_NAME_PREFIX + (1000 + RANDOM.nextInt(9000))
                 : trimmed;
     }

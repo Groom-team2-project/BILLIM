@@ -1,0 +1,476 @@
+{
+  "chat_room_list": [
+    {
+      "stage": "baseline",
+      "page_size": 1,
+      "run": 1,
+      "requests": 148,
+      "rps": 9.611861603331182,
+      "p50_ms": 12.5481365,
+      "p95_ms": 19.87594565000001,
+      "failure_rate": 0
+    },
+    {
+      "stage": "baseline",
+      "page_size": 1,
+      "run": 2,
+      "requests": 147,
+      "rps": 9.546834163418895,
+      "p50_ms": 11.675668,
+      "p95_ms": 26.49955349999997,
+      "failure_rate": 0
+    },
+    {
+      "stage": "baseline",
+      "page_size": 1,
+      "run": 3,
+      "requests": 148,
+      "rps": 9.691498366250064,
+      "p50_ms": 10.289544,
+      "p95_ms": 16.462912350000018,
+      "failure_rate": 0
+    },
+    {
+      "stage": "baseline",
+      "page_size": 20,
+      "run": 1,
+      "requests": 132,
+      "rps": 8.541215925780598,
+      "p50_ms": 65.1988485,
+      "p95_ms": 76.74621024999999,
+      "failure_rate": 0
+    },
+    {
+      "stage": "baseline",
+      "page_size": 20,
+      "run": 2,
+      "requests": 132,
+      "rps": 8.626250125750223,
+      "p50_ms": 60.164361,
+      "p95_ms": 81.77937195,
+      "failure_rate": 0
+    },
+    {
+      "stage": "baseline",
+      "page_size": 20,
+      "run": 3,
+      "requests": 132,
+      "rps": 8.60174521689733,
+      "p50_ms": 59.555683,
+      "p95_ms": 80.08773154999994,
+      "failure_rate": 0
+    },
+    {
+      "stage": "baseline",
+      "page_size": 50,
+      "run": 1,
+      "requests": 112,
+      "rps": 7.36718570403008,
+      "p50_ms": 136.6775585,
+      "p95_ms": 161.05237819999996,
+      "failure_rate": 0
+    },
+    {
+      "stage": "baseline",
+      "page_size": 50,
+      "run": 2,
+      "requests": 112,
+      "rps": 7.212161950400453,
+      "p50_ms": 142.6239285,
+      "p95_ms": 210.50749014999997,
+      "failure_rate": 0
+    },
+    {
+      "stage": "baseline",
+      "page_size": 50,
+      "run": 3,
+      "requests": 112,
+      "rps": 7.24559068094412,
+      "p50_ms": 142.2244485,
+      "p95_ms": 225.11844144999998,
+      "failure_rate": 0
+    },
+    {
+      "stage": "rental-once",
+      "page_size": 1,
+      "run": 1,
+      "requests": 144,
+      "rps": 9.53260352330669,
+      "p50_ms": 14.700014,
+      "p95_ms": 22.754531449999998,
+      "failure_rate": 0
+    },
+    {
+      "stage": "rental-once",
+      "page_size": 1,
+      "run": 2,
+      "requests": 148,
+      "rps": 9.636719157095428,
+      "p50_ms": 12.960909000000001,
+      "p95_ms": 19.48867480000001,
+      "failure_rate": 0
+    },
+    {
+      "stage": "rental-once",
+      "page_size": 1,
+      "run": 3,
+      "requests": 148,
+      "rps": 9.588637583052206,
+      "p50_ms": 10.7888925,
+      "p95_ms": 19.529338450000004,
+      "failure_rate": 0
+    },
+    {
+      "stage": "rental-once",
+      "page_size": 20,
+      "run": 1,
+      "requests": 132,
+      "rps": 8.583634864732012,
+      "p50_ms": 57.409023000000005,
+      "p95_ms": 108.59405474999997,
+      "failure_rate": 0
+    },
+    {
+      "stage": "rental-once",
+      "page_size": 20,
+      "run": 2,
+      "requests": 132,
+      "rps": 8.737196497442438,
+      "p50_ms": 54.870235,
+      "p95_ms": 65.73819675,
+      "failure_rate": 0
+    },
+    {
+      "stage": "rental-once",
+      "page_size": 20,
+      "run": 3,
+      "requests": 132,
+      "rps": 8.706044501809556,
+      "p50_ms": 53.3251975,
+      "p95_ms": 62.92143675,
+      "failure_rate": 0
+    },
+    {
+      "stage": "rental-once",
+      "page_size": 50,
+      "run": 1,
+      "requests": 116,
+      "rps": 7.477087715657264,
+      "p50_ms": 133.60307699999998,
+      "p95_ms": 152.5021565,
+      "failure_rate": 0
+    },
+    {
+      "stage": "rental-once",
+      "page_size": 50,
+      "run": 2,
+      "requests": 116,
+      "rps": 7.485478798362676,
+      "p50_ms": 126.226591,
+      "p95_ms": 146.03475674999999,
+      "failure_rate": 0
+    },
+    {
+      "stage": "rental-once",
+      "page_size": 50,
+      "run": 3,
+      "requests": 116,
+      "rps": 7.543893218238233,
+      "p50_ms": 121.6583935,
+      "p95_ms": 172.17443925,
+      "failure_rate": 0
+    },
+    {
+      "stage": "batch-base",
+      "page_size": 1,
+      "run": 1,
+      "requests": 144,
+      "rps": 9.544518788901833,
+      "p50_ms": 16.544159,
+      "p95_ms": 22.384539649999997,
+      "failure_rate": 0
+    },
+    {
+      "stage": "batch-base",
+      "page_size": 1,
+      "run": 2,
+      "requests": 148,
+      "rps": 9.554836951992272,
+      "p50_ms": 12.9486415,
+      "p95_ms": 19.755674900000017,
+      "failure_rate": 0
+    },
+    {
+      "stage": "batch-base",
+      "page_size": 1,
+      "run": 3,
+      "requests": 144,
+      "rps": 9.559698763033753,
+      "p50_ms": 12.315781999999999,
+      "p95_ms": 19.7371363,
+      "failure_rate": 0
+    },
+    {
+      "stage": "batch-base",
+      "page_size": 20,
+      "run": 1,
+      "requests": 140,
+      "rps": 9.020118527709073,
+      "p50_ms": 36.789971,
+      "p95_ms": 58.77494115,
+      "failure_rate": 0
+    },
+    {
+      "stage": "batch-base",
+      "page_size": 20,
+      "run": 2,
+      "requests": 140,
+      "rps": 9.183158585615828,
+      "p50_ms": 32.749990999999994,
+      "p95_ms": 44.00821974999999,
+      "failure_rate": 0
+    },
+    {
+      "stage": "batch-base",
+      "page_size": 20,
+      "run": 3,
+      "requests": 140,
+      "rps": 9.078251919146362,
+      "p50_ms": 33.769924,
+      "p95_ms": 46.63179779999999,
+      "failure_rate": 0
+    },
+    {
+      "stage": "batch-base",
+      "page_size": 50,
+      "run": 1,
+      "requests": 128,
+      "rps": 8.45831604619561,
+      "p50_ms": 68.5602035,
+      "p95_ms": 84.3226286,
+      "failure_rate": 0
+    },
+    {
+      "stage": "batch-base",
+      "page_size": 50,
+      "run": 2,
+      "requests": 128,
+      "rps": 8.439548645894032,
+      "p50_ms": 66.41336899999999,
+      "p95_ms": 84.11214779999993,
+      "failure_rate": 0
+    },
+    {
+      "stage": "batch-base",
+      "page_size": 50,
+      "run": 3,
+      "requests": 128,
+      "rps": 8.463445752952667,
+      "p50_ms": 66.79771600000001,
+      "p95_ms": 76.25788879999999,
+      "failure_rate": 0
+    }
+  ],
+  "idle_websocket": [
+    {
+      "stage": "idle-before",
+      "run": 1,
+      "connection_failure_rate": 0
+    },
+    {
+      "stage": "idle-before",
+      "run": 2,
+      "connection_failure_rate": 0
+    },
+    {
+      "stage": "idle-before",
+      "run": 3,
+      "connection_failure_rate": 0
+    },
+    {
+      "stage": "idle-after",
+      "run": 1,
+      "connection_failure_rate": 0
+    },
+    {
+      "stage": "idle-after",
+      "run": 2,
+      "connection_failure_rate": 0
+    },
+    {
+      "stage": "idle-after",
+      "run": 3,
+      "connection_failure_rate": 0
+    }
+  ],
+  "chat_send": [
+    {
+      "stage": "send-stable",
+      "variant": "distributed",
+      "run": 1,
+      "requests": 1095,
+      "rps": 72.31852629841275,
+      "p95_ms": 35.42467289999999,
+      "failure_rate": 0
+    },
+    {
+      "stage": "send-stable",
+      "variant": "distributed",
+      "run": 2,
+      "requests": 1137,
+      "rps": 74.74216902424641,
+      "p95_ms": 17.60181980000001,
+      "failure_rate": 0
+    },
+    {
+      "stage": "send-stable",
+      "variant": "distributed",
+      "run": 3,
+      "requests": 1122,
+      "rps": 73.99263888070216,
+      "p95_ms": 19.4911895,
+      "failure_rate": 0
+    },
+    {
+      "stage": "send-stable",
+      "variant": "hot",
+      "run": 1,
+      "requests": 1136,
+      "rps": 74.08455788922942,
+      "p95_ms": 20.4341805,
+      "failure_rate": 0
+    },
+    {
+      "stage": "send-stable",
+      "variant": "hot",
+      "run": 2,
+      "requests": 1142,
+      "rps": 74.4653366544038,
+      "p95_ms": 14.1495735,
+      "failure_rate": 0
+    },
+    {
+      "stage": "send-stable",
+      "variant": "hot",
+      "run": 3,
+      "requests": 1151,
+      "rps": 75.0160772504781,
+      "p95_ms": 17.479959,
+      "failure_rate": 0
+    },
+    {
+      "stage": "send-64",
+      "variant": "distributed",
+      "run": 1,
+      "requests": 2999,
+      "rps": 290.55918482800075,
+      "p95_ms": 27.229140499999996,
+      "failure_rate": 0
+    },
+    {
+      "stage": "send-64",
+      "variant": "distributed",
+      "run": 2,
+      "requests": 2931,
+      "rps": 288.24715699311446,
+      "p95_ms": 38.496465,
+      "failure_rate": 0
+    },
+    {
+      "stage": "send-64",
+      "variant": "distributed",
+      "run": 3,
+      "requests": 2981,
+      "rps": 292.5862832920355,
+      "p95_ms": 31.626086,
+      "failure_rate": 0
+    },
+    {
+      "stage": "send-64",
+      "variant": "hot",
+      "run": 1,
+      "requests": 1903,
+      "rps": 183.54809726806548,
+      "p95_ms": 210.28373309999964,
+      "failure_rate": 0
+    },
+    {
+      "stage": "send-64",
+      "variant": "hot",
+      "run": 2,
+      "requests": 1817,
+      "rps": 176.02156489345796,
+      "p95_ms": 302.52200639999984,
+      "failure_rate": 0
+    },
+    {
+      "stage": "send-64",
+      "variant": "hot",
+      "run": 3,
+      "requests": 1901,
+      "rps": 181.85724932285717,
+      "p95_ms": 240.326713,
+      "failure_rate": 0
+    }
+  ],
+  "outbox": {
+    "outbox-batch50": [
+      {
+        "run": 1,
+        "events": 500,
+        "notifications": 500,
+        "elapsed_s": 17.85,
+        "throughput_per_s": 28.0,
+        "lag_p95_ms": 17509.4,
+        "lag_max_ms": 17802.3
+      },
+      {
+        "run": 2,
+        "events": 500,
+        "notifications": 500,
+        "elapsed_s": 15.42,
+        "throughput_per_s": 32.4,
+        "lag_p95_ms": 15775.8,
+        "lag_max_ms": 16050.5
+      },
+      {
+        "run": 3,
+        "events": 500,
+        "notifications": 500,
+        "elapsed_s": 15.33,
+        "throughput_per_s": 32.6,
+        "lag_p95_ms": 14882.8,
+        "lag_max_ms": 15142.9
+      }
+    ],
+    "outbox-batch100": [
+      {
+        "run": 1,
+        "events": 500,
+        "notifications": 500,
+        "elapsed_s": 12.76,
+        "throughput_per_s": 39.2,
+        "lag_p95_ms": 12154.0,
+        "lag_max_ms": 12417.3
+      },
+      {
+        "run": 2,
+        "events": 500,
+        "notifications": 500,
+        "elapsed_s": 10.07,
+        "throughput_per_s": 49.7,
+        "lag_p95_ms": 10137.0,
+        "lag_max_ms": 10368.4
+      },
+      {
+        "run": 3,
+        "events": 500,
+        "notifications": 500,
+        "elapsed_s": 10.16,
+        "throughput_per_s": 49.2,
+        "lag_p95_ms": 9361.2,
+        "lag_max_ms": 9605.7
+      }
+    ]
+  }
+}

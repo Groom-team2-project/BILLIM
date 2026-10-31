@@ -1,14 +1,21 @@
 package com.billim.domain.member.controller;
 
 import com.billim.domain.member.dto.CsrfTokenResponse;
+import com.billim.domain.member.dto.LogoutOthersResponse;
+import com.billim.domain.member.entity.AuthSession;
 import com.billim.domain.member.service.AuthSessionService;
+import com.billim.global.exception.BusinessException;
+import com.billim.global.exception.ErrorCode;
+import com.billim.global.security.LoginMember;
 import com.billim.global.security.oauth.DbAuthorizationRequestRepository;
+import com.billim.global.security.session.CurrentAuthSession;
 import com.billim.global.security.session.SessionCookies;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.web.csrf.CsrfToken;
@@ -26,6 +33,7 @@ public class AuthController {
 
     private final AuthSessionService authSessionService;
     private final SessionCookies sessionCookies;
+    private final CurrentAuthSession currentAuthSession;
     private final OAuth2AuthorizationRequestResolver authorizationRequestResolver;
     private final DbAuthorizationRequestRepository authorizationRequestRepository;
 
@@ -69,5 +77,14 @@ public class AuthController {
         sessionCookies.read(request).ifPresent(authSessionService::revoke);
         sessionCookies.expire(response);
         return ResponseEntity.noContent().build();
+    }
+
+    /** 현재 세션 외 같은 회원의 세션 전부 폐기. 인증 필요 — SecurityConfig에서 /auth/** 공개 규칙보다 앞에 지정 */
+    @PostMapping("/logout-others")
+    public LogoutOthersResponse logoutOthers(@AuthenticationPrincipal LoginMember loginMember,
+                                             HttpServletRequest request) {
+        AuthSession current = currentAuthSession.get(request)
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHENTICATED));
+        return new LogoutOthersResponse(authSessionService.revokeOthers(loginMember.memberId(), current.getId()));
     }
 }

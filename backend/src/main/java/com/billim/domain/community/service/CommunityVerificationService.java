@@ -80,7 +80,7 @@ public class CommunityVerificationService {
 
         leavePreviousMembership(memberId, communityId, now);
         // 이전 소속을 먼저 DB에 내린다. 한 번에 flush하면 Hibernate가 INSERT를 UPDATE보다 앞세워
-        // 새 ACTIVE가 들어간 뒤 이전 ACTIVE가 내려가고, 활성 소속 유일 제약에 걸린다. (V21)
+        // 새 ACTIVE가 들어간 뒤 이전 ACTIVE가 내려가고, 활성 소속 유일 제약에 걸린다. (V22)
         membershipRepository.flush();
 
         CommunityMembership membership = activateMembership(memberId, communityId, now);
