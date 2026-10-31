@@ -77,15 +77,17 @@ public class ChatRoomViewService {
     ) {
         Long roomId = Long.valueOf(base.id());
 
+        var linkedRentals = linkedRentalService.get(roomId, memberId);
         List<RentalSummaryResponse> rentals =
-            linkedRentalService.get(roomId, memberId).stream()
+            linkedRentals.stream()
                 .map(rental -> rentalQueryService.getRentalSummary(rental.getId(), memberId))
                 .toList();
 
         ChatRoomAccessPolicy.Restriction restriction =
             resolveRestriction(roomId, memberId);
         ChatAccessResponse access =
-            accessPolicy.resolve(roomId, memberId, restriction);
+            accessPolicy.resolve(roomId, memberId, restriction,
+                ChatRoomLinkedRentalService.allowedRentalIds(linkedRentals));
 
         return ChatRoomResponse.from(base, rentals, access, thumbnails.get(Long.valueOf(base.itemId())));
     }

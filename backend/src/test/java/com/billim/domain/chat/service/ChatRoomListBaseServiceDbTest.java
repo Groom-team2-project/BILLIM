@@ -105,6 +105,9 @@ class ChatRoomListBaseServiceDbTest {
         assertThat(first.hasNext()).isTrue();
         assertThat(first.page()).isZero();
         assertThat(first.size()).isEqualTo(2);
+        assertThat(first.items().getFirst().lastMessagePreview()).isEqualTo("새 메시지");
+        assertThat(first.items().getFirst().unreadCount()).isEqualTo(1);
+        assertThat(first.items().get(1).unreadCount()).isZero();
 
         ChatRoomListBaseService.RoomBasePage second = listService.getAll(requesterId, 1, 2);
         assertThat(roomIds(second)).containsExactly(firstRoomId);
