@@ -45,7 +45,11 @@ public class ChatRoomLinkedRentalService {
 
     @Transactional(readOnly = true)
     public List<String> getAllowedRentalIds(Long roomId, Long memberId) {
-        return get(roomId, memberId).stream()
+        return allowedRentalIds(get(roomId, memberId));
+    }
+
+    public static List<String> allowedRentalIds(List<Rental> rentals) {
+        return rentals.stream()
             .filter(rental ->
                 rental.getStatus() == RentalStatus.APPROVED
                     || rental.getStatus() == RentalStatus.ACTIVE

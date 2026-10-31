@@ -1,0 +1,46 @@
+{
+  "environment": "2 Spring Boot / 1 MySQL / 1 Redis",
+  "status": "passed",
+  "cross_instance_delivery": {
+    "directions": 16,
+    "p95_ms": 142.1,
+    "max_ms": 163.5,
+    "all_ms": [
+      163.5,
+      142.1,
+      37.4,
+      34.5,
+      38.7,
+      40.4,
+      34.3,
+      35.6,
+      35.5,
+      35.3,
+      35.5,
+      39.0,
+      35.1,
+      34.5,
+      37.2,
+      33.1
+    ]
+  },
+  "concurrent_send": {
+    "requests": 64,
+    "distinct_sequences": 64,
+    "first_sequence": 3,
+    "last_sequence": 66
+  },
+  "duplicate_client_key": {
+    "http_responses": 2,
+    "db_rows": 1,
+    "message_id": "81"
+  },
+  "outbox_two_workers": {
+    "events": 300,
+    "done": 300,
+    "notifications": 300,
+    "distinct_events": 300,
+    "deliveries": 300,
+    "elapsed_s": 5.66
+  }
+}

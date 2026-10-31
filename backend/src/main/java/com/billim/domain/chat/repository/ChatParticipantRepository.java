@@ -7,11 +7,14 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ChatParticipantRepository extends JpaRepository<ChatParticipant, Long> {
 
     Optional<ChatParticipant> findByRoomIdAndMemberId(Long roomId, Long memberId);
+
+    List<ChatParticipant> findByMemberIdAndRoomIdIn(Long memberId, List<Long> roomIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select participant from ChatParticipant participant "

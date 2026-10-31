@@ -33,9 +33,7 @@ public class ChatRoomListBaseService {
             memberId, PageRequest.of(page, size)
         );
 
-        List<ChatRoomBaseService.RoomBase> items = rooms.getContent().stream()
-            .map(room -> baseService.get(room.getId(), memberId))
-            .toList();
+        List<ChatRoomBaseService.RoomBase> items = baseService.getForRooms(rooms.getContent(), memberId);
 
         return new RoomBasePage(
             items,
@@ -87,9 +85,7 @@ public class ChatRoomListBaseService {
     }
 
     private RoomBasePage toBasePage(Page<ChatRoom> rooms, Long memberId, int page, int size) {
-        List<ChatRoomBaseService.RoomBase> items = rooms.getContent().stream()
-            .map(room -> baseService.get(room.getId(), memberId))
-            .toList();
+        List<ChatRoomBaseService.RoomBase> items = baseService.getForRooms(rooms.getContent(), memberId);
 
         return new RoomBasePage(
             items,
