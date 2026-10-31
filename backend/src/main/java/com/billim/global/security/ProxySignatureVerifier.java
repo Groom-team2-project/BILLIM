@@ -46,6 +46,11 @@ public class ProxySignatureVerifier {
         }
     }
 
+    /** 비밀값 설정 여부. 서명 강제 필터의 기동 조건 */
+    public boolean isConfigured() {
+        return key != null;
+    }
+
     public boolean trusts(String token) {
         if (key == null || token == null) {
             return false;

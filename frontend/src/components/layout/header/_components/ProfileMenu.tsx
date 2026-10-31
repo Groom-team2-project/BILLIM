@@ -55,8 +55,12 @@ export function ProfileMenu() {
                 title: "로그아웃할까요?",
                 body: "다시 로그인하면 이어서 이용할 수 있어요.",
                 confirm: "로그아웃",
-                onConfirm: () => {
-                  logout();
+                // 서버 폐기 실패 시 화면 유지 — 서버 세션이 살아 있는데 로그아웃으로 보이는 상태 방지
+                onConfirm: async () => {
+                  if (!(await logout())) {
+                    toast("로그아웃하지 못했어요. 다시 시도해 주세요");
+                    return;
+                  }
                   toast("로그아웃되었어요");
                   navigate("/login");
                 },
