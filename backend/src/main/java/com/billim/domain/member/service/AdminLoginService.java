@@ -56,21 +56,29 @@ public class AdminLoginService {
         if (this.loginId.isBlank() || this.passwordHash.isBlank()) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
-        // 잠금 중에는 대조 생략 — 올바른 자격증명도 거부, bcrypt 연산 없이 종료
-        lockout.lockedUntil().ifPresent(until -> {
-            throw locked(until);
-        });
-        if (!credentialsMatch(loginId, password)) {
-            Instant until = lockout.recordFailure().orElse(null);
+        // 대조 전 슬롯 선점 — 잠금 중·동시 시도 포화면 bcrypt 연산 없이 거부
+        Instant retryAt = lockout.begin().orElse(null);
+        if (retryAt != null) {
+            throw locked(retryAt);
+        }
+        boolean matched;
+        try {
+            matched = credentialsMatch(loginId, password);
+        } catch (RuntimeException e) {
+            lockout.fail();   // 확보한 슬롯 반환 누락 방지
+            throw e;
+        }
+        if (!matched) {
+            Instant until = lockout.fail().orElse(null);
             if (until != null) {
-                log.warn("관리자 로그인 잠금 — 연속 실패 한도 도달, 해제 {}", until);
+                log.warn("관리자 로그인 잠금 — 실패 한도 도달, 해제 {}", until);
                 throw locked(until);
             }
-            log.warn("관리자 로그인 실패 — 누적 {}회", lockout.failures());
+            log.warn("관리자 로그인 실패 — 최근 {}회", lockout.failures());
             // ID·비밀번호 중 무엇이 틀렸는지 비노출
             throw new BusinessException(ErrorCode.UNAUTHENTICATED, "아이디 또는 비밀번호가 올바르지 않습니다.");
         }
-        lockout.reset();
+        lockout.succeed();
         return loginOrRegister();
     }
 
