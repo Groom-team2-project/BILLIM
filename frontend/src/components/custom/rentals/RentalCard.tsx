@@ -132,7 +132,7 @@ export function RentalCard({ rental: r, role, conflict, busy, onAction }: Rental
       actions = (
         <>
           <Button variant="ghost" disabled={!can("CANCEL")} onClick={onCancel}>요청 취소</Button>
-          <Button variant="secondary" icon="pin" onClick={chat}>장소 보기</Button>
+          <Button variant="secondary" icon="pin" disabled={busy} onClick={chat}>장소 보기</Button>
         </>
       );
       note = `${fmtDate(r.start)}에 ${r.place}에서 받아요. 전달은 ${who} 님이 확인해요.`;
@@ -197,7 +197,7 @@ export function RentalCard({ rental: r, role, conflict, busy, onAction }: Rental
       {r.reason ? (
         <div className={c("rental-note t-caption")}>
           <Icon name="info" size={16} />
-          거절 사유: “{r.reason}”
+          {r.status === "canceled" ? "취소 사유" : "거절 사유"}: “{r.reason}”
         </div>
       ) : null}
       {note ? (

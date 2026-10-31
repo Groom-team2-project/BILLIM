@@ -21,6 +21,7 @@ const FILTERS: Record<RentalTab, { id: RentalFilter; label: string }[]> = {
     { id: "requested", label: "요청" },
     { id: "approved", label: "승인" },
     { id: "active", label: "대여 중" },
+    { id: "overdue", label: "연체" },
     { id: "done", label: "완료·거절" },
   ],
   lent: [
@@ -57,6 +58,8 @@ function RentalList({ rentalId }: { rentalId: string }) {
   const [filter, setFilter] = useState<RentalFilter>("all");
   const [lists, setLists] = useState<Record<RentalTab, ApiRental[]>>({ borrowed: [], lent: [] });
   const [details, setDetails] = useState<Record<string, ApiRentalDetail>>({});
+  const [detailErrors, setDetailErrors] = useState<Record<string, boolean>>({});
+  const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
   const [targetTab, setTargetTab] = useState<RentalTab>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -69,7 +72,25 @@ function RentalList({ rentalId }: { rentalId: string }) {
   useEffect(() => {
     let active = true;
     const listRequest = Promise.all([loadRentals("BORROWER"), loadRentals("OWNER")])
-      .then(([borrowed, lent]) => { if (active) setLists({ borrowed, lent }); })
+      .then(async ([borrowed, lent]) => {
+        if (!active) return;
+        setLists({ borrowed, lent });
+        const ids = [...new Set([...borrowed, ...lent].map((rental) => rental.id))];
+        // 상세 조회 동시 실행 수 제한 및 개별 실패 격리.
+        for (let offset = 0; active && offset < ids.length; offset += 6) {
+          await Promise.all(ids.slice(offset, offset + 6).map(async (id) => {
+            try {
+              const detail = await getRental(id);
+              if (active) {
+                setDetails((previous) => ({ ...previous, [id]: detail }));
+                setDetailErrors((previous) => ({ ...previous, [id]: false }));
+              }
+            } catch {
+              if (active) setDetailErrors((previous) => ({ ...previous, [id]: true }));
+            }
+          }));
+        }
+      })
       .catch(() => { if (active) setError(true); });
     const targetRequest = rentalId ? Promise.all([getRental(rentalId), getMyProfile()])
       .then(([detail, profile]) => {
@@ -103,22 +124,38 @@ function RentalList({ rentalId }: { rentalId: string }) {
   const data = includeRental(lists[tab], target).map((rental) => toRental(rental, details[rental.id]));
   const visible = data.filter((rental) => matchesRental(rental, filter));
   const count = (value: RentalTab) => includeRental(lists[value], !targetError && targetTab === value ? details[rentalId]?.rental : undefined).length;
+  const applyDetail = (detail: ApiRentalDetail) => {
+    const id = detail.rental.id;
+    setDetails((previous) => ({ ...previous, [id]: detail }));
+    setDetailErrors((previous) => ({ ...previous, [id]: false }));
+    setLists((previous) => ({
+      borrowed: previous.borrowed.map((entry) => entry.id === id ? detail.rental : entry),
+      lent: previous.lent.map((entry) => entry.id === id ? detail.rental : entry),
+    }));
+  };
+  const refreshDetail = async (id: string) => {
+    setRefreshing((previous) => ({ ...previous, [id]: true }));
+    try {
+      applyDetail(await getRental(id));
+    } catch {
+      setDetailErrors((previous) => ({ ...previous, [id]: true }));
+    } finally {
+      setRefreshing((previous) => ({ ...previous, [id]: false }));
+    }
+  };
   const onAction = async (id: string, action: RentalAction, reason?: string) => {
-    if (commandPending.current) return;
+    if (commandPending.current || detailErrors[id] || refreshing[id]) return;
     const rental = details[id]?.rental ?? [...lists.borrowed, ...lists.lent].find((entry) => entry.id === id);
     if (!rental) return;
     commandPending.current = true;
     setBusy(true);
     try {
       const detail = await commandRental(id, action, rental.version, reason);
-      setDetails((previous) => ({ ...previous, [id]: detail }));
-      setLists((previous) => ({
-        borrowed: previous.borrowed.map((entry) => entry.id === id ? detail.rental : entry),
-        lent: previous.lent.map((entry) => entry.id === id ? detail.rental : entry),
-      }));
+      applyDetail(detail);
       toast("대여 상태를 변경했어요");
     } catch (failure) {
       toast(failure instanceof ApiError ? failure.message : "처리하지 못했어요. 다시 시도해 주세요.");
+      if (failure instanceof ApiError && failure.status === 409) await refreshDetail(id);
     } finally {
       commandPending.current = false;
       setBusy(false);
@@ -153,8 +190,11 @@ function RentalList({ rentalId }: { rentalId: string }) {
           {error ? <ErrorState title="대여 목록을 불러오지 못했어요" onRetry={retryLoad} /> : null}
           {visible.map((rental) => <div key={rental.id} ref={rental.id === rentalId ? targetRef : undefined}
             tabIndex={rental.id === rentalId ? -1 : undefined} aria-label={rental.id === rentalId ? "알림에서 선택한 거래" : undefined}>
-            <RentalCard rental={rental} role={tab === "lent" ? "owner" : "borrower"} busy={busy}
+            <RentalCard rental={rental} role={tab === "lent" ? "owner" : "borrower"}
+              busy={busy || refreshing[rental.id] || detailErrors[rental.id]}
               onAction={(action, reason) => { void onAction(rental.id, action, reason); }} />
+            {detailErrors[rental.id] ? <ErrorState title="해당 거래를 불러오지 못했어요"
+              onRetry={() => { if (!refreshing[rental.id]) void refreshDetail(rental.id); }} /> : null}
           </div>)}
           {!error && visible.length === 0 ? <EmptyState icon={tab === "lent" ? "grid" : "swap"}
             title={filter !== "all" ? "해당 상태의 거래가 없어요" : tab === "lent" ? "빌려준 물건이 아직 없어요" : "빌린 물건이 아직 없어요"}

@@ -15,6 +15,7 @@ export function rentalTab(rental: ApiRental, memberId: string): RentalTab {
 }
 
 export function toRental(r: ApiRental, detail?: ApiRentalDetail): Rental {
+  r = detail?.rental ?? r;
   const date = (value: string): [number, number, number] => {
     const [year, month, day] = value.split("-").map(Number);
     return [month, day, year];
