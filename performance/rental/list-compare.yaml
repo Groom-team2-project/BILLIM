@@ -1,0 +1,6 @@
+# 기존 성능 전용 Compose와 함께 사용. 주기 작업의 측정 구간 혼입 방지.
+services:
+  backend:
+    environment:
+      BILLIM_RENTAL_EXPIRATION_DELAY_MS: '86400000'
+      CLEANUP_CRON: '-'

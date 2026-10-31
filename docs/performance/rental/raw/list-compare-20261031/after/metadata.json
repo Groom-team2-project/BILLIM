@@ -1,0 +1,17 @@
+{
+  "commit": "172586c58ee02158fe7ecde865b2cc640ad54f14",
+  "jarSha256": "439b57625e3a28bbf3d991410442f1145853906910480fb4b64462b22d417e21",
+  "duration": "30s",
+  "warmup": "10s",
+  "vus": 10,
+  "sleepSeconds": 0.2,
+  "cases": [
+    "borrowed",
+    "owner-requested"
+  ],
+  "sourceSha256": {
+    "backend/src/main/java/com/billim/domain/rental/service/RentalQueryService.java": "dfdff6bfb7d9bb54f852083e06109defbbc870374cb74973d24f791c7319109e",
+    "backend/src/main/java/com/billim/domain/rental/repository/RentalRepository.java": "0338d835b3af752099a340a6d4331eb7f6c2ac89b4d5749286ed9d3cd1c00ae7"
+  },
+  "workingTreeChanges": true
+}

@@ -1,0 +1,1062 @@
+{
+  "project": "billim-rental-list-20261031",
+  "members": 42,
+  "items": 2000,
+  "rentals": 2000,
+  "cases": {
+    "borrowed": {
+      "path": "/api/v1/rentals?role=BORROWER&page=0&size=20",
+      "expected": {
+        "items": [
+          {
+            "id": "940000",
+            "itemId": "920000",
+            "itemTitle": "합성 물건 920000",
+            "owner": {
+              "id": "910010",
+              "displayName": "합성 회원 910010",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "CANCEL"
+            ],
+            "createdAt": "2026-10-31T08:00:23.505096Z"
+          },
+          {
+            "id": "940001",
+            "itemId": "920001",
+            "itemTitle": "합성 물건 920001",
+            "owner": {
+              "id": "910011",
+              "displayName": "합성 회원 910011",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REJECTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:59:23.505096Z"
+          },
+          {
+            "id": "940002",
+            "itemId": "920002",
+            "itemTitle": "합성 물건 920002",
+            "owner": {
+              "id": "910012",
+              "displayName": "합성 회원 910012",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "CANCELED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:58:23.505096Z"
+          },
+          {
+            "id": "940003",
+            "itemId": "920003",
+            "itemTitle": "합성 물건 920003",
+            "owner": {
+              "id": "910013",
+              "displayName": "합성 회원 910013",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "EXPIRED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:57:23.505096Z"
+          },
+          {
+            "id": "940004",
+            "itemId": "920004",
+            "itemTitle": "합성 물건 920004",
+            "owner": {
+              "id": "910014",
+              "displayName": "합성 회원 910014",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "APPROVED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "CANCEL"
+            ],
+            "createdAt": "2026-10-31T07:56:23.505096Z"
+          },
+          {
+            "id": "940005",
+            "itemId": "920005",
+            "itemTitle": "합성 물건 920005",
+            "owner": {
+              "id": "910015",
+              "displayName": "합성 회원 910015",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "ACTIVE",
+            "overdue": false,
+            "dDay": 3,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:55:23.505096Z"
+          },
+          {
+            "id": "940006",
+            "itemId": "920006",
+            "itemTitle": "합성 물건 920006",
+            "owner": {
+              "id": "910016",
+              "displayName": "합성 회원 910016",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "RETURNED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:54:23.505096Z"
+          },
+          {
+            "id": "940007",
+            "itemId": "920007",
+            "itemTitle": "합성 물건 920007",
+            "owner": {
+              "id": "910017",
+              "displayName": "합성 회원 910017",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "CANCEL"
+            ],
+            "createdAt": "2026-10-31T07:53:23.505096Z"
+          },
+          {
+            "id": "940008",
+            "itemId": "920008",
+            "itemTitle": "합성 물건 920008",
+            "owner": {
+              "id": "910018",
+              "displayName": "합성 회원 910018",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REJECTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:52:23.505096Z"
+          },
+          {
+            "id": "940009",
+            "itemId": "920009",
+            "itemTitle": "합성 물건 920009",
+            "owner": {
+              "id": "910019",
+              "displayName": "합성 회원 910019",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "CANCELED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:51:23.505096Z"
+          },
+          {
+            "id": "940010",
+            "itemId": "920010",
+            "itemTitle": "합성 물건 920010",
+            "owner": {
+              "id": "910020",
+              "displayName": "합성 회원 910020",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "EXPIRED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:50:23.505096Z"
+          },
+          {
+            "id": "940011",
+            "itemId": "920011",
+            "itemTitle": "합성 물건 920011",
+            "owner": {
+              "id": "910021",
+              "displayName": "합성 회원 910021",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "APPROVED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "CANCEL"
+            ],
+            "createdAt": "2026-10-31T07:49:23.505096Z"
+          },
+          {
+            "id": "940012",
+            "itemId": "920012",
+            "itemTitle": "합성 물건 920012",
+            "owner": {
+              "id": "910022",
+              "displayName": "합성 회원 910022",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "ACTIVE",
+            "overdue": false,
+            "dDay": 3,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:48:23.505096Z"
+          },
+          {
+            "id": "940013",
+            "itemId": "920013",
+            "itemTitle": "합성 물건 920013",
+            "owner": {
+              "id": "910023",
+              "displayName": "합성 회원 910023",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "RETURNED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:47:23.505096Z"
+          },
+          {
+            "id": "940014",
+            "itemId": "920014",
+            "itemTitle": "합성 물건 920014",
+            "owner": {
+              "id": "910024",
+              "displayName": "합성 회원 910024",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "CANCEL"
+            ],
+            "createdAt": "2026-10-31T07:46:23.505096Z"
+          },
+          {
+            "id": "940015",
+            "itemId": "920015",
+            "itemTitle": "합성 물건 920015",
+            "owner": {
+              "id": "910025",
+              "displayName": "합성 회원 910025",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REJECTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:45:23.505096Z"
+          },
+          {
+            "id": "940016",
+            "itemId": "920016",
+            "itemTitle": "합성 물건 920016",
+            "owner": {
+              "id": "910026",
+              "displayName": "합성 회원 910026",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "CANCELED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:44:23.505096Z"
+          },
+          {
+            "id": "940017",
+            "itemId": "920017",
+            "itemTitle": "합성 물건 920017",
+            "owner": {
+              "id": "910027",
+              "displayName": "합성 회원 910027",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "EXPIRED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:43:23.505096Z"
+          },
+          {
+            "id": "940018",
+            "itemId": "920018",
+            "itemTitle": "합성 물건 920018",
+            "owner": {
+              "id": "910028",
+              "displayName": "합성 회원 910028",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "APPROVED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "CANCEL"
+            ],
+            "createdAt": "2026-10-31T07:42:23.505096Z"
+          },
+          {
+            "id": "940019",
+            "itemId": "920019",
+            "itemTitle": "합성 물건 920019",
+            "owner": {
+              "id": "910029",
+              "displayName": "합성 회원 910029",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910000",
+              "displayName": "합성 회원 910000",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "ACTIVE",
+            "overdue": false,
+            "dDay": 3,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [],
+            "createdAt": "2026-10-31T07:41:23.505096Z"
+          }
+        ],
+        "page": 0,
+        "size": 20,
+        "totalElements": 1000,
+        "hasNext": true
+      }
+    },
+    "owner-requested": {
+      "path": "/api/v1/rentals?role=OWNER&status=REQUESTED&page=0&size=20",
+      "expected": {
+        "items": [
+          {
+            "id": "950000",
+            "itemId": "930000",
+            "itemTitle": "합성 물건 930000",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910030",
+              "displayName": "합성 회원 910030",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T08:00:23.505096Z"
+          },
+          {
+            "id": "950001",
+            "itemId": "930001",
+            "itemTitle": "합성 물건 930001",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910031",
+              "displayName": "합성 회원 910031",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:59:23.505096Z"
+          },
+          {
+            "id": "950002",
+            "itemId": "930002",
+            "itemTitle": "합성 물건 930002",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910032",
+              "displayName": "합성 회원 910032",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:58:23.505096Z"
+          },
+          {
+            "id": "950003",
+            "itemId": "930003",
+            "itemTitle": "합성 물건 930003",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910033",
+              "displayName": "합성 회원 910033",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:57:23.505096Z"
+          },
+          {
+            "id": "950004",
+            "itemId": "930004",
+            "itemTitle": "합성 물건 930004",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910034",
+              "displayName": "합성 회원 910034",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:56:23.505096Z"
+          },
+          {
+            "id": "950005",
+            "itemId": "930005",
+            "itemTitle": "합성 물건 930005",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910035",
+              "displayName": "합성 회원 910035",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:55:23.505096Z"
+          },
+          {
+            "id": "950006",
+            "itemId": "930006",
+            "itemTitle": "합성 물건 930006",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910036",
+              "displayName": "합성 회원 910036",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:54:23.505096Z"
+          },
+          {
+            "id": "950007",
+            "itemId": "930007",
+            "itemTitle": "합성 물건 930007",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910037",
+              "displayName": "합성 회원 910037",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:53:23.505096Z"
+          },
+          {
+            "id": "950008",
+            "itemId": "930008",
+            "itemTitle": "합성 물건 930008",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910038",
+              "displayName": "합성 회원 910038",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:52:23.505096Z"
+          },
+          {
+            "id": "950009",
+            "itemId": "930009",
+            "itemTitle": "합성 물건 930009",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910039",
+              "displayName": "합성 회원 910039",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:51:23.505096Z"
+          },
+          {
+            "id": "950010",
+            "itemId": "930010",
+            "itemTitle": "합성 물건 930010",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910040",
+              "displayName": "합성 회원 910040",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:50:23.505096Z"
+          },
+          {
+            "id": "950011",
+            "itemId": "930011",
+            "itemTitle": "합성 물건 930011",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910041",
+              "displayName": "합성 회원 910041",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:49:23.505096Z"
+          },
+          {
+            "id": "950012",
+            "itemId": "930012",
+            "itemTitle": "합성 물건 930012",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910042",
+              "displayName": "합성 회원 910042",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:48:23.505096Z"
+          },
+          {
+            "id": "950013",
+            "itemId": "930013",
+            "itemTitle": "합성 물건 930013",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910043",
+              "displayName": "합성 회원 910043",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:47:23.505096Z"
+          },
+          {
+            "id": "950014",
+            "itemId": "930014",
+            "itemTitle": "합성 물건 930014",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910044",
+              "displayName": "합성 회원 910044",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:46:23.505096Z"
+          },
+          {
+            "id": "950015",
+            "itemId": "930015",
+            "itemTitle": "합성 물건 930015",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910045",
+              "displayName": "합성 회원 910045",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:45:23.505096Z"
+          },
+          {
+            "id": "950016",
+            "itemId": "930016",
+            "itemTitle": "합성 물건 930016",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910046",
+              "displayName": "합성 회원 910046",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:44:23.505096Z"
+          },
+          {
+            "id": "950017",
+            "itemId": "930017",
+            "itemTitle": "합성 물건 930017",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910047",
+              "displayName": "합성 회원 910047",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:43:23.505096Z"
+          },
+          {
+            "id": "950018",
+            "itemId": "930018",
+            "itemTitle": "합성 물건 930018",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910048",
+              "displayName": "합성 회원 910048",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:42:23.505096Z"
+          },
+          {
+            "id": "950019",
+            "itemId": "930019",
+            "itemTitle": "합성 물건 930019",
+            "owner": {
+              "id": "910001",
+              "displayName": "합성 회원 910001",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "borrower": {
+              "id": "910049",
+              "displayName": "합성 회원 910049",
+              "joinedAt": "2026-10-31T08:00:23.505096Z"
+            },
+            "startDate": "2026-11-02",
+            "endDate": "2026-11-03",
+            "status": "REQUESTED",
+            "overdue": false,
+            "dDay": 2,
+            "placeName": "목록 측정 장소",
+            "version": 0,
+            "allowedActions": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "createdAt": "2026-10-31T07:41:23.505096Z"
+          }
+        ],
+        "page": 0,
+        "size": 20,
+        "totalElements": 1000,
+        "hasNext": true
+      }
+    }
+  }
+}
