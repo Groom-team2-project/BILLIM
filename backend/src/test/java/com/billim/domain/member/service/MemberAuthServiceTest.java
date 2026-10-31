@@ -104,6 +104,13 @@ class MemberAuthServiceTest {
     }
 
     @Test
+    @DisplayName("보이는 글자 없는 닉네임은 기본 이름으로 대체")
+    void replacesNicknameWithoutVisibleCharacters() {
+        assertThat(MemberAuthService.normalizeDisplayName("\uFE0F\uFE0F")).matches("이웃\\d{4}");
+        assertThat(MemberAuthService.normalizeDisplayName("\u3164\u3164")).matches("이웃\\d{4}");
+    }
+
+    @Test
     @DisplayName("사칭 닉네임은 기본 이름으로 대체")
     void replacesReservedNickname() {
         String name = MemberAuthService.normalizeDisplayName("관리자");
