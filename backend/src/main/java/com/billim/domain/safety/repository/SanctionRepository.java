@@ -10,6 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface SanctionRepository extends JpaRepository<Sanction, Long> {
@@ -18,6 +20,9 @@ public interface SanctionRepository extends JpaRepository<Sanction, Long> {
     Page<Sanction> findAllByOrderByStartsAtDescIdDesc(Pageable pageable);
 
     Page<Sanction> findByMemberIdOrderByStartsAtDescIdDesc(long memberId, Pageable pageable);
+
+    /** 내 운영 조치 목록에서 조치별 제재 기간을 한 번에 붙인다. 경고에는 제재 행이 없다 */
+    List<Sanction> findByReportActionIdIn(Collection<Long> reportActionIds);
 
     /**
      * 지금 회원을 제한하는 제재가 하나라도 있는지. 유효 판정은 ERD 4.7 정의를 그대로 옮겼다.

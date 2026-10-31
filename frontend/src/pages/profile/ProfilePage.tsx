@@ -10,10 +10,11 @@ import {
   updateDisplayName,
 } from "@/api/members";
 import { getMyBlocks } from "@/api/blocks";
-import { getMyReports } from "@/api/reports";
+import { type ApiMySanction, getMyReports, getMySanctions } from "@/api/reports";
 import { type ApiItemSummary, changeItemVisibility, deleteItem } from "@/api/items";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
+import { Alert } from "@/components/ui/alert";
 import { useUi } from "@/components/overlay/UiContext";
 import { LiveTrustLines } from "@/components/custom/profile/LiveTrustLines";
 import { ErrorState, Loading, Skeleton, SkeletonItem } from "@/components/ui/state";
@@ -31,6 +32,19 @@ const c = classes({ ...shared, ...styles });
 
 /** getMyItems 기본 size와 동일 — 다음 페이지 번호 계산 기준 */
 const PAGE_SIZE = 20;
+
+/** 적용 중인 조치 문구. 조치 알림과 같은 말을 쓴다 */
+const RESTRICTION_LABEL: Record<ApiMySanction["action"], string> = {
+  WARN: "경고",
+  SUSPEND_7D: "7일 이용 정지",
+  SUSPEND_30D: "30일 이용 정지",
+  BAN: "영구 정지",
+};
+
+function untilLabel(iso: string): string {
+  const at = new Date(iso);
+  return `${at.getMonth() + 1}월 ${at.getDate()}일`;
+}
 
 
 export function ProfilePage() {
@@ -52,7 +66,10 @@ export function ProfilePage() {
   const [details, setDetails] = useState<{
     blocks: number;
     reports: number;
+    sanctions: number;
   } | null>(null);
+  /** 지금 이용을 제한하는 조치. 제한된 이유를 프로필에서 바로 알 수 있어야 한다 (E_072) */
+  const [restriction, setRestriction] = useState<ApiMySanction | null>(null);
 
   /** 하위 데이터 실패는 프로필 표시에 영향 없음 — 지표·목록만 비움 */
   const load = useCallback(() => {
@@ -64,16 +81,19 @@ export function ProfilePage() {
         setProfile(loaded);
         setFailed(false);
 
-        const [loadedItems, blocks, reports] = await Promise.all([
+        const [loadedItems, blocks, reports, sanctions] = await Promise.all([
           getMyItems()
             .then((page) => ({ state: "ok" as const, rows: page.items, hasNext: page.hasNext }))
             .catch(() => ({ state: "error" as const })),
           getMyBlocks(0, 1).then((page) => page.totalElements).catch(() => 0),
           getMyReports(0, 1).then((page) => page.totalElements).catch(() => 0),
+          // 건수와 함께 적용 중인 조치를 찾아야 해서 첫 페이지를 받는다
+          getMySanctions().catch(() => null),
         ]);
         if (canceled) return;
         setItemList(loadedItems);
-        setDetails({ blocks, reports });
+        setDetails({ blocks, reports, sanctions: sanctions?.totalElements ?? 0 });
+        setRestriction(sanctions?.items.find((row) => row.isEffective) ?? null);
       })
       .catch(() => {
         if (!canceled) setFailed(true);
@@ -232,6 +252,13 @@ export function ProfilePage() {
         />
       )}
 
+      {restriction ? (
+        <Alert tone="danger" title={`${RESTRICTION_LABEL[restriction.action]} 조치가 적용되어 있어요`}>
+          {restriction.publicReason}
+          {restriction.endsAt ? ` · ${untilLabel(restriction.endsAt)}까지` : ""}
+        </Alert>
+      ) : null}
+
       <section className={c("profile-section")}>
         <p className={c("t-label profile-muted profile-section-label")}>신뢰 지표</p>
         <div className={c("profile-card")}>
@@ -312,6 +339,15 @@ export function ProfilePage() {
             trailing={details === null ? undefined : `${details.reports}건`}
             onClick={() => navigate("/reports")}
           />
+          {/* 받은 조치가 없는 사람에게는 보이지 않는다 */}
+          {details !== null && details.sanctions > 0 ? (
+            <ProfileLinkRow
+              icon="alert"
+              title="받은 운영 조치"
+              trailing={`${details.sanctions}건`}
+              onClick={() => navigate("/sanctions")}
+            />
+          ) : null}
           <ProfileLinkRow icon="lock" title="다른 기기에서 로그아웃" onClick={logoutOtherDevices} />
         </div>
       </section>

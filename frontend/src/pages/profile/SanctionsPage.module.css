@@ -1,0 +1,79 @@
+.sanctions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sanctions-muted {
+  color: var(--ink-muted);
+}
+
+.sanctions-empty {
+  padding: var(--space-4);
+  margin: 0;
+}
+
+.sanctions-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.sanctions-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px var(--space-4);
+}
+
+.sanctions-row + .sanctions-row {
+  border-top: 1px solid var(--line);
+}
+
+.sanctions-row-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sanctions-row-name {
+  font-weight: 600;
+  flex: 1;
+}
+
+/* 사유는 운영자가 쓴 문장이라 줄바꿈을 살린다 */
+.sanctions-reason {
+  white-space: pre-wrap;
+}
+
+.sanctions-pill {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+}
+
+/* 지금 이용을 제한하는 조치 */
+.sanctions-pill--on {
+  background: var(--status-overdue-bg);
+  color: var(--status-overdue-fg);
+}
+
+/* 끝난 조치 — 기간 만료·해제 */
+.sanctions-pill--off {
+  background: var(--status-returned-bg);
+  color: var(--status-returned-fg);
+}
+
+/* 신고된 내 메시지나 물건 설명. 운영자 문장과 구분되게 들여쓴다 */
+.sanctions-evidence {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--line);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

@@ -74,6 +74,43 @@ export type ApiSanctionPage = {
   hasNext: boolean;
 };
 
+/**
+ * 내가 받은 운영 조치 한 건 (E_072).
+ *
+ * 경고(WARN)는 제재 행이 없어 kind·startsAt·endsAt이 없고 isEffective는 false다.
+ * 신고자 정보·운영 메모·신고 사유 코드는 내려오지 않는다.
+ * 대상 정보(targetLabel·evidenceText)는 모두 대상 본인의 것이다 — 본인이 등록한 물건의
+ * 제목·설명, 본인이 보낸 메시지 본문. 접수 시점 스냅샷이라 물건이 지워진 뒤에도 남는다.
+ * (도메인 가이드 결정 '조치 사유를 누구에게 보여줄지')
+ */
+export type ApiMySanction = {
+  id: string;
+  action: Exclude<ReportActionType, "DISMISS">;
+  /** 운영자가 쓴 최소 사유. 화면에 그대로 보여 준다 */
+  publicReason: string;
+  decidedAt: string;
+  targetType: ReportTargetType;
+  /** 회원 신고는 대상이 본인이라 없다 */
+  targetId?: string;
+  /** 물건 제목. 메시지 신고는 그 대화가 붙은 물건의 제목 */
+  targetLabel?: string;
+  /** 물건 설명 또는 신고된 메시지 본문 */
+  evidenceText?: string;
+  kind?: "SUSPEND" | "BAN";
+  startsAt?: string;
+  endsAt?: string;
+  revokedAt?: string;
+  isEffective: boolean;
+};
+
+export type ApiMySanctionPage = {
+  items: ApiMySanction[];
+  page: number;
+  size: number;
+  totalElements: number;
+  hasNext: boolean;
+};
+
 /** E_055 신고 접수. targetId는 대상 종류에 맞는 ID이고 대상 회원은 서버가 계산한다 */
 export function createReport(body: {
   targetType: ReportTargetType;
@@ -129,6 +166,16 @@ export function resolveReport(
   },
 ): Promise<ApiAdminReport> {
   return api<ApiAdminReport>(`/admin/reports/${reportId}/resolve`, { method: "POST", json: body });
+}
+
+/**
+ * E_072 내가 받은 운영 조치 내역. 본인만. 최근 조치가 먼저 온다.
+ *
+ * 처리 결과 알림이 "자세한 내용은 내 프로필에서 확인해 주세요"로 안내하는 그 화면이 쓴다.
+ * 제재 중이어도 호출된다 — 제한된 이유를 모르면 이의를 제기할 수 없다.
+ */
+export function getMySanctions(page = 0, size = 20): Promise<ApiMySanctionPage> {
+  return api<ApiMySanctionPage>("/members/me/sanctions", { query: { page, size } });
 }
 
 /** E_061 제재 이력 조회. 만료·해제 포함 */

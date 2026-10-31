@@ -133,6 +133,7 @@
 | [E_055](#124-e_055-신고-접수) | 노현섭 | P1 | POST | /api/v1/reports | 신고 접수 |
 | [E_056](#125-e_056-내-신고-목록) | 노현섭 | P1 | GET | /api/v1/members/me/reports | 내 신고 목록 |
 | [E_057](#126-e_057-내-신고-결과-상세) | 노현섭 | P1 | GET | /api/v1/reports/{reportId} | 내 신고 결과 상세 |
+| [E_072](#127-e_072-내가-받은-운영-조치-내역) | 노현섭 | P1 | GET | /api/v1/members/me/sanctions | 내가 받은 운영 조치 내역 |
 | [E_058](#131-e_058-운영-신고-목록) | 노현섭 | P1 | GET | /api/v1/admin/reports | 운영 신고 목록 |
 | [E_059](#132-e_059-신고-증거와-처리-상세) | 노현섭 | P1 | GET | /api/v1/admin/reports/{reportId} | 신고 증거와 처리 상세 |
 | [E_060](#133-e_060-신고-처리제재-결정) | 노현섭 | P1 | POST | /api/v1/admin/reports/{reportId}/resolve | 신고 처리·제재 결정 |
@@ -907,11 +908,32 @@
 ### 12.6 E_057 내 신고 결과 상세
 
 - `GET /api/v1/reports/{reportId}` · 노현섭 · P1
-- 설명: 신고자만. 제재 대상에게는 회원 제한 상태/별도 결과 알림의 최소 사유만 제공, 신고자 정보 비공개.
+- 설명: 신고자만. `publicReason`은 운영자가 공개용으로 쓰는 사유이므로 신고자에게 처리 결과로 내려간다. `internalNote`와 신고자 정보는 관리자 API에만 담는다. 제재 대상에게는 회원 제한 상태와 **최소 사유만** 제공하고 신고자 정보는 비공개다 — 그 전달 경로는 **E_072**다.
 - 요청 본문: 없음
 - 성공 응답: 200 Report
 - 관련 테이블: reports, report_actions
 - 목업 연결: reports
+
+### 12.7 E_072 내가 받은 운영 조치 내역
+
+- `GET /api/v1/members/me/sanctions` · 노현섭 · P1
+- 설명: 본인만. E_057이 정한 "제재 대상에게 제공하는 최소 사유"의 전달 경로다. 처리 결과 알림이 "내 프로필에서 확인"으로 안내하는 화면이 쓴다. 제재 상태여도 조회할 수 있다 — 제한된 이유를 모르면 이의를 제기할 수 없다.
+- **`sanctions`가 아니라 `report_actions`를 읽는다.** 경고(WARN)는 제재 행을 만들지 않아 제재 테이블만 보면 보이지 않는다. 반려(DISMISS)는 목록에서 제외한다(대상에게 알리지도 않는 조치라, 넣으면 신고당한 사실만 알려 주게 된다).
+- **담는 것**: 조치 종류, `publicReason`, 제재 기간, 그리고 **어떤 대상으로 조치됐는지**(`targetType`·`targetLabel`·`evidenceText`). 대상 정보는 모두 **대상 본인의 것**이다 — 본인이 등록한 물건의 제목·설명, 본인이 보낸 메시지 본문. 접수 시점 스냅샷이라 물건이 지워진 뒤에도 남는다.
+- **담지 않는 것**: 신고자 정보, `internalNote`, 신고 사유 코드.
+- **알려진 노출**: 대상 정보를 보여주면 대상이 어떤 거래로 조치됐는지 알게 되고, 그 거래의 상대가 한 명이면 **신고자를 추정할 수 있다**. 메시지 신고는 대화 상대가 곧 신고자라 추정이 아니라 특정이다. 대상이 무엇 때문에 조치됐는지 알아야 한다는 쪽을 택한 팀 결정이다.
+- 정렬: 조치 시각 내림차순
+
+| Query | 필수 | 타입 | 의미 |
+| --- | --- | --- | --- |
+| page | N | integer | 기본 0 |
+| size | N | integer | 기본 20, 최대 50 |
+
+- 요청 본문: 없음
+- 성공 응답: 200 MySanctionPage
+- 오류: 401 UNAUTHENTICATED
+- 관련 테이블: report_actions, reports, sanctions
+- 목업 연결: profile
 
 ## 13. 관리자 (admin)
 
@@ -1617,6 +1639,33 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | endsAt | string(date-time) | N | — |
 | revokedAt | string(date-time) | N | — |
 | isEffective | boolean | Y | — |
+### MySanction
+대상 본인에게 내려가는 조치 한 건. 신고자·`internalNote`·신고 사유 코드는 담지 않는다.
+대상 정보는 접수 시점 스냅샷이며 모두 대상 본인의 것이다.
+
+| 필드 | 타입 | 필수 | 제약·의미 |
+| --- | --- | --- | --- |
+| id | string | Y | report_actions.id의 문자열 |
+| action | string | Y | 값: WARN, SUSPEND_7D, SUSPEND_30D, BAN (DISMISS는 목록에 없음) |
+| publicReason | string | Y | 최대 길이 500. 운영자가 쓴 최소 사유 |
+| decidedAt | string(date-time) | Y | 조치 시각 |
+| targetType | string | Y | 값: MEMBER, ITEM, MESSAGE |
+| targetId | string | N | 물건·메시지 ID. 회원 신고는 대상이 본인이라 생략 |
+| targetLabel | string | N | 물건 제목. 메시지 신고는 그 대화가 붙은 물건의 제목 |
+| evidenceText | string | N | 최대 길이 3000. 물건 설명 또는 신고된 메시지 본문 |
+| kind | string | N | 값: SUSPEND, BAN. 경고는 제재 행이 없어 생략 |
+| startsAt | string(date-time) | N | 경고는 생략 |
+| endsAt | string(date-time) | N | 영구 정지·경고는 생략 |
+| revokedAt | string(date-time) | N | 해제되지 않았으면 생략 |
+| isEffective | boolean | Y | 조회 시점에 이용을 제한하는지. 경고는 항상 false |
+### MySanctionPage
+| 필드 | 타입 | 필수 | 제약·의미 |
+| --- | --- | --- | --- |
+| items | MySanction[] | Y | — |
+| page | integer(int32) | Y | 최소 0 |
+| size | integer(int32) | Y | 최소 1 |
+| totalElements | integer(int64) | Y | 최소 0 |
+| hasNext | boolean | Y | — |
 ### SanctionPage
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
