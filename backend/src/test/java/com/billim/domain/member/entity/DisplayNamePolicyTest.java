@@ -39,7 +39,7 @@ class DisplayNamePolicyTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"관리자", "빌림 관리자", "관 리 자", "운영팀입니다", "admin", "ADMIN", "ＡＤＭＩＮ", "a.d.m.i.n", "Billim공식", "공식 ADMIN", "빌림billim", "1admin"})
+    @ValueSource(strings = {"관리자", "빌림 관리자", "관 리 자", "운영팀입니다", "admin", "ADMIN", "ＡＤＭＩＮ", "a.d.m.i.n", "Billim공식", "공식 ADMIN", "빌림billim", "\u0430dmin", "b\u0456llim", "adm\u0456n"})
     @DisplayName("운영자로 오인될 이름은 정규화 후 거부한다")
     void rejectsReservedNames(String name) {
         Member member = Member.register("홍길동");
