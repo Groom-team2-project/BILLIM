@@ -9,10 +9,11 @@
   # CI(.github/workflows/ci.yml)와 동일하게 고정
   NODE_VERSION = "22"
 
-# API 프록시 — 백엔드로 전달
+# API 프록시 — CloudFront(billim-api, E76578PCJ6C22) 경유 백엔드 전달
+# HTTPS → VPC 오리진(사설망) → EC2 8080. EC2 공인 IP 직접 호출(평문 HTTP) 대체
 [[redirects]]
   from = "/api/*"
-  to = "http://52.78.14.19:8080/api/:splat"
+  to = "https://de69ozplh2sjv.cloudfront.net/api/:splat"
   status = 200
   force = true
   # 요청마다 x-nf-sign(HS256 JWS) 부착 — 백엔드가 직접 호출과 구분해 IP 헤더 위조 차단.
@@ -24,6 +25,19 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# 보안 헤더 — 전 경로. 경로별 [[headers]]와 함께 적용
+# 강제: 프레임 삽입 차단(클릭재킹) · MIME 추측 차단 · 외부로 보내는 주소 축소 · 위치 외 기기 권한 차단
+# 관찰: 출처 제한 CSP는 Report-Only — 카카오 지도 SDK의 하위 도메인 미확정. 위반 없음 확인 후 강제로 전환
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' https://dapi.kakao.com https://t1.daumcdn.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.daumcdn.net https://*.kakao.com; font-src 'self'; connect-src 'self' wss://d24eooh4xf18t4.cloudfront.net; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(self), camera=(), microphone=(), payment=(), usb=()"
 
 # 해시가 붙은 정적 파일은 길게 캐시
 [[headers]]

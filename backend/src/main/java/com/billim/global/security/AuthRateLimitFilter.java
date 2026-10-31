@@ -3,6 +3,8 @@ package com.billim.global.security;
 import com.billim.global.exception.ErrorCode;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletRequestWrapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -133,9 +135,22 @@ public class AuthRateLimitFilter extends OncePerRequestFilter {
         String fromProxy = request.getHeader(clientIpHeader);
         if (fromProxy == null || fromProxy.isBlank() || fromProxy.length() > MAX_IP_LENGTH
                 || !proxySignatureVerifier.trusts(request.getHeader(PROXY_SIGNATURE_HEADER))) {
-            return request.getRemoteAddr();
+            return connectionAddress(request);
         }
         return fromProxy.trim();
+    }
+
+    /**
+     * 래퍼 아래 원본 요청의 접속 주소. ForwardedHeaderFilter 래퍼의 getRemoteAddr()는
+     * X-Forwarded-For 값을 반환 — 직접 호출자가 헤더를 바꿔 가며 제한 우회 가능.
+     * 필터 순서가 아닌 언래핑으로 처리 — 등록 순서 변경에도 유지.
+     */
+    private static String connectionAddress(ServletRequest request) {
+        ServletRequest current = request;
+        while (current instanceof ServletRequestWrapper wrapper) {
+            current = wrapper.getRequest();
+        }
+        return current.getRemoteAddr();
     }
 
     private void reject(HttpServletResponse response) throws IOException {

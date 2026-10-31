@@ -3,6 +3,8 @@ package com.billim.domain.member.service;
 import com.billim.domain.member.entity.Member;
 import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -11,6 +13,9 @@ import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 
 /**
  * 관리자 전용 로그인 — 소셜 공용 계정을 만들 수 없어 둔 자체 자격증명 접근 수단.
@@ -20,17 +25,25 @@ import java.security.MessageDigest;
 @Service
 public class AdminLoginService {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminLoginService.class);
+
     /** 요청마다 새로 만들지 않음 — matches()는 상태 없이 동작 */
     private static final PasswordEncoder ENCODER = new BCryptPasswordEncoder();
 
     private final MemberAuthService memberAuthService;
+    private final AdminLoginLockout lockout;
+    private final Clock clock;
     private final String loginId;
     private final String passwordHash;
 
     public AdminLoginService(MemberAuthService memberAuthService,
+                             AdminLoginLockout lockout,
+                             Clock clock,
                              @Value("${billim.auth.admin-login-id:}") String loginId,
                              @Value("${billim.auth.admin-password-hash:}") String passwordHash) {
         this.memberAuthService = memberAuthService;
+        this.lockout = lockout;
+        this.clock = clock;
         this.loginId = loginId;
         this.passwordHash = passwordHash;
     }
@@ -43,11 +56,36 @@ public class AdminLoginService {
         if (this.loginId.isBlank() || this.passwordHash.isBlank()) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
-        if (!credentialsMatch(loginId, password)) {
+        // 대조 전 슬롯 선점 — 잠금 중·동시 시도 포화면 bcrypt 연산 없이 거부
+        Instant retryAt = lockout.begin().orElse(null);
+        if (retryAt != null) {
+            throw locked(retryAt);
+        }
+        boolean matched;
+        try {
+            matched = credentialsMatch(loginId, password);
+        } catch (RuntimeException e) {
+            lockout.fail();   // 확보한 슬롯 반환 누락 방지
+            throw e;
+        }
+        if (!matched) {
+            Instant until = lockout.fail().orElse(null);
+            if (until != null) {
+                log.warn("관리자 로그인 잠금 — 실패 한도 도달, 해제 {}", until);
+                throw locked(until);
+            }
+            log.warn("관리자 로그인 실패 — 최근 {}회", lockout.failures());
             // ID·비밀번호 중 무엇이 틀렸는지 비노출
             throw new BusinessException(ErrorCode.UNAUTHENTICATED, "아이디 또는 비밀번호가 올바르지 않습니다.");
         }
+        lockout.succeed();
         return loginOrRegister();
+    }
+
+    private BusinessException locked(Instant until) {
+        long minutes = Math.max(1, Duration.between(Instant.now(clock), until).toSeconds() / 60 + 1);
+        return new BusinessException(ErrorCode.RATE_LIMITED,
+                "로그인 실패가 반복되어 잠겼습니다. 약 %d분 후 다시 시도해 주세요.".formatted(minutes));
     }
 
     /** ID가 틀려도 해시 대조까지 수행 — 응답 시간 차이로 ID 일치 여부가 드러나지 않음 */

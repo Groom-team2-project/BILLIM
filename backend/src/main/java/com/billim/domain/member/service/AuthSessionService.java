@@ -80,6 +80,15 @@ public class AuthSessionService {
                 .ifPresent(session -> session.revoke(Instant.now(clock)));
     }
 
+    /**
+     * 다른 기기 로그아웃. 현재 세션은 유지.
+     * 세션 복원이 요청마다 DB 조회라 폐기 즉시 모든 인스턴스에서 거부.
+     */
+    @Transactional
+    public int revokeOthers(Long memberId, Long currentSessionId) {
+        return authSessionRepository.revokeOthers(memberId, currentSessionId, Instant.now(clock));
+    }
+
     private Issued issue(Member member, String csrfToken) {
         Instant now = Instant.now(clock);
         String token = SessionTokens.newToken();

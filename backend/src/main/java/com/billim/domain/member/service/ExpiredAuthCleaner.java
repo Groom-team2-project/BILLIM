@@ -2,6 +2,7 @@ package com.billim.domain.member.service;
 
 import com.billim.domain.member.repository.AuthSessionRepository;
 import com.billim.domain.member.repository.OauthLoginAttemptRepository;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,9 +58,13 @@ public class ExpiredAuthCleaner {
      * <p>메서드 전체를 한 트랜잭션으로 묶지 않음. 인증은 모든 요청이 auth_sessions를 조회하므로
      * 커밋까지 잠금이 유지되면 정리 중 응답시간 상승. (성능 측정 5절 — 삭제 초 처리량 75%)
      *
-     * <p>다중 인스턴스에서 동시 실행 가능 — DELETE라 결과는 동일.
+     * <p>다중 인스턴스에서는 한 인스턴스만 실행. 결과는 같아도 동시 삭제는 모든 요청이 읽는 auth_sessions에
+     * 잠금 경합과 부하를 두 배로 유발. lockAtLeastFor는 인스턴스 간 cron 발화 시각 차이로
+     * 먼저 끝난 정리 뒤 재실행되는 것을 방지. lockAtMostFor는 묶음 한도까지 도는 최장 실행보다 길게 —
+     * 인스턴스가 정리 중 종료되어도 다음 주기에는 잠금 해제.
      */
     @Scheduled(cron = "${billim.auth.cleanup-cron}")
+    @SchedulerLock(name = "auth-expired-cleanup", lockAtLeastFor = "1m", lockAtMostFor = "30m")
     public void purgeExpired() {
         Instant threshold = Instant.now(clock).minus(retention);
         int attempts = purgeInChunks(chunk -> oauthLoginAttemptRepository.deleteExpiredBefore(threshold, chunk));

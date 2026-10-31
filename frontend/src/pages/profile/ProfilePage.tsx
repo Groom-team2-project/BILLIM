@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { logout, syncDisplayName } from "@/stores/session";
 import { ApiError } from "@/api/client";
+import { logoutOthers } from "@/api/auth";
 import {
   type ApiMyProfile,
   getMyItems,
@@ -189,6 +190,22 @@ export function ProfilePage() {
     void applyVisibility(item, "PUBLIC", "다시 공개했어요");
   };
 
+  /* 분실·공용 기기 대비 — 현재 기기는 로그인 유지 */
+  const logoutOtherDevices = () =>
+    confirm({
+      title: "다른 기기에서 로그아웃할까요?",
+      body: "지금 쓰는 기기를 뺀 모든 기기의 로그인이 끝나요.",
+      confirm: "로그아웃",
+      onConfirm: async () => {
+        try {
+          const { revokedCount } = await logoutOthers();
+          toast(revokedCount > 0 ? `다른 기기 ${revokedCount}곳에서 로그아웃했어요` : "로그인된 다른 기기가 없어요");
+        } catch (e: unknown) {
+          toast(e instanceof ApiError ? e.message : "로그아웃하지 못했어요");
+        }
+      },
+    });
+
   return (
     <div className={c("profile-page page-window")}>
       <PageHeader title="내 프로필" />
@@ -295,6 +312,7 @@ export function ProfilePage() {
             trailing={details === null ? undefined : `${details.reports}건`}
             onClick={() => navigate("/reports")}
           />
+          <ProfileLinkRow icon="lock" title="다른 기기에서 로그아웃" onClick={logoutOtherDevices} />
         </div>
       </section>
 
@@ -306,8 +324,12 @@ export function ProfilePage() {
             title: "로그아웃할까요?",
             body: "다시 로그인하면 이어서 이용할 수 있어요.",
             confirm: "로그아웃",
-            onConfirm: () => {
-              logout();
+            // 서버 폐기 실패 시 화면 유지 — 서버 세션이 살아 있는데 로그아웃으로 보이는 상태 방지
+            onConfirm: async () => {
+              if (!(await logout())) {
+                toast("로그아웃하지 못했어요. 다시 시도해 주세요");
+                return;
+              }
               toast("로그아웃되었어요");
               navigate("/login");
             },

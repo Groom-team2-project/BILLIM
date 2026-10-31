@@ -7,3 +7,8 @@ import { api } from "@/api/client";
 export function adminLogin(loginId: string, password: string): Promise<void> {
   return api<void>("/auth/admin/login", { method: "POST", json: { loginId, password } });
 }
+
+/** 현재 기기 외 같은 회원의 세션 전부 폐기. 현재 세션·CSRF 토큰은 유지 */
+export function logoutOthers(): Promise<{ revokedCount: number }> {
+  return api<{ revokedCount: number }>("/auth/logout-others", { method: "POST" });
+}
