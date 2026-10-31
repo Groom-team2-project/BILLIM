@@ -12,6 +12,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
@@ -32,6 +38,8 @@ class AdminLoginServiceTest {
     /** bcrypt(PASSWORD). 강도 4 — 테스트 속도 */
     private static final String PASSWORD_HASH = "$2y$04$lAfLhNzSpfrBolppuYsq1.Rz0gsTmlQySKyKTZfp1LFd34KU5FCq.";
 
+    /** bcrypt(PASSWORD). 강도 10 — 동시 대조가 겹치도록 느린 해시 */
+    private static final String SLOW_PASSWORD_HASH = "$2a$10$wXmlJ2PargR//cEz4O7GI.oXvkZTZd.8VEvmzAinRRZP3.PFJYpD6";
     private static final int MAX_FAILURES = 3;
     private static final Duration LOCK = Duration.ofMinutes(15);
 
@@ -149,6 +157,58 @@ class AdminLoginServiceTest {
         failTimes(MAX_FAILURES - 1);
 
         assertThat(service.login(LOGIN_ID, PASSWORD)).isSameAs(admin);
+    }
+
+    /** 고정 창이면 첫 실패 후 window가 지나는 순간 최근 실패까지 초기화 — 경계 양쪽 실패가 합산되지 않음 */
+    @Test
+    @DisplayName("실패는 현재 시각 기준 이동 창으로 집계한다")
+    void countsFailuresInSlidingWindow() {
+        failTimes(1);
+        clock.advance(LOCK.minusSeconds(1));
+        failTimes(1);
+        clock.advance(Duration.ofSeconds(2));   // 첫 실패만 창 밖
+        failTimes(1);
+
+        assertThatExceptionOfType(BusinessException.class)
+                .isThrownBy(() -> service.login(LOGIN_ID, "wrong-password"))
+                .extracting(BusinessException::getErrorCode).isEqualTo(ErrorCode.RATE_LIMITED);
+    }
+
+    /**
+     * 확인과 기록이 분리되면 동시 요청이 모두 잠금 확인을 통과해 한도 이상 대조.
+     * 대조가 겹치도록 느린 해시(cost 10) 사용
+     */
+    @Test
+    @DisplayName("동시 요청도 한도를 넘겨 비밀번호를 대조하지 못한다")
+    void concurrentAttemptsCannotExceedLimit() throws Exception {
+        AdminLoginService slow = new AdminLoginService(memberAuthService,
+                new AdminLoginLockout(clock, MAX_FAILURES, LOCK), clock, LOGIN_ID, SLOW_PASSWORD_HASH);
+        int threads = 20;
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
+        List<Future<ErrorCode>> results = new ArrayList<>();
+        for (int i = 0; i < threads; i++) {
+            results.add(pool.submit(() -> {
+                start.await();
+                try {
+                    slow.login(LOGIN_ID, "wrong-password");
+                    return null;
+                } catch (BusinessException e) {
+                    return e.getErrorCode();
+                }
+            }));
+        }
+        start.countDown();
+        int verified = 0;
+        for (Future<ErrorCode> result : results) {
+            if (result.get() != ErrorCode.RATE_LIMITED) {
+                verified++;
+            }
+        }
+        pool.shutdown();
+
+        // 한도 도달 실패는 429로 응답하므로 401은 한도 - 1 이하, 대조 자체는 한도 이하
+        assertThat(verified).isLessThan(MAX_FAILURES);
     }
 
     @Test
