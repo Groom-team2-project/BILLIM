@@ -1,5 +1,7 @@
 package com.billim.domain.member.entity;
 
+import com.ibm.icu.text.SpoofChecker;
+
 import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
@@ -17,11 +19,14 @@ import java.util.Set;
  *
  * <p>사칭 이름: 운영 주체로 오인될 단어. 전각·대소문자·공백·기호를 정규화한 뒤 비교 — "ＡＤＭＩＮ", "관 리 자" 우회 차단.
  * 한글 단어는 포함 여부, 영문은 바로 앞이 영문자가 아닐 때 — "공식admin" 차단, "badminton" 허용.
+ * 비교 키와 예약어 모두 혼동 문자 골격(UTS #39 skeleton)으로 변환 — 키릴 "а"로 쓴 "аdmin" 차단. 표시 이름 원본은 불변.
  */
 public final class DisplayNamePolicy {
 
-    private static final List<String> RESERVED_KOREAN = List.of("관리자", "운영자", "운영진", "운영팀");
-    private static final List<String> RESERVED_LATIN = List.of("admin", "billim");
+    /** 생성 후 읽기 전용 — 여러 스레드에서 공유 가능 */
+    private static final SpoofChecker SPOOF_CHECKER = new SpoofChecker.Builder().build();
+    private static final List<String> RESERVED_KOREAN = skeletons("관리자", "운영자", "운영진", "운영팀");
+    private static final List<String> RESERVED_LATIN = skeletons("admin", "billim");
     /** 한글 채움 문자(초성·중성·호환·반각)와 점자 빈칸 — 보이지 않는 글자 */
     private static final Set<Integer> INVISIBLE_LETTERS = Set.of(0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800);
 
@@ -79,11 +84,16 @@ public final class DisplayNamePolicy {
         };
     }
 
-    /** NFKC로 전각·호환 문자 통일 후 글자·숫자만 소문자로 남김 */
+    /** NFKC로 전각·호환 문자 통일 → 소문자 → 글자·숫자만 → 혼동 문자 골격 */
     private static String comparisonKey(String value) {
         String normalized = Normalizer.normalize(value, Normalizer.Form.NFKC).toLowerCase(Locale.ROOT);
         StringBuilder key = new StringBuilder(normalized.length());
         normalized.codePoints().filter(Character::isLetterOrDigit).forEach(key::appendCodePoint);
-        return key.toString();
+        return SPOOF_CHECKER.getSkeleton(key);
+    }
+
+    /** 예약어도 같은 변환 — 골격은 "m"을 "rn"처럼 바꾸므로 원문 비교 불가 */
+    private static List<String> skeletons(String... words) {
+        return List.of(words).stream().map(DisplayNamePolicy::comparisonKey).toList();
     }
 }
