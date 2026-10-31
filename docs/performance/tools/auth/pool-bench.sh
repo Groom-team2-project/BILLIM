@@ -42,10 +42,18 @@ start_instances() {   # $1 대수, $2 풀 크기
     echo $! >> "$OUT/pids"
   done
   for i in $(seq 0 $((n - 1))); do
+    local ready=""
     for _ in $(seq 1 90); do
-      [ "$(curl -s -o /dev/null -w '%{http_code}' localhost:$((18080 + i))/api/v1/auth/csrf)" = 200 ] && break
+      if [ "$(curl -s -o /dev/null -w '%{http_code}' localhost:$((18080 + i))/api/v1/auth/csrf)" = 200 ]; then
+        ready=1; break
+      fi
       sleep 2
     done
+    # 미기동 인스턴스에 부하를 보내면 오류 응답이 측정값으로 남음 — 중단
+    if [ -z "$ready" ]; then
+      echo "✗ 인스턴스 $((18080 + i)) 3분 내 미기동 — 로그: $OUT/app-${n}x${pool}-$i.log" >&2
+      exit 1
+    fi
   done
 }
 
@@ -68,11 +76,18 @@ for cfg in $CONFIGS; do
   sleep 15
   sample > "$OUT/$cfg-idle.csv" & SAMPLER=$!; sleep 10; kill $SAMPLER
 
-  k6 run --quiet -e BASES="$bases" -e VUS="$VUS" -e STEADY=20s "$TOOL/member-read-multi.js" > /dev/null 2>&1   # 워밍업
+  if ! k6 run --quiet -e BASES="$bases" -e VUS="$VUS" -e STEADY=20s "$TOOL/member-read-multi.js" > "$OUT/$cfg-warmup.log" 2>&1; then
+    echo "✗ $cfg 워밍업 실패 — $OUT/$cfg-warmup.log" >&2
+    exit 1
+  fi
   for r in $(seq 1 "$REPEAT"); do
     sample > "$OUT/$cfg-run$r.csv" & SAMPLER=$!
-    k6 run --quiet -e BASES="$bases" -e VUS="$VUS" -e STEADY="$STEADY" \
-      --summary-export "$OUT/$cfg-run$r.json" "$TOOL/member-read-multi.js" > /dev/null 2>&1
+    if ! k6 run --quiet -e BASES="$bases" -e VUS="$VUS" -e STEADY="$STEADY" \
+      --summary-export "$OUT/$cfg-run$r.json" "$TOOL/member-read-multi.js" > "$OUT/$cfg-run$r.log" 2>&1; then
+      kill $SAMPLER
+      echo "✗ $cfg 측정 $r회차 실패 — $OUT/$cfg-run$r.log" >&2
+      exit 1
+    fi
     kill $SAMPLER
   done
   stop_instances

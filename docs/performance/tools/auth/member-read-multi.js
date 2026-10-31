@@ -18,6 +18,8 @@ export const options = {
     { duration: "5s", target: 0 },
   ],
   summaryTrendStats: ["avg", "med", "p(95)", "p(99)", "max"],
+  // 실패 1% 이상이면 종료 코드 비정상 — pool-bench.sh가 그 회차를 측정값으로 쓰지 않고 중단
+  thresholds: { http_req_failed: ["rate<0.01"], checks: ["rate>0.99"] },
 };
 
 // 서명 강제 운영 서버 직접 측정 시 nf_sign.py 출력 전달. 로컬은 생략
