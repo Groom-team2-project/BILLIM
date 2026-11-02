@@ -77,7 +77,7 @@ export function AppLayout() {
       ? /* 내 물건 — 신고·소유자 프로필 대신 관리 항목 */
         [
           { label: "수정", onSelect: () => navigate(`/register?itemId=${moreItem.id}`) },
-          { label: "요청 보기", onSelect: () => navigate("/rentals") },
+          { label: "요청 보기", onSelect: () => navigate("/rentals?tab=lent") },
           {
             label: moreItem.visibility === "PUBLIC" ? "공개 중지" : "다시 공개",
             onSelect: () => {
