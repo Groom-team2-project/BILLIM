@@ -42,6 +42,34 @@ public class AppointmentService {
     private final CommunityPlaceRepository places;
 
     public AppointmentSlotsResponse getAppointments(Long rentalId, LoginMember member) {
+        Rental rental = requireRental(rentalId, member);
+        Long memberId = member.memberId();
+
+        //약속 슬롯 조회
+        List<AppointmentSlot> slots = appointmentSlotRepository.findByRentalId(rentalId);
+
+        if (slots.isEmpty()) {
+            return new AppointmentSlotsResponse(List.of());
+        }
+
+        List<AppointmentSlotResponse> items = new ArrayList<>();
+        Instant now = clock.instant();
+
+        for (AppointmentSlot slot : slots) {
+            items.add(toSlotResponse(rental, slot, memberId, now));
+        }
+        return new AppointmentSlotsResponse(items);
+    }
+
+    public AppointmentSlotResponse getAppointment(Long rentalId, Long slotId, LoginMember member) {
+        Rental rental = requireRental(rentalId, member);
+        AppointmentSlot slot = appointmentSlotRepository.findById(slotId)
+                .filter(value -> value.getRentalId().equals(rentalId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+        return toSlotResponse(rental, slot, member.memberId(), clock.instant());
+    }
+
+    private Rental requireRental(Long rentalId, LoginMember member) {
         //로그인 사용자 확인
         if (member == null || member.memberId() == null) {
             throw new BusinessException(ErrorCode.UNAUTHENTICATED);
@@ -57,49 +85,34 @@ public class AppointmentService {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);
         }
         //사용자가 소유자 또는 대여자인지 확인
-        Rental rental = rentalRepository.findById(rentalId)
+        return rentalRepository.findById(rentalId)
             .filter(r-> r.isParticipant(memberId))
             .orElseThrow(()-> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
+    }
 
-        //약속 슬롯 조회
-        List<AppointmentSlot> slots = appointmentSlotRepository.findByRentalId(rentalId);
-
-        if (slots.isEmpty()) {
-            return new AppointmentSlotsResponse(List.of());
+    private AppointmentSlotResponse toSlotResponse(Rental rental, AppointmentSlot slot, long memberId, Instant now) {
+        AppointmentProposal confirmed = null;
+        if (slot.getConfirmedProposalId() != null) {
+            confirmed = appointmentProposalRepository.findById(slot.getConfirmedProposalId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
         }
-
-        List<AppointmentSlotResponse> items = new ArrayList<>();
-        Instant now = clock.instant();
-
-        //슬롯과 확정 대기 제안 조회
-        for (AppointmentSlot slot : slots) {
-            AppointmentProposal confirmed = null;
-            if(slot.getConfirmedProposalId() != null) {
-                confirmed = appointmentProposalRepository
-                    .findById(slot.getConfirmedProposalId())
-                    .orElseThrow(()-> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
-            }
-            List<AppointmentProposal> pendingProposals =
-                appointmentProposalRepository.findBySlotIdAndStatus(slot.getId(), AppointmentProposalStatus.PROPOSED);
-            if (pendingProposals.size() > 1) {
-                throw new IllegalStateException("하나의 약속 슬롯에 대기 제안이 여러 개 존재");
-            }
-            AppointmentProposal pending = pendingProposals.isEmpty() ? null : pendingProposals.getFirst();
-            if (confirmed != null && (!slot.getId().equals(confirmed.getSlotId())
-                    || confirmed.getStatus() != AppointmentProposalStatus.CONFIRMED)) {
-                throw new IllegalStateException("약속 슬롯의 확정 제안 참조 불일치");
-            }
-            items.add(new AppointmentSlotResponse(
-                    slot.getId().toString(), rental.getId().toString(),
-                    slot.getKind(), slot.getVersion(),
-                    toProposalResponse(confirmed, slot, rental),
-                    toProposalResponse(pending, slot, rental),
-                    allowedActions(rental, slot, pending, memberId, now)
-            ));
+        List<AppointmentProposal> pendingProposals = appointmentProposalRepository
+                .findBySlotIdAndStatus(slot.getId(), AppointmentProposalStatus.PROPOSED);
+        if (pendingProposals.size() > 1) {
+            throw new IllegalStateException("하나의 약속 슬롯에 대기 제안이 여러 개 존재");
         }
-
-        //AppointmentSlotResponse로 변환해 반환
-        return new AppointmentSlotsResponse(items);
+        AppointmentProposal pending = pendingProposals.isEmpty() ? null : pendingProposals.getFirst();
+        if (confirmed != null && (!slot.getId().equals(confirmed.getSlotId())
+                || confirmed.getStatus() != AppointmentProposalStatus.CONFIRMED)) {
+            throw new IllegalStateException("약속 슬롯의 확정 제안 참조 불일치");
+        }
+        return new AppointmentSlotResponse(
+                slot.getId().toString(), rental.getId().toString(),
+                slot.getKind(), slot.getVersion(),
+                toProposalResponse(confirmed, slot, rental),
+                toProposalResponse(pending, slot, rental),
+                allowedActions(rental, slot, pending, memberId, now)
+        );
     }
 
     private List<String> allowedActions(Rental rental, AppointmentSlot slot,

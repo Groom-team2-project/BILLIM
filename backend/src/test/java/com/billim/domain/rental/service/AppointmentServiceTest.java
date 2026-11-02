@@ -7,6 +7,7 @@ import com.billim.domain.member.repository.MemberRepository;
 import com.billim.domain.rental.entity.*;
 import com.billim.domain.rental.repository.*;
 import com.billim.global.exception.BusinessException;
+import com.billim.global.exception.ErrorCode;
 import com.billim.global.security.LoginMember;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -140,5 +141,82 @@ class AppointmentServiceTest {
         when(slots.findByRentalId(10L)).thenReturn(List.of(slot));
         when(proposals.findBySlotIdAndStatus(20L, AppointmentProposalStatus.PROPOSED)).thenReturn(List.of());
         assertThat(service.getAppointments(10L, login).items().getFirst().allowedActions()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("단일 슬롯 응답은 전체 목록의 해당 슬롯과 동일")
+    void singleSlotMatchesList() {
+        AppointmentSlot slot = mock(AppointmentSlot.class);
+        when(slot.getConfirmedProposalId()).thenReturn(null);
+        when(slot.getId()).thenReturn(20L);
+        when(slot.getRentalId()).thenReturn(10L);
+        when(slot.getKind()).thenReturn(AppointmentKind.PICKUP);
+        when(slot.getVersion()).thenReturn(3L);
+        when(slots.findById(20L)).thenReturn(Optional.of(slot));
+        when(slots.findByRentalId(10L)).thenReturn(List.of(slot));
+        assertThat(service.getAppointment(10L, 20L, login))
+                .isEqualTo(service.getAppointments(10L, login).items().getFirst());
+    }
+
+    @Test
+    @DisplayName("단일 슬롯 조회도 로그인·활성 회원·거래 당사자 확인 유지")
+    void singleSlotRequiresActiveParticipant() {
+        assertThatThrownBy(() -> service.getAppointment(10L, 20L, null))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.UNAUTHENTICATED));
+        when(members.findById(2L)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.getAppointment(10L, 20L, login))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.UNAUTHENTICATED));
+        Member inactive = mock(Member.class);
+        when(members.findById(2L)).thenReturn(Optional.of(inactive));
+        assertThatThrownBy(() -> service.getAppointment(10L, 20L, login))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.UNAUTHENTICATED));
+        when(inactive.getStatus()).thenReturn(MemberStatus.ACTIVE);
+        when(rentals.findById(10L).orElseThrow().isParticipant(2L)).thenReturn(false);
+        assertThatThrownBy(() -> service.getAppointment(10L, 20L, login))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+        verifyNoInteractions(slots, proposals);
+    }
+
+    @Test
+    @DisplayName("없는 슬롯과 다른 거래의 슬롯은 제안 조회 전 거부")
+    void singleSlotMustBelongToRental() {
+        assertThatThrownBy(() -> service.getAppointment(10L, 20L, login))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+        AppointmentSlot slot = mock(AppointmentSlot.class);
+        when(slot.getRentalId()).thenReturn(11L);
+        when(slots.findById(20L)).thenReturn(Optional.of(slot));
+        assertThatThrownBy(() -> service.getAppointment(10L, 20L, login))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+        verifyNoInteractions(proposals);
+    }
+
+    @Test
+    @DisplayName("단일 슬롯의 대기 제안 중복과 확정 참조 불일치 거부")
+    void singleSlotPreservesProposalConsistencyChecks() {
+        AppointmentSlot slot = mock(AppointmentSlot.class);
+        when(slot.getConfirmedProposalId()).thenReturn(null);
+        when(slot.getId()).thenReturn(20L);
+        when(slot.getRentalId()).thenReturn(10L);
+        when(slots.findById(20L)).thenReturn(Optional.of(slot));
+        when(proposals.findBySlotIdAndStatus(20L, AppointmentProposalStatus.PROPOSED))
+                .thenReturn(List.of(mock(AppointmentProposal.class), mock(AppointmentProposal.class)));
+        assertThatThrownBy(() -> service.getAppointment(10L, 20L, login)).isInstanceOf(IllegalStateException.class);
+        when(proposals.findBySlotIdAndStatus(20L, AppointmentProposalStatus.PROPOSED)).thenReturn(List.of());
+        when(slot.getConfirmedProposalId()).thenReturn(30L);
+        assertThatThrownBy(() -> service.getAppointment(10L, 20L, login)).isInstanceOf(BusinessException.class);
+        AppointmentProposal confirmed = mock(AppointmentProposal.class);
+        when(proposals.findById(30L)).thenReturn(Optional.of(confirmed));
+        when(confirmed.getSlotId()).thenReturn(21L);
+        when(confirmed.getStatus()).thenReturn(AppointmentProposalStatus.CONFIRMED);
+        assertThatThrownBy(() -> service.getAppointment(10L, 20L, login)).isInstanceOf(IllegalStateException.class);
+        when(confirmed.getSlotId()).thenReturn(20L);
+        when(confirmed.getStatus()).thenReturn(AppointmentProposalStatus.SUPERSEDED);
+        assertThatThrownBy(() -> service.getAppointment(10L, 20L, login)).isInstanceOf(IllegalStateException.class);
     }
 }
