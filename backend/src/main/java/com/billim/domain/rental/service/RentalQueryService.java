@@ -70,6 +70,23 @@ public class RentalQueryService implements RentalPartyQuery {
         return summary(rental, memberId, clock.instant());
     }
 
+    /** 채팅 목록 등에서 필요한 대여 요약을 요청 단위로 일괄 조회. 참여자 검증 유지. */
+    public Map<Long, RentalSummaryResponse> getRentalSummaries(List<Long> rentalIds, Long memberId) {
+        if (memberId == null || memberId < 1) throw new BusinessException(ErrorCode.UNAUTHENTICATED);
+        if (rentalIds == null || rentalIds.stream().anyMatch(id -> id == null || id < 1)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST);
+        }
+        if (rentalIds.isEmpty()) return Map.of();
+        var content = rentals.findAllById(new HashSet<>(rentalIds));
+        if (content.size() != new HashSet<>(rentalIds).size()
+                || content.stream().anyMatch(r -> !r.isParticipant(memberId))) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
+        Instant now = clock.instant();
+        var reads = preloadList(content, memberId, now);
+        return content.stream().collect(Collectors.toMap(Rental::getId, r -> summary(r, memberId, now, reads)));
+    }
+
     public RentalListResponse getRentalList(RentalRole role, RentalStatus status, boolean overdueOnly,
                                             Long itemId, int page, int size, LoginMember member) {
         long memberId = requireMember(member);

@@ -70,6 +70,19 @@ class RentalQueryServiceTest {
     }
 
     @Test
+    @DisplayName("일괄 요약은 개별 요약과 같고 무관한 회원 및 누락 거래는 거부")
+    void batchSummaryPreservesResponseAndAccess() {
+        Rental rental = rental(TODAY, TODAY.plusDays(2));
+        when(rentals.findById(100L)).thenReturn(Optional.of(rental));
+        when(rentals.findAllById(any())).thenReturn(List.of(rental));
+        assertThat(service.getRentalSummaries(List.of(100L), 2L).get(100L))
+                .isEqualTo(service.getRentalSummary(100L, 2L));
+        error(() -> service.getRentalSummaries(List.of(100L), 3L), ErrorCode.RESOURCE_NOT_FOUND);
+        error(() -> service.getRentalSummaries(List.of(100L, 101L), 2L), ErrorCode.RESOURCE_NOT_FOUND);
+        error(() -> service.getRentalSummaries(List.of(100L), null), ErrorCode.UNAUTHENTICATED);
+    }
+
+    @Test
     @DisplayName("거래 당사자는 현재 물건 공개 권한과 무관하게 스냅샷·상태 이력 조회")
     void detailUsesSnapshotsAndPreservesNullActor() {
         Rental rental = rental(TODAY, TODAY.plusDays(2));

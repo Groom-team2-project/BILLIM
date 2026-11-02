@@ -1,5 +1,21 @@
 # 채팅·알림 로컬 성능 테스트
 
+> 버전: v0.1.0
+> 수정일: 2026.11.03
+
+## 워밍업 통제 목록 비교
+
+[메시지·대여·알림 포함 비교 결과](../../박선우-채팅목록-실데이터비교.md)와 [공유 원자료](../../raw/chat-rich-controlled-20261103/result.json) 참고.
+
+- `compose.rich.yaml`의 `billim-perf-rich` 전용 DB·포트 18083 사용. 기존 개발·운영 데이터 미사용.
+- `rich-benchmark.py`로 기준 데이터 생성 및 버전별 최초 측정. `RICH_VERSION=baseline`은 반드시 변경 전 백엔드 소스로, `optimized`는 개선 소스로 빌드. 현재 개선 소스를 baseline 이름으로 다시 빌드하면 비교 무효.
+- 컨테이너 내부 `/scripts`에 이 디렉터리, `/backend`에 해당 버전 백엔드 디렉터리 마운트. Docker 소켓 필요. `HOST_BACKEND`는 Docker 데몬에서 접근할 호스트 백엔드 경로. Windows Docker Desktop 예: `/run/desktop/mnt/host/c/Users/ParkSunWoo/Bootcamp/BILLIM/backend`.
+- 최초 실행 환경: `COMPOSE_PROJECT_NAME=billim-perf-rich`, `PERF_BASE_URL=http://backend:8080`, `PERF_PAIRS=50`, `PERF_SHARED_OWNER=true`, `PERF_NOTIFICATIONS_PER_MEMBER=100`, `PERF_FIXTURE_NAME=fixtures-rich.json`, `RUNNER_NAME`은 실제 실행 컨테이너 이름. `Dockerfile.rich-runner`로 실행 이미지 생성.
+- 통제 재측정은 `billim-perf-rich:baseline`, `billim-perf-rich:optimized` 이미지와 기존 `local/fixtures-rich.json` 및 DB 필요. 최초 측정과 동시에 실행 금지.
+- `rich-controlled.py`를 같은 실행 이미지에서 실행. Docker 소켓과 `/scripts` 마운트, `billim-perf-rich_default` 네트워크, 실제 `RUNNER_NAME`, 새 `CONTROLLED_LABEL` 지정. 기존 결과 이름은 덮어쓰지 않음. 예: `--entrypoint python3 billim-perf-rich-runner /scripts/rich-controlled.py`.
+- 통제 측정은 MySQL·백엔드를 매회 재시작하므로 해당 격리 프로젝트의 다른 시험과 동시 사용 금지. `compose.rich.controlled.yaml`로 버퍼 풀 자동 복원 비활성. 측정 중 메시지·대여·알림 변경 미수행.
+- 완료 여부는 실행 컨테이너 종료 코드와 `local/{CONTROLLED_LABEL}-result.json`의 `status`로 확인. `local/`에는 세션 원문이 있으므로 전체 디렉터리를 공유하지 않음.
+
 후속 목록·유휴 연결·전송·outbox 비교는 [2026.10.31 후속 측정](../../박선우-채팅알림-후속측정.md)에 조건과 결과를 기록했다. `PERF_SHARED_OWNER=true`와 `PERF_FIXTURE_NAME=fixtures-followup.json`을 사용하면 한 회원이 여러 채팅방을 가진 독립 fixture를 생성한다. 이 시험은 Compose 프로젝트를 `billim-perf-followup`으로 지정해 기존 `billim-perf` 볼륨과 분리한다. `measure-room-list.py`, `count-room-list-sql.py`, `measure-idle-queries.py`, `measure-send.py`가 각 경로를 측정한다. outbox 50/100 비교는 `Dockerfile.outbox-benchmark`와 `run-outbox-benchmark.sh`로 만든 Docker 컨테이너 안에서 실행하며, 컨테이너 종료 코드로 완료 여부를 확인한다.
 
 멀티 인스턴스 동작 검증은 `compose.multi.correctness.yaml`을 `billim-perf-multi-20261031` 프로젝트로 띄우고 `fixtures-multi.json`을 시드한 뒤, `benchmark` 서비스를 실행한다. 기존 `compose.multi.yaml`의 k6 성능 실험과 별도 구성이다. Docker Desktop에서 `billim-perf-multi-20261031-benchmark`의 종료 코드 0과 `local/multi-instance-result-20261031.json`의 `status: passed`를 함께 확인한다. 이 결과 파일에는 세션 원문이 없다.

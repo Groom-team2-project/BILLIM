@@ -10,6 +10,19 @@ import java.util.List;
 public interface ChatRoomRentalReadRepository extends JpaRepository<Rental, Long> {
 
     @Query("""
+        select rental from Rental rental, ChatRoom room
+        where room.id in :roomIds
+          and (room.ownerId = :memberId or room.requesterId = :memberId)
+          and rental.chatRoomId = room.id
+          and rental.itemId = room.itemId
+          and rental.ownerId = room.ownerId
+          and rental.borrowerId = room.requesterId
+        order by rental.createdAt desc, rental.id desc
+        """)
+    List<Rental> findLinkedInRooms(@Param("roomIds") List<Long> roomIds,
+                                   @Param("memberId") Long memberId);
+
+    @Query("""
         select rental
         from Rental rental
         where rental.chatRoomId = :roomId
