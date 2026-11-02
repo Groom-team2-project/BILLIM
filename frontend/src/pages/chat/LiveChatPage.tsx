@@ -12,6 +12,7 @@ import { refreshChatUnreadCount } from "@/stores/chat-unread";
 import type { ApiChatMessage, ApiChatRoom, ChatRoomFilter } from "@/types/chat-api";
 import { classes } from "@/utils/classes";
 import { loadChatAppointmentPreviews } from "@/utils/chat-appointment-preview";
+import { promoteChatRoom } from "@/utils/chat-state";
 import styles from "@/pages/chat/ChatPage.module.css";
 
 const c = classes(styles);
@@ -117,21 +118,7 @@ export function LiveChatPage() {
     void refreshChatUnreadCount();
   }, []);
   const onMessage = useCallback((roomId: string, message: ApiChatMessage) => {
-    const preview = message.type === "SYSTEM"
-      ? message.system?.label ?? message.body ?? "거래 상태가 변경됐어요"
-      : message.body ?? "";
-    setRooms((previous) => {
-      const index = previous.findIndex((room) => room.id === roomId);
-      if (index < 0) return previous;
-      const current = previous[index];
-      if (current.lastMessageAt && Date.parse(current.lastMessageAt) > Date.parse(message.createdAt)) {
-        return previous;
-      }
-      return [
-        { ...current, lastMessagePreview: preview.slice(0, 200), lastMessageAt: message.createdAt },
-        ...previous.filter((_, position) => position !== index),
-      ];
-    });
+    setRooms((previous) => promoteChatRoom(previous, roomId, message));
   }, []);
   const onAppointmentChanged = useCallback((room: ApiChatRoom) => {
     const version = nextPreviewVersion(room.id);

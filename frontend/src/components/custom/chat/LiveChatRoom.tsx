@@ -178,9 +178,9 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
     writePendingChatMessages(memberId, roomId, pending);
   }, [memberId, roomId, pending]);
 
-  const receiveMessages = useCallback((incoming: ApiChatMessage[]) => {
+  const receiveMessages = useCallback((incoming: ApiChatMessage[], notifyList = true) => {
     setMessages((previous) => mergeChatMessages(previous, incoming));
-    if (incoming.length > 0) {
+    if (notifyList && incoming.length > 0) {
       const latest = incoming.reduce((current, message) => message.sequence > current.sequence ? message : current);
       onMessage(roomId, latest);
     }
@@ -389,7 +389,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
           id: visible.dataset.messageId!, bottom: visible.getBoundingClientRect().bottom - top,
         };
       }
-      receiveMessages(page.items);
+      receiveMessages(page.items, false);
       setOtherLastRead(page.otherLastReadSequence);
       setOlder(page.hasMore);
     } catch {
