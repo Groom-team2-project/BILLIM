@@ -29,10 +29,11 @@
 # 보안 헤더 — 전 경로. 경로별 [[headers]]와 함께 적용
 # 프레임 삽입 차단(클릭재킹) · MIME 추측 차단 · 외부로 보내는 주소 축소 · 위치 외 기기 권한 차단
 # 출처 제한 CSP — 자기 출처·카카오 지도·채팅 WSS만 허용. Report-Only 관찰에서 위반 없음 확인 후 강제
+# 카카오 지도 SDK 4.5.x는 본체 스크립트(t1)·타일(mts 등)을 kakaocdn.net에서 로드 — daumcdn.net만으로는 지도 중단
 [[headers]]
   for = "/*"
   [headers.values]
-    Content-Security-Policy = "default-src 'self'; script-src 'self' https://dapi.kakao.com https://t1.daumcdn.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.daumcdn.net https://*.kakao.com; font-src 'self'; connect-src 'self' wss://d24eooh4xf18t4.cloudfront.net; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://dapi.kakao.com https://t1.kakaocdn.net https://t1.daumcdn.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.kakaocdn.net https://*.daumcdn.net https://*.kakao.com; font-src 'self'; connect-src 'self' wss://d24eooh4xf18t4.cloudfront.net; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
