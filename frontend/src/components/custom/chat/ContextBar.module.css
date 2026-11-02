@@ -53,3 +53,23 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.context-bar-action { flex: none; min-width: 0; }
+
+@media (max-width: 759px) {
+  .context-bar {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .context-bar-title { flex-wrap: wrap; }
+
+  .context-bar-muted {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .context-bar-action { grid-column: 1 / -1; }
+}

@@ -50,7 +50,8 @@ export function AppointmentCard({
     );
 
   return (
-    <div id={id} className={c(`appt${mine ? " appt--me" : ""}`)} role="group" aria-label={`${appt.kind} 약속`}>
+    <div id={id} tabIndex={id ? -1 : undefined} className={c(`appt${mine ? " appt--me" : ""}`)}
+      role="group" aria-label={`${appt.kind} 약속`}>
       <div className={c("appt-head")}>
         <span className={c("t-label appt-kind")}>
           <Icon name="clock" size={18} />

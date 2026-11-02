@@ -16,6 +16,8 @@
   align-self: flex-end;
 }
 
+.appt:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+
 .appt-head {
   display: flex;
   align-items: center;

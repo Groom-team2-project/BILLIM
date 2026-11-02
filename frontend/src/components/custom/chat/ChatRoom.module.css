@@ -66,6 +66,8 @@
 
 .chat-rental-card-actions > * { flex: 1 1 130px; }
 
+.chat-rental-card:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+
 /* 스크롤 영역 + 메시지 목록 (nb-room__scroll + nb-msgs) */
 .chat-room-scroll {
   flex: 1;
@@ -158,6 +160,7 @@
 .chat-rental-picker select {
   width: 170px;
   max-width: 35vw;
+  min-height: var(--size-touch);
   color: var(--ink);
   background: var(--surface);
   border: 1px solid var(--line);
@@ -187,6 +190,7 @@
 
 .chat-activity-link {
   flex: none;
+  min-height: var(--size-touch);
   padding: var(--space-2) var(--space-3);
   color: var(--ink);
   background: var(--surface-sunken);

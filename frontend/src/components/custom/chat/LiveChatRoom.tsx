@@ -129,6 +129,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
     const top = viewport.scrollTop + card.getBoundingClientRect().top - viewport.getBoundingClientRect().top
       - Math.max(0, (viewport.clientHeight - card.clientHeight) / 2);
     viewport.scrollTo({ top, behavior: "smooth" });
+    card.focus({ preventScroll: true });
   };
 
   const onScroll = () => {
@@ -648,13 +649,13 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
                 </option>)}
               </select>
             </label> : null}
-            {hasAppointment ? <Button size="sm" variant="secondary" icon="clock"
+            {hasAppointment ? <Button variant="secondary" icon="clock"
               disabled={!appointmentToVisit || appointmentError}
               onClick={() => {
                 if (appointmentToVisit) jumpToCard(cardId(roomId, appointmentToVisit.status, appointmentToVisit.proposal.id));
               }}>
               약속 보기
-            </Button> : proposalKinds.length > 0 ? <Button size="sm" variant="secondary" icon="clock"
+            </Button> : proposalKinds.length > 0 ? <Button variant="secondary" icon="clock"
               disabled={appointmentBusy || appointmentLoading || appointmentError}
               onClick={() => void openAppointmentSheet(proposalKinds[0].kind === "PICKUP" ? "give" : "back")}>
               약속 잡기
@@ -683,6 +684,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
         {timeline.map((entry) => {
           if (entry.kind === "rental-request" && selectedRental) return <div key={`rental-request-${selectedRental.id}`}
             id={cardId(roomId, "request", selectedRental.id)}
+            tabIndex={-1}
             className={c("chat-rental-card")} role="group" aria-label={`${selectedRental.itemTitle} 대여 요청`}>
             <div className={c("chat-rental-card-head")}>
               <strong className={c("t-label")}>{selectedRental.itemTitle}</strong>
@@ -706,6 +708,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
           </div>;
           if (entry.kind === "rental-approved" && selectedRental) return <div key={`rental-approved-${selectedRental.id}`}
             id={cardId(roomId, "approved", selectedRental.id)}
+            tabIndex={-1}
             className={c("chat-rental-card")} role="group" aria-label={`${selectedRental.itemTitle} 약속 잡기`}>
             <div className={c("chat-rental-card-head")}>
               <strong className={c("t-label")}>전달·반납 약속</strong>
