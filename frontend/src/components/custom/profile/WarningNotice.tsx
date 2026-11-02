@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { getMySanctions, type ApiMySanction } from "@/api/reports";
 import { useUi } from "@/components/overlay/UiContext";
-import { confirmWarning, nextWarning, warningSummary } from "@/utils/warning-notice";
+import { confirmWarning, nextWarning, warningNoticeBody } from "@/utils/warning-notice";
 
 function browserStorage(): Storage | null {
   try {
@@ -31,8 +31,8 @@ export function WarningNotice({ memberId }: { memberId: string }) {
       shown.add(warning.id);
       dialogOpen = true;
       confirm({
-        title: "운영팀에서 경고 조치를 했어요",
-        body: `사유: ${warningSummary(warning.publicReason)} 자세한 내용은 프로필의 받은 운영 조치에서 확인할 수 있어요.`,
+        title: "경고 조치를 받았어요",
+        body: warningNoticeBody(warning.publicReason),
         cancel: "나중에",
         confirm: "확인했어요",
         onConfirm: () => {

@@ -34,6 +34,8 @@
   line-height: 21px;
   color: var(--ink-muted);
   margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
 .ui-modal--wide {
