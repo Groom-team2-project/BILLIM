@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiChatMessage, ApiChatRoom } from "../src/types/chat-api.ts";
+import type { ApiAppointmentSlot } from "../src/types/appointment-api.ts";
 import { countNewChatMessages, isChatAtBottom, isChatMessageEndVisible, mergeChatMessages } from "../src/utils/chat-state.ts";
 import { chatRentalResponse, chatTimeline, isMoneyRequest, selectableChatRentals } from "../src/utils/chat-view.ts";
 
@@ -100,4 +101,43 @@ test("요청 사건이 늦게 도착해도 요청 시각에 고정하고 승인 
   assert.deepEqual(order([before, after]), ["1", "rental-request", "rental-approved", "2"]);
   assert.deepEqual(order([before, after, approved]), ["1", "rental-request", "2", "3", "rental-approved"]);
   assert.deepEqual(order([before, after, approved, later]), ["1", "rental-request", "2", "3", "rental-approved", "4"]);
+});
+
+test("약속 카드는 확정 사건 바로 뒤에 있고 이후 채팅이 와도 맨 아래로 이동하지 않는다", () => {
+  const rental = { id: "r1", createdAt: "2026-11-01T00:00:00Z" } as ApiChatRoom["rentals"][number];
+  const proposal = { id: "p1", slotId: "s1", proposerId: "2", kind: "RETURN",
+    scheduledAt: "2026-11-03T00:00:00Z", status: "CONFIRMED",
+    place: { id: "1", communityId: "1", name: "센터" } } as const;
+  const slot = { id: "s1", rentalId: "r1", kind: "RETURN", confirmedProposal: proposal,
+    allowedActions: [] } as ApiAppointmentSlot;
+  const confirmed = { ...message(1), type: "SYSTEM" as const, rentalId: "r1",
+    system: { eventType: "APPOINTMENT_CONFIRMED", aggregateVersion: 2,
+      occurredAt: "2026-11-02T00:00:00Z", label: "약속이 확정됐어요 · 11/3(화) 오전 9:00" } };
+  const later = message(2);
+  const order = (items: ApiChatMessage[]) => chatTimeline(items, rental, false, [slot])
+    .filter((entry) => entry.kind !== "rental-request")
+    .map((entry) => entry.kind === "message" ? entry.message.id : entry.kind);
+  assert.deepEqual(order([confirmed]), ["1", "appointment"]);
+  assert.deepEqual(order([confirmed, later]), ["1", "appointment", "2"]);
+  // 이전 페이지에 확정 사건이 있어도 현재 카드가 최신 메시지 아래로 밀리지 않는다.
+  assert.deepEqual(order([later]), ["appointment", "2"]);
+});
+
+test("같은 시각의 약속 제안은 제안 ID에 맞는 사건 뒤에 둔다", () => {
+  const rental = { id: "r1", createdAt: "2026-11-01T00:00:00Z" } as ApiChatRoom["rentals"][number];
+  const pendingProposal = { id: "p2", slotId: "s1", proposerId: "2", kind: "RETURN",
+    scheduledAt: "2026-11-03T00:00:00Z", status: "PROPOSED",
+    place: { id: "1", communityId: "1", name: "센터" } } as const;
+  const slot = { id: "s1", rentalId: "r1", kind: "RETURN", pendingProposal,
+    allowedActions: ["ACCEPT"] } as ApiAppointmentSlot;
+  const system = { eventType: "APPOINTMENT_PROPOSED", aggregateVersion: 2,
+    occurredAt: "2026-11-02T00:00:00Z", label: "약속을 제안했어요 · 11/3(화) 오전 9:00" };
+  const oldProposal = { ...message(1), type: "SYSTEM" as const, rentalId: "r1",
+    appointmentProposalId: "p1", system };
+  const currentProposal = { ...message(2), type: "SYSTEM" as const, rentalId: "r1",
+    appointmentProposalId: "p2", system };
+  const order = chatTimeline([oldProposal, currentProposal, message(3)], rental, false, [slot])
+    .filter((entry) => entry.kind !== "rental-request")
+    .map((entry) => entry.kind === "message" ? entry.message.id : entry.kind);
+  assert.deepEqual(order, ["1", "2", "appointment", "3"]);
 });

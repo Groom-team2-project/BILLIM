@@ -45,7 +45,7 @@ export function ContextBar({ rental, room, selectedRentalId, action }: {
             {current ? `${chatDateRange(current)} · ${current.placeName}` : "대여 전 문의"}
           </span>
         </div>
-        {action ?? null}
+        {action ? <div className={c("context-bar-action")}>{action}</div> : null}
       </div>
     );
   }
@@ -62,7 +62,7 @@ export function ContextBar({ rental, room, selectedRentalId, action }: {
           {fmtDate(rental.start)} – {fmtDate(rental.end)} · {rental.place}
         </span>
       </div>
-      {action ?? null}
+      {action ? <div className={c("context-bar-action")}>{action}</div> : null}
     </div>
   );
 }

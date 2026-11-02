@@ -66,6 +66,8 @@
 
 .chat-rental-card-actions > * { flex: 1 1 130px; }
 
+.chat-rental-card:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+
 /* 스크롤 영역 + 메시지 목록 (nb-room__scroll + nb-msgs) */
 .chat-room-scroll {
   flex: 1;
@@ -139,14 +141,72 @@
 
 .chat-message-group { display: flex; flex-direction: column; gap: 10px; }
 
+.chat-context-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
 .chat-rental-picker {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
+  flex: none;
   color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.chat-rental-picker select {
+  width: 170px;
+  max-width: 35vw;
+  min-height: var(--size-touch);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+
+.chat-activity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  min-width: 0;
+  padding: var(--space-2) var(--space-4);
   background: var(--surface);
   border-bottom: 1px solid var(--line);
 }
 
-.chat-rental-picker select { color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-md); padding: var(--space-2); }
+.chat-activity-title { flex: none; color: var(--ink-muted); }
+
+.chat-activity-links {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.chat-activity-link {
+  flex: none;
+  min-height: var(--size-touch);
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chat-activity-link:hover,
+.chat-activity-link:focus-visible { border-color: var(--line-control); }
+
+@media (max-width: 759px) {
+  .chat-context-actions { flex-direction: column; align-items: stretch; }
+  .chat-rental-picker { flex-direction: column; align-items: flex-start; gap: 0; }
+  .chat-rental-picker select { width: 125px; }
+}

@@ -1,4 +1,5 @@
 import type { ApiChatMessage, ApiChatRental, ApiChatRoom } from "@/types/chat-api";
+import type { ApiAppointmentProposal, ApiAppointmentSlot } from "@/types/appointment-api";
 import type { RentalStatusView } from "@/components/custom/rentals/status";
 
 export function chatRentalStatus(rental: ApiChatRental): RentalStatusView | null {
@@ -25,10 +26,33 @@ export function chatRentalResponse(rental: ApiChatRental | undefined, memberId: 
 export type ChatTimelineEntry =
   | { kind: "message"; message: ApiChatMessage; index: number }
   | { kind: "rental-request" }
-  | { kind: "rental-approved" };
+  | { kind: "rental-approved" }
+  | { kind: "appointment"; slot: ApiAppointmentSlot; proposal: ApiAppointmentProposal; status: "confirmed" | "pending" };
 
-/** 거래 카드를 발생한 사건 옆에 둔다. 사건이 아직 없으면 요청 시각으로 위치를 고정한다. */
-export function chatTimeline(messages: ApiChatMessage[], rental?: ApiChatRental, showApproval = false): ChatTimelineEntry[] {
+function appointmentTimeLabel(scheduledAt: string): string {
+  const date = new Date(scheduledAt);
+  if (Number.isNaN(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul", month: "numeric", day: "numeric", weekday: "short",
+    hour: "numeric", minute: "2-digit", hour12: true,
+  }).formatToParts(date);
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("month")}/${part("day")}(${part("weekday")}) ${part("dayPeriod")} ${part("hour")}:${part("minute")}`;
+}
+
+function appointmentEventMatches(message: ApiChatMessage, rentalId: string,
+  proposal: ApiAppointmentProposal, status: "confirmed" | "pending"): boolean {
+  if (message.rentalId !== rentalId || message.type !== "SYSTEM") return false;
+  if (message.system?.eventType !== (status === "confirmed" ? "APPOINTMENT_CONFIRMED" : "APPOINTMENT_PROPOSED")) return false;
+  if (message.appointmentProposalId) return message.appointmentProposalId === proposal.id;
+  // 이전 서버에서 저장한 시스템 메시지에는 제안 ID가 없으므로 당시 약속 시각으로 연결한다.
+  const time = appointmentTimeLabel(proposal.scheduledAt);
+  return Boolean(time && message.system.label.includes(time));
+}
+
+/** 거래·약속 카드를 사건 옆에 둔다. 사건이 없으면 승인 카드 뒤나 표시 중인 대화 앞에 둔다. */
+export function chatTimeline(messages: ApiChatMessage[], rental?: ApiChatRental, showApproval = false,
+  slots: ApiAppointmentSlot[] = []): ChatTimelineEntry[] {
   const entries: ChatTimelineEntry[] = messages.map((message, index) => ({ kind: "message", message, index }));
   if (!rental) return entries;
 
@@ -42,6 +66,20 @@ export function chatTimeline(messages: ApiChatMessage[], rental?: ApiChatRental,
     const approvalIndex = entries.findIndex((entry) => entry.kind === "message"
       && entry.message.rentalId === rental.id && entry.message.system?.eventType === "RENTAL_APPROVED");
     entries.splice(approvalIndex >= 0 ? approvalIndex + 1 : requestPosition + 1, 0, { kind: "rental-approved" });
+  }
+  const usedEvents = new Set<string>();
+  for (const slot of slots.filter((item) => item.rentalId === rental.id)) {
+    for (const status of ["confirmed", "pending"] as const) {
+      const proposal = status === "confirmed" ? slot.confirmedProposal : slot.pendingProposal;
+      if (!proposal) continue;
+      const event = messages.findLast((message) => !usedEvents.has(message.id)
+        && appointmentEventMatches(message, rental.id, proposal, status));
+      if (event) usedEvents.add(event.id);
+      const approvalPosition = entries.findIndex((entry) => entry.kind === "rental-approved");
+      const position = event ? entries.findIndex((entry) => entry.kind === "message" && entry.message.id === event.id) + 1
+        : approvalPosition >= 0 ? approvalPosition + 1 : 0;
+      entries.splice(position, 0, { kind: "appointment", slot, proposal, status });
+    }
   }
   return entries;
 }
