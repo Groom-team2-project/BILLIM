@@ -121,8 +121,7 @@ public class AppointmentCommandService {
                 EventPayload.forRental(rental.getId(), List.of(recipient), EventPayload.Display.ofAppointment(
                         actor.getDisplayName(), rental.getItemTitleSnapshot(),
                         proposal.getPlaceNameSnapshot(), proposal.getScheduledAt()))));
-        return queries.getAppointments(rental.getId(), login).items().stream()
-                .filter(response -> response.id().equals(slot.getId().toString())).findFirst().orElseThrow();
+        return queries.getAppointment(rental.getId(), slot.getId(), login);
     }
 
     private String normalizeKey(String key) {
