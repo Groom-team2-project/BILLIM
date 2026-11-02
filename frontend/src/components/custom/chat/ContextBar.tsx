@@ -42,7 +42,7 @@ export function ContextBar({ rental, room, selectedRentalId, action }: {
             {status ? <StatusBadge status={status} /> : current ? <span className={c("t-caption")}>기간 만료</span> : null}
           </div>
           <span className={c("t-caption context-bar-muted")}>
-            {current ? `${chatDateRange(current)} · ${current.placeName}` : "대여 전 문의"}
+            {current ? `${chatDateRange(current)} · ${current.placeName}` : "아직 대여 요청이 없어요"}
           </span>
         </div>
         {action ? <div className={c("context-bar-action")}>{action}</div> : null}

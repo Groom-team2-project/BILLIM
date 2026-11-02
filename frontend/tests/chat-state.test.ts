@@ -2,8 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiChatMessage, ApiChatRoom } from "../src/types/chat-api.ts";
 import type { ApiAppointmentSlot } from "../src/types/appointment-api.ts";
+import type { ApiItemDetail } from "../src/api/items.ts";
 import { countNewChatMessages, isChatAtBottom, isChatMessageEndVisible, mergeChatMessages, promoteChatRoom } from "../src/utils/chat-state.ts";
-import { chatRentalResponse, chatTimeline, isMoneyRequest, selectableChatRentals } from "../src/utils/chat-view.ts";
+import { canOpenRentalRequestFromChat, chatRentalResponse, chatTimeline, isMoneyRequest, selectableChatRentals } from "../src/utils/chat-view.ts";
 
 function message(sequence: number): ApiChatMessage {
   return {
@@ -25,6 +26,18 @@ test("기존 채팅을 열어 같은 메시지를 다시 받아도 최신 방 �
   const promoted = promoteChatRoom(rooms, older.id, incoming);
   assert.deepEqual(promoted.map((room) => room.id), ["older", "newer"]);
   assert.equal(promoted[0].lastMessagePreview, "새 메시지");
+});
+
+test("대여 전 채팅은 공개 중인 다른 사람 물건만 요청 화면으로 안내한다", () => {
+  const room = { itemId: "item-1", rentals: [], access: { canSend: true, reason: "NORMAL" } } as ApiChatRoom;
+  const item = { id: "item-1", owner: { id: "owner" }, visibility: "PUBLIC",
+    availableEndDate: "2026-11-10" } as ApiItemDetail;
+  assert.equal(canOpenRentalRequestFromChat(room, item, "borrower", "2026-11-02"), true);
+  assert.equal(canOpenRentalRequestFromChat(room, item, "owner", "2026-11-02"), false);
+  assert.equal(canOpenRentalRequestFromChat(room, { ...item, visibility: "HIDDEN" }, "borrower", "2026-11-02"), false);
+  assert.equal(canOpenRentalRequestFromChat(room, item, "borrower", "2026-11-11"), false);
+  assert.equal(canOpenRentalRequestFromChat({ ...room, rentals: [{ status: "REQUESTED" }] } as ApiChatRoom,
+    item, "borrower", "2026-11-02"), false);
 });
 
 test("최신·이전 페이지 순서가 달라도 시간순으로 표시하고 중복 전송을 제거한다", () => {
