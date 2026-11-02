@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiChatMessage, ApiChatRoom } from "../src/types/chat-api.ts";
 import type { ApiAppointmentSlot } from "../src/types/appointment-api.ts";
-import { countNewChatMessages, isChatAtBottom, isChatMessageEndVisible, mergeChatMessages } from "../src/utils/chat-state.ts";
+import { countNewChatMessages, isChatAtBottom, isChatMessageEndVisible, mergeChatMessages, promoteChatRoom } from "../src/utils/chat-state.ts";
 import { chatRentalResponse, chatTimeline, isMoneyRequest, selectableChatRentals } from "../src/utils/chat-view.ts";
 
 function message(sequence: number): ApiChatMessage {
@@ -11,6 +11,21 @@ function message(sequence: number): ApiChatMessage {
     body: `메시지 ${sequence}`, createdAt: "2026-10-13T00:00:00Z",
   };
 }
+
+test("기존 채팅을 열어 같은 메시지를 다시 받아도 최신 방 위로 올라가지 않는다", () => {
+  const older = { id: "older", lastMessageAt: "2026-10-31T00:00:00Z",
+    lastMessagePreview: "기존 메시지" } as ApiChatRoom;
+  const newer = { id: "newer", lastMessageAt: "2026-11-02T10:31:00Z" } as ApiChatRoom;
+  const rooms = [newer, older];
+  const replay = { ...message(1), body: "기존 메시지", createdAt: older.lastMessageAt! };
+  assert.equal(promoteChatRoom(rooms, older.id, replay), rooms);
+  assert.equal(promoteChatRoom(rooms, older.id, { ...replay, createdAt: "2026-10-30T00:00:00Z" }), rooms);
+
+  const incoming = { ...message(2), body: "새 메시지", createdAt: "2026-11-02T10:32:00Z" };
+  const promoted = promoteChatRoom(rooms, older.id, incoming);
+  assert.deepEqual(promoted.map((room) => room.id), ["older", "newer"]);
+  assert.equal(promoted[0].lastMessagePreview, "새 메시지");
+});
 
 test("최신·이전 페이지 순서가 달라도 시간순으로 표시하고 중복 전송을 제거한다", () => {
   const latest = mergeChatMessages([], [message(5), message(4), message(3)]);

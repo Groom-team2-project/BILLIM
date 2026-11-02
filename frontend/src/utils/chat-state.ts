@@ -1,4 +1,23 @@
-import type { ApiChatMessage } from "../types/chat-api.ts";
+import type { ApiChatMessage, ApiChatRoom } from "../types/chat-api.ts";
+
+/** 실제 새 메시지만 목록 맨 위로 올린다. 같은 메시지 재조회는 순서를 바꾸지 않는다. */
+export function promoteChatRoom(rooms: ApiChatRoom[], roomId: string, message: ApiChatMessage): ApiChatRoom[] {
+  const index = rooms.findIndex((room) => room.id === roomId);
+  if (index < 0) return rooms;
+  const current = rooms[index];
+  const preview = message.type === "SYSTEM"
+    ? message.system?.label ?? message.body ?? "거래 상태가 변경됐어요"
+    : message.body ?? "";
+  const nextPreview = preview.slice(0, 200);
+  const currentAt = current.lastMessageAt ? Date.parse(current.lastMessageAt) : -Infinity;
+  const incomingAt = Date.parse(message.createdAt);
+  if (Number.isNaN(incomingAt) || currentAt > incomingAt
+    || currentAt === incomingAt && current.lastMessagePreview === nextPreview) return rooms;
+  return [
+    { ...current, lastMessagePreview: nextPreview, lastMessageAt: message.createdAt },
+    ...rooms.filter((_, position) => position !== index),
+  ];
+}
 
 /** 메시지 끝부분의 가시성 확인. 긴 메시지도 마지막 부분을 확인한 뒤 읽음 갱신. */
 export function isChatMessageEndVisible(
