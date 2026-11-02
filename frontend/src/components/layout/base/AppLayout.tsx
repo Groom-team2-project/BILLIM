@@ -14,6 +14,7 @@ import { setCurrentItem, useCurrentItem } from "@/stores/currentItem";
 import { UNKNOWN_OWNER } from "@/utils/itemView";
 import { objectParticle } from "@/utils/korean";
 import { ownerProfilePath } from "@/utils/profileRoute";
+import { WarningNotice } from "@/components/custom/profile/WarningNotice";
 
 const c = classes(styles);
 
@@ -40,7 +41,7 @@ const OWN_HEADER = [
 
 /** 앱 공통 셸 — 헤더·본문·푸터·하단 탭 조립 (DESIGN_SYSTEM.md §7) */
 export function AppLayout() {
-  const { loggedIn } = useSession();
+  const { loggedIn, memberId } = useSession();
   const { pathname, search, state } = useLocation();
   const navigate = useNavigate();
   const { confirm, report, toast } = useUi();
@@ -126,6 +127,7 @@ export function AppLayout() {
 
   return (
     <div className={c("shell")}>
+      {memberId ? <WarningNotice key={memberId} memberId={memberId} /> : null}
       <Header
         sub={headerSub}
         title={headerSub ? title : undefined}
