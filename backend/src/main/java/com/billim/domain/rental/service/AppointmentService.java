@@ -1,6 +1,7 @@
 package com.billim.domain.rental.service;
 
 import com.billim.domain.community.repository.CommunityPlaceRepository;
+import com.billim.domain.community.entity.CommunityPlace;
 import com.billim.domain.item.dto.PlaceResponse;
 import com.billim.domain.member.entity.MemberStatus;
 import com.billim.domain.member.repository.MemberRepository;
@@ -24,6 +25,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -52,11 +57,27 @@ public class AppointmentService {
             return new AppointmentSlotsResponse(List.of());
         }
 
-        List<AppointmentSlotResponse> items = new ArrayList<>();
+        List<Long> confirmedIds = slots.stream().map(AppointmentSlot::getConfirmedProposalId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, AppointmentProposal> confirmedById = confirmedIds.isEmpty() ? Map.of()
+                : appointmentProposalRepository.findAllById(confirmedIds).stream()
+                    .collect(Collectors.toMap(AppointmentProposal::getId, Function.identity()));
+        Map<Long, List<AppointmentProposal>> pendingBySlot = appointmentProposalRepository
+                .findBySlotIdInAndStatus(slots.stream().map(AppointmentSlot::getId).toList(), AppointmentProposalStatus.PROPOSED)
+                .stream().collect(Collectors.groupingBy(AppointmentProposal::getSlotId));
+        List<Long> placeIds = Stream.concat(confirmedById.values().stream(),
+                pendingBySlot.values().stream().flatMap(List::stream))
+                .map(AppointmentProposal::getPlaceId).distinct().toList();
+        Map<Long, CommunityPlace> placesById = placeIds.isEmpty() ? Map.of()
+                : places.findByCommunityIdAndIdIn(rental.getCommunityId(), placeIds).stream()
+                    .collect(Collectors.toMap(CommunityPlace::getId, Function.identity()));
         Instant now = clock.instant();
-
+        List<AppointmentSlotResponse> items = new ArrayList<>();
         for (AppointmentSlot slot : slots) {
-            items.add(toSlotResponse(rental, slot, memberId, now));
+            items.add(toSlotResponse(rental, slot,
+                    slot.getConfirmedProposalId() == null ? null : confirmedById.get(slot.getConfirmedProposalId()),
+                    pendingBySlot.getOrDefault(slot.getId(), List.of()), memberId, now,
+                    proposal -> placesById.get(proposal.getPlaceId())));
         }
         return new AppointmentSlotsResponse(items);
     }
@@ -98,6 +119,16 @@ public class AppointmentService {
         }
         List<AppointmentProposal> pendingProposals = appointmentProposalRepository
                 .findBySlotIdAndStatus(slot.getId(), AppointmentProposalStatus.PROPOSED);
+        return toSlotResponse(rental, slot, confirmed, pendingProposals, memberId, now,
+                proposal -> places.findByIdAndCommunityId(proposal.getPlaceId(), rental.getCommunityId()).orElse(null));
+    }
+
+    private AppointmentSlotResponse toSlotResponse(Rental rental, AppointmentSlot slot, AppointmentProposal confirmed,
+            List<AppointmentProposal> pendingProposals, long memberId, Instant now,
+            Function<AppointmentProposal, CommunityPlace> placeLookup) {
+        if (slot.getConfirmedProposalId() != null && confirmed == null) {
+            throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+        }
         if (pendingProposals.size() > 1) {
             throw new IllegalStateException("하나의 약속 슬롯에 대기 제안이 여러 개 존재");
         }
@@ -109,8 +140,8 @@ public class AppointmentService {
         return new AppointmentSlotResponse(
                 slot.getId().toString(), rental.getId().toString(),
                 slot.getKind(), slot.getVersion(),
-                toProposalResponse(confirmed, slot, rental),
-                toProposalResponse(pending, slot, rental),
+                toProposalResponse(confirmed, slot, rental, placeLookup),
+                toProposalResponse(pending, slot, rental, placeLookup),
                 allowedActions(rental, slot, pending, memberId, now)
         );
     }
@@ -140,12 +171,13 @@ public class AppointmentService {
     private RentalDetailStatusResponse.AppointmentProposal toProposalResponse(
         AppointmentProposal proposal,
         AppointmentSlot slot,
-        Rental rental
+        Rental rental,
+        Function<AppointmentProposal, CommunityPlace> placeLookup
     ) {
         if (proposal == null) {
             return null;
         }
-        var place = places.findByIdAndCommunityId(proposal.getPlaceId(), rental.getCommunityId()).orElse(null);
+        var place = placeLookup.apply(proposal);
         return new RentalDetailStatusResponse.AppointmentProposal(
             proposal.getId().toString(),
             proposal.getSlotId().toString(),

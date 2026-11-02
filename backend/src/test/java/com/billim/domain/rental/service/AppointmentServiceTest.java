@@ -52,7 +52,7 @@ class AppointmentServiceTest {
         when(slot.getVersion()).thenReturn(3L);
         when(slot.getConfirmedProposalId()).thenReturn(null);
         when(slots.findByRentalId(10L)).thenReturn(List.of(slot));
-        when(proposals.findBySlotIdAndStatus(20L, AppointmentProposalStatus.PROPOSED))
+        when(proposals.findBySlotIdInAndStatus(List.of(20L), AppointmentProposalStatus.PROPOSED))
                 .thenReturn(List.of());
 
         assertThat(service.getAppointments(10L, login).items()).singleElement().satisfies(item -> {
@@ -97,8 +97,12 @@ class AppointmentServiceTest {
         when(slot.getId()).thenReturn(20L);
         when(slot.getConfirmedProposalId()).thenReturn(null);
         when(slots.findByRentalId(10L)).thenReturn(List.of(slot));
-        when(proposals.findBySlotIdAndStatus(20L, AppointmentProposalStatus.PROPOSED))
-                .thenReturn(List.of(mock(AppointmentProposal.class), mock(AppointmentProposal.class)));
+        AppointmentProposal first = mock(AppointmentProposal.class);
+        AppointmentProposal second = mock(AppointmentProposal.class);
+        when(first.getSlotId()).thenReturn(20L);
+        when(second.getSlotId()).thenReturn(20L);
+        when(proposals.findBySlotIdInAndStatus(List.of(20L), AppointmentProposalStatus.PROPOSED))
+                .thenReturn(List.of(first, second));
         assertThatThrownBy(() -> service.getAppointments(10L, login))
                 .isInstanceOf(IllegalStateException.class);
     }
@@ -118,7 +122,7 @@ class AppointmentServiceTest {
         when(proposal.getPlaceId()).thenReturn(3L);
         when(proposal.getStatus()).thenReturn(AppointmentProposalStatus.PROPOSED);
         when(proposal.getScheduledAt()).thenReturn(NOW.plusSeconds(3600));
-        when(proposals.findBySlotIdAndStatus(20L, AppointmentProposalStatus.PROPOSED))
+        when(proposals.findBySlotIdInAndStatus(List.of(20L), AppointmentProposalStatus.PROPOSED))
                 .thenReturn(List.of(proposal));
         assertThat(service.getAppointments(10L, login).items().getFirst().allowedActions())
                 .containsExactly("PROPOSE", "ACCEPT");
@@ -139,7 +143,7 @@ class AppointmentServiceTest {
         when(slot.getKind()).thenReturn(AppointmentKind.PICKUP);
         when(slot.getConfirmedProposalId()).thenReturn(null);
         when(slots.findByRentalId(10L)).thenReturn(List.of(slot));
-        when(proposals.findBySlotIdAndStatus(20L, AppointmentProposalStatus.PROPOSED)).thenReturn(List.of());
+        when(proposals.findBySlotIdInAndStatus(List.of(20L), AppointmentProposalStatus.PROPOSED)).thenReturn(List.of());
         assertThat(service.getAppointments(10L, login).items().getFirst().allowedActions()).isEmpty();
     }
 
@@ -218,5 +222,27 @@ class AppointmentServiceTest {
         when(confirmed.getSlotId()).thenReturn(20L);
         when(confirmed.getStatus()).thenReturn(AppointmentProposalStatus.SUPERSEDED);
         assertThatThrownBy(() -> service.getAppointment(10L, 20L, login)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    @DisplayName("일괄 조회도 없는 확정 제안·다른 슬롯 참조·확정 상태 불일치 거부")
+    void batchPreservesConfirmedProposalChecks() {
+        AppointmentSlot slot = mock(AppointmentSlot.class);
+        when(slot.getId()).thenReturn(20L);
+        when(slot.getConfirmedProposalId()).thenReturn(30L);
+        when(slots.findByRentalId(10L)).thenReturn(List.of(slot));
+        assertThatThrownBy(() -> service.getAppointments(10L, login))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+        AppointmentProposal confirmed = mock(AppointmentProposal.class);
+        when(confirmed.getId()).thenReturn(30L);
+        when(confirmed.getSlotId()).thenReturn(21L);
+        when(confirmed.getPlaceId()).thenReturn(3L);
+        when(confirmed.getStatus()).thenReturn(AppointmentProposalStatus.CONFIRMED);
+        when(proposals.findAllById(List.of(30L))).thenReturn(List.of(confirmed));
+        assertThatThrownBy(() -> service.getAppointments(10L, login)).isInstanceOf(IllegalStateException.class);
+        when(confirmed.getSlotId()).thenReturn(20L);
+        when(confirmed.getStatus()).thenReturn(AppointmentProposalStatus.SUPERSEDED);
+        assertThatThrownBy(() -> service.getAppointments(10L, login)).isInstanceOf(IllegalStateException.class);
     }
 }

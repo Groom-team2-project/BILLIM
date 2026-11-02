@@ -18,4 +18,6 @@ public interface AppointmentProposalRepository extends JpaRepository<Appointment
     Optional<Long> findSlotId(Long proposalId);
 
     List<AppointmentProposal> findBySlotIdAndStatus(Long slotId, AppointmentProposalStatus status);
+
+    List<AppointmentProposal> findBySlotIdInAndStatus(List<Long> slotIds, AppointmentProposalStatus status);
 }

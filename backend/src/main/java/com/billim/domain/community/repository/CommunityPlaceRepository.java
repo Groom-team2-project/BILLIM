@@ -13,4 +13,6 @@ public interface CommunityPlaceRepository extends JpaRepository<CommunityPlace, 
 
     /** 물건·약속의 장소 검증용. 비활성 장소도 찾아 호출 측이 판단한다 */
     Optional<CommunityPlace> findByIdAndCommunityId(long id, long communityId);
+
+    List<CommunityPlace> findByCommunityIdAndIdIn(long communityId, List<Long> ids);
 }
