@@ -8,6 +8,7 @@ import { classes } from "@/utils/classes";
 const c = classes({ ...styles, ...badgeStyles });
 
 type AppointmentCardProps = {
+  id?: string;
   appt: Appointment;
   status?: "proposed" | "confirmed" | "change";
   /** 내가 보낸 제안인지 */
@@ -22,6 +23,7 @@ type AppointmentCardProps = {
 
 /** 전달/반납 약속 카드 — 약속 상태 3종 (DESIGN_SYSTEM.md §5-2) */
 export function AppointmentCard({
+  id,
   appt,
   status = "proposed",
   mine,
@@ -48,7 +50,7 @@ export function AppointmentCard({
     );
 
   return (
-    <div className={c(`appt${mine ? " appt--me" : ""}`)} role="group" aria-label={`${appt.kind} 약속`}>
+    <div id={id} className={c(`appt${mine ? " appt--me" : ""}`)} role="group" aria-label={`${appt.kind} 약속`}>
       <div className={c("appt-head")}>
         <span className={c("t-label appt-kind")}>
           <Icon name="clock" size={18} />

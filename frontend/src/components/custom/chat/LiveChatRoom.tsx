@@ -35,6 +35,7 @@ import { toReasonCode, toReasonDetail } from "@/utils/reportReason";
 import styles from "@/components/custom/chat/ChatRoom.module.css";
 
 const c = classes(styles);
+const cardId = (roomId: string, kind: string, id: string) => `chat-card-${roomId}-${kind}-${id}`;
 const reportReasons: Record<string, ReportReasonCode> = {
   "돈이나 보증금을 요구했어요": "MONEY_REQUEST",
   "물건 상태가 설명과 크게 달라요": "ITEM_MISMATCH",
@@ -117,6 +118,17 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
     scrollToLatestMessage();
     setAtBottom(true);
     recordVisibleMessages();
+  };
+
+  const jumpToCard = (id: string) => {
+    const viewport = scrollRef.current;
+    const card = document.getElementById(id);
+    if (!viewport || !card || !viewport.contains(card)) return;
+    followLatestRef.current = false;
+    setAtBottom(false);
+    const top = viewport.scrollTop + card.getBoundingClientRect().top - viewport.getBoundingClientRect().top
+      - Math.max(0, (viewport.clientHeight - card.clientHeight) / 2);
+    viewport.scrollTo({ top, behavior: "smooth" });
   };
 
   const onScroll = () => {
@@ -587,7 +599,26 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
   const visibleSlots = slots.filter((slot) => slot.rentalId === selectedRentalId);
   const proposalKinds = visibleSlots.filter((slot) => slot.allowedActions.includes("PROPOSE"));
   const showApprovalCard = selectedRental?.status === "APPROVED" || selectedRental?.status === "ACTIVE";
-  const timeline = chatTimeline(messages, selectedRental, showApprovalCard);
+  const timeline = chatTimeline(messages, selectedRental, showApprovalCard, appointmentError ? [] : visibleSlots);
+  const hasAppointment = visibleSlots.some((slot) => Boolean(slot.pendingProposal || slot.confirmedProposal));
+  const appointmentCards = timeline.filter((entry) => entry.kind === "appointment");
+  const appointmentToVisit = appointmentCards.find((entry) => entry.status === "pending"
+    && entry.slot.allowedActions.includes("ACCEPT"))
+    ?? appointmentCards.find((entry) => entry.status === "pending")
+    ?? appointmentCards.find((entry) => entry.status === "confirmed");
+  const quickLinks: { id: string; label: string }[] = [];
+  for (const entry of timeline) {
+    if (entry.kind === "rental-request" && selectedRental?.status === "REQUESTED") {
+      quickLinks.push({ id: cardId(roomId, "request", selectedRental.id),
+        label: rentalResponse?.isOwner ? "대여 요청 · 응답 필요" : "대여 요청 · 승인 대기" });
+    } else if (entry.kind === "rental-approved" && selectedRental) {
+      quickLinks.push({ id: cardId(roomId, "approved", selectedRental.id), label: "대여 승인 · 약속 보기" });
+    } else if (entry.kind === "appointment") {
+      const kind = entry.slot.kind === "RETURN" ? "반납" : "전달";
+      quickLinks.push({ id: cardId(roomId, entry.status, entry.proposal.id),
+        label: `${kind} 약속 · ${entry.status === "confirmed" ? "확정" : "제안"}` });
+    }
+  }
   const newMessageCount = countNewChatMessages(messages, seenSequence, room.otherMember.id);
 
   return (
@@ -601,24 +632,47 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
         <span className={c("t-caption chat-room-muted")}>{other} 님과의 대화</span>
         <MoreMenu label="이웃 메뉴" items={safetyItems} />
       </div>
-      <ContextBar room={room} selectedRentalId={selectedRentalId} />
+      <ContextBar room={room} selectedRentalId={selectedRentalId}
+        action={selectableRentals.length > 1 || hasAppointment || proposalKinds.length > 0 ?
+          <div className={c("chat-context-actions")}>
+            {selectableRentals.length > 1 ? <label className={c("chat-rental-picker")}>
+              <span>대여 건</span>
+              <select aria-label="대여 건 선택" value={selectedRentalId} onChange={(event) => {
+                manualRentalSelectionRef.current = true;
+                setAppointmentLoading(true);
+                setSelectedRentalId(event.target.value);
+              }}>
+                {selectableRentals.map((rental) => <option key={rental.id} value={rental.id}>
+                  {rental.startDate.slice(5).replace("-", "/")}–{rental.endDate.slice(5).replace("-", "/")}
+                  {" · "}{STATUS_UI[chatRentalStatus(rental) ?? "expired"].label}
+                </option>)}
+              </select>
+            </label> : null}
+            {hasAppointment ? <Button size="sm" variant="secondary" icon="clock"
+              disabled={!appointmentToVisit || appointmentError}
+              onClick={() => {
+                if (appointmentToVisit) jumpToCard(cardId(roomId, appointmentToVisit.status, appointmentToVisit.proposal.id));
+              }}>
+              약속 보기
+            </Button> : proposalKinds.length > 0 ? <Button size="sm" variant="secondary" icon="clock"
+              disabled={appointmentBusy || appointmentLoading || appointmentError}
+              onClick={() => void openAppointmentSheet(proposalKinds[0].kind === "PICKUP" ? "give" : "back")}>
+              약속 잡기
+            </Button> : null}
+          </div> : undefined} />
       {connectionState === "reconnecting" ? <Alert tone="warning" title="실시간 연결을 다시 시도하고 있어요">
         새 메시지는 주기적으로 확인하고 있어요. 일시적으로 늦게 표시될 수 있어요.
       </Alert> : null}
       {connectionState === "unauthorized" ? <Alert tone="warning" title="로그인이 만료됐어요">
         다시 로그인한 뒤 채팅을 이용해 주세요.
       </Alert> : null}
-      {selectableRentals.length > 1 ? <label className={c("chat-rental-picker")}>
-        대여 건 <select value={selectedRentalId} onChange={(event) => {
-          manualRentalSelectionRef.current = true;
-          setAppointmentLoading(true);
-          setSelectedRentalId(event.target.value);
-        }}>
-          {selectableRentals.map((rental) => <option key={rental.id} value={rental.id}>
-            {rental.startDate} – {rental.endDate} · {STATUS_UI[chatRentalStatus(rental) ?? "expired"].label}
-          </option>)}
-        </select>
-      </label> : null}
+      {quickLinks.length > 0 ? <nav className={c("chat-activity")} aria-label="진행 중인 대여 알림">
+        <span className={c("t-caption chat-activity-title")}>진행 중</span>
+        <div className={c("chat-activity-links")}>
+          {quickLinks.map((link) => <button key={link.id} type="button" className={c("chat-activity-link")}
+            onClick={() => jumpToCard(link.id)}>{link.label}</button>)}
+        </div>
+      </nav> : null}
       <div ref={scrollRef} className={c("chat-room-scroll")} onScroll={onScroll}>
         <div ref={contentRef} className={c("chat-room-messages")} role="log" aria-live="polite" aria-label={`${other} 님과의 대화`}>
         {older ? <Button size="sm" variant="secondary" disabled={loadingOlder} onClick={() => void loadOlder()}>
@@ -628,6 +682,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
           <EmptyState icon="chat" title="대화를 시작해 보세요" /> : null}
         {timeline.map((entry) => {
           if (entry.kind === "rental-request" && selectedRental) return <div key={`rental-request-${selectedRental.id}`}
+            id={cardId(roomId, "request", selectedRental.id)}
             className={c("chat-rental-card")} role="group" aria-label={`${selectedRental.itemTitle} 대여 요청`}>
             <div className={c("chat-rental-card-head")}>
               <strong className={c("t-label")}>{selectedRental.itemTitle}</strong>
@@ -650,6 +705,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
             </div> : null}
           </div>;
           if (entry.kind === "rental-approved" && selectedRental) return <div key={`rental-approved-${selectedRental.id}`}
+            id={cardId(roomId, "approved", selectedRental.id)}
             className={c("chat-rental-card")} role="group" aria-label={`${selectedRental.itemTitle} 약속 잡기`}>
             <div className={c("chat-rental-card-head")}>
               <strong className={c("t-label")}>전달·반납 약속</strong>
@@ -667,6 +723,21 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
             </div> : null}
             {appointmentLoading ? <p className={c("t-caption chat-rental-card-note")}>약속을 확인하고 있어요…</p> : null}
           </div>;
+          if (entry.kind === "appointment") {
+            const { slot, proposal, status } = entry;
+            return <AppointmentCard key={`${slot.id}-${status}`} id={cardId(roomId, status, proposal.id)}
+              appt={appointmentView(proposal)}
+              status={status === "confirmed" ? "confirmed" : slot.confirmedProposal ? "change" : "proposed"}
+              mine={status === "pending" && proposal.proposerId !== room.otherMember.id} other={other}
+              onRequestChange={status === "confirmed" && slot.allowedActions.includes("PROPOSE") && !appointmentBusy
+                ? () => void openAppointmentSheet(slot.kind === "PICKUP" ? "give" : "back") : undefined}
+              onAccept={status === "pending" && slot.allowedActions.includes("ACCEPT") && !appointmentBusy
+                ? () => void updateAppointment(slot, "ACCEPT") : undefined}
+              onWithdraw={status === "pending" && slot.allowedActions.includes("WITHDRAW") && !appointmentBusy
+                ? () => void updateAppointment(slot, "WITHDRAW") : undefined}
+              onChangeTime={status === "pending" && slot.allowedActions.includes("PROPOSE") && !appointmentBusy
+                ? () => void openAppointmentSheet(slot.kind === "PICKUP" ? "give" : "back") : undefined} />;
+          }
           if (entry.kind !== "message") return null;
           const { message, index } = entry;
           const date = new Date(message.createdAt).toDateString();
@@ -688,21 +759,6 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
         })}
         {appointmentLoading && visibleSlots.length === 0 ? <Skeleton w="70%" h={120} r={16} /> : null}
         {appointmentError ? <ErrorState title="약속을 불러오지 못했어요" onRetry={() => setAppointmentRevision((value) => value + 1)} /> : null}
-        {!appointmentError ? visibleSlots.flatMap((slot) => {
-          const cards = [];
-          if (slot.confirmedProposal) cards.push(<AppointmentCard key={`${slot.id}-confirmed`}
-            appt={appointmentView(slot.confirmedProposal)} status="confirmed" other={other}
-            onRequestChange={slot.allowedActions.includes("PROPOSE") && !appointmentBusy
-              ? () => void openAppointmentSheet(slot.kind === "PICKUP" ? "give" : "back") : undefined} />);
-          if (slot.pendingProposal) cards.push(<AppointmentCard key={`${slot.id}-pending`}
-            appt={appointmentView(slot.pendingProposal)} status={slot.confirmedProposal ? "change" : "proposed"}
-            mine={slot.pendingProposal.proposerId !== room.otherMember.id} other={other}
-            onAccept={slot.allowedActions.includes("ACCEPT") && !appointmentBusy ? () => void updateAppointment(slot, "ACCEPT") : undefined}
-            onWithdraw={slot.allowedActions.includes("WITHDRAW") && !appointmentBusy ? () => void updateAppointment(slot, "WITHDRAW") : undefined}
-            onChangeTime={slot.allowedActions.includes("PROPOSE") && !appointmentBusy
-              ? () => void openAppointmentSheet(slot.kind === "PICKUP" ? "give" : "back") : undefined} />);
-          return cards;
-        }) : null}
         {pending.map((entry) => <div key={entry.clientMessageId}>
           <Bubble me failed={entry.failed} time={entry.failed ? undefined : "보내는 중"}>{entry.body}</Bubble>
           {entry.failed ? <div className={c("chat-retry")}>
