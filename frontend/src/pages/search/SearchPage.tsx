@@ -273,7 +273,7 @@ export function SearchPage() {
 
           <p className={c("t-caption search-muted search-note")}>
             <Icon name="info" size={14} />
-            거리는 커뮤니티 공용 장소 기준이에요
+            거리는 동네 중심에서 거래 장소까지예요
           </p>
         </div>
       </div>

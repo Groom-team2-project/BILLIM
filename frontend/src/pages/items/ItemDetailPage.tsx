@@ -198,7 +198,7 @@ export function ItemDetailPage() {
 
           {item.description ? <p className={c("t-body detail-desc")}>{item.description}</p> : null}
 
-          <PlaceCard place={place} detail={item.place.guide} distance={item.distanceMeters === undefined ? undefined : formatDistance(item.distanceMeters)} />
+          <PlaceCard place={place} detail={item.place.guide} distance={item.distanceMeters === undefined ? undefined : `동네 중심에서 ${formatDistance(item.distanceMeters)}`} />
 
           <section className={c("detail-cal")} aria-labelledby="cal-h">
             <SectionHead id="cal-h" title="대여 가능한 날짜" />
@@ -235,7 +235,7 @@ export function ItemDetailPage() {
                   <Meta icon={isPublic ? "check" : "lock"} strong>
                     {isPublic ? "공개 중 · 이웃이 찾을 수 있어요" : "공개 중지 · 검색과 새 요청이 멈춰 있어요"}
                   </Meta>
-                  <Button block onClick={() => navigate("/rentals")}>요청 보기</Button>
+                  <Button block onClick={() => navigate("/rentals?tab=lent")}>요청 보기</Button>
                   <Button variant="secondary" block onClick={onEdit}>수정</Button>
                   <Button variant="ghost" block icon={isPublic ? "lock" : "check"} disabled={busy} onClick={toggleVisibility}>
                     {isPublic ? "공개 중지" : "다시 공개"}
@@ -286,7 +286,7 @@ export function ItemDetailPage() {
               <span className={c("t-caption detail-muted")}>{isPublic ? "공개 중" : "공개 중지"}</span>
             </div>
             <Button variant="secondary" onClick={onEdit}>수정</Button>
-            <Button onClick={() => navigate("/rentals")}>요청 보기</Button>
+            <Button onClick={() => navigate("/rentals?tab=lent")}>요청 보기</Button>
           </>
         ) : (
           <>

@@ -25,11 +25,13 @@ const FILTERS: { id: RentalFilter; label: string }[] = [
 export function RentalsPage() {
   const [params] = useSearchParams();
   const rentalId = params.get("rentalId") ?? "";
-  return <RentalList key={rentalId} rentalId={rentalId} />;
+  // ?tab=lent 로 들어오면 빌려준 물건 탭부터 연다 (내 물건 상세의 '요청 보기'). rentalId가 있으면 그 거래의 탭이 우선
+  const initialTab: RentalTab = params.get("tab") === "lent" ? "lent" : "borrowed";
+  return <RentalList key={`${rentalId}:${initialTab}`} rentalId={rentalId} initialTab={initialTab} />;
 }
 
-function RentalList({ rentalId }: { rentalId: string }) {
-  const [tab, setTab] = useState<RentalTab>("borrowed");
+function RentalList({ rentalId, initialTab }: { rentalId: string; initialTab: RentalTab }) {
+  const [tab, setTab] = useState<RentalTab>(initialTab);
   const [filter, setFilter] = useState<RentalFilter>("all");
   const [summary, setSummary] = useState<ApiMyRentalSummary>();
   const [summaryError, setSummaryError] = useState(false);
