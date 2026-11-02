@@ -2,7 +2,7 @@ import http from "k6/http";
 import { check, fail, sleep } from "k6";
 import { Counter, Rate, Trend } from "k6/metrics";
 
-const fixture = JSON.parse(open(`${__ENV.RENTAL_FIXTURE_DIR || "../../../performance/rental/local"}/create-fixture.json`));
+const fixture = JSON.parse(open(`${__ENV.RENTAL_FIXTURE_DIR || "../tools/rental/local"}/create-fixture.json`));
 const phase = __ENV.PHASE || "baseline";
 const unexpected = new Rate("unexpected_responses");
 const replayTime = new Trend("create_replay_duration", true);

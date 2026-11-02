@@ -2,7 +2,7 @@ import http from "k6/http";
 import { check } from "k6";
 import { Counter, Rate, Trend } from "k6/metrics";
 
-const fixture = JSON.parse(open(`${__ENV.RENTAL_FIXTURE_DIR || "../../../performance/rental/local"}/appointment-fixture.json`));
+const fixture = JSON.parse(open(`${__ENV.RENTAL_FIXTURE_DIR || "../tools/rental/local"}/appointment-fixture.json`));
 const unexpected = new Rate("unexpected_responses");
 const successTime = new Trend("change_success_duration", true);
 const conflictTime = new Trend("version_conflict_duration", true);

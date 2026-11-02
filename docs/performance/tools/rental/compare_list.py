@@ -11,7 +11,7 @@ import time
 import urllib.request
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[1]
+ROOT = HERE.parents[3]
 PROJECT = os.environ.get('RENTAL_LIST_PROJECT', 'billim-rental-list-20261031')
 COMPOSE = ['docker', 'compose', '-f', str(HERE/'compose.yaml'), '-f', str(HERE/'list-compare.yaml'), '-p', PROJECT]
 LOCAL = Path(os.environ.get('RENTAL_LIST_LOCAL', HERE/'local/list-compare'))

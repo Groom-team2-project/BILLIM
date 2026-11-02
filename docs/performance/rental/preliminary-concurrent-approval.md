@@ -22,8 +22,8 @@
 ## 변경
 
 - 서버·DB 구조·인증 로직 변경 없음.
-- `performance/rental/concurrent-approval.js`에 동시 요청·응답 분류·물건별 검증 추가.
-- `performance/rental/run_approval.py`에 데이터 생성·임시 인증·DB 후검증 추가.
+- `docs/performance/tools/rental/concurrent-approval.js`에 동시 요청·응답 분류·물건별 검증 추가.
+- `docs/performance/tools/rental/run_approval.py`에 데이터 생성·임시 인증·DB 후검증 추가.
 
 ## 결과
 
@@ -55,13 +55,13 @@
 cd backend
 ./gradlew bootJar
 cd ..
-docker compose -f performance/rental/compose.yaml up -d --build --wait
-python3 performance/rental/run_approval.py
-docker compose -f performance/rental/compose.yaml stop
+docker compose -f docs/performance/tools/rental/compose.yaml up -d --build --wait
+python3 docs/performance/tools/rental/run_approval.py
+docker compose -f docs/performance/tools/rental/compose.yaml stop
 ```
 
 - 재실행마다 새 물건·요청 추가. 기존 거래를 되돌리지 않음. 반복 시 DB 전체 규모가 달라지는 한계.
-- 로그·비밀 fixture는 Git 제외 경로 `performance/rental/local/` 사용. 공유용 JSON에는 세션 원문 없음.
+- 로그·비밀 fixture는 Git 제외 경로 `docs/performance/tools/rental/local/` 사용. 공유용 JSON에는 세션 원문 없음.
 
 ## 한계
 

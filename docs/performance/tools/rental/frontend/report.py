@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from statistics import median, pstdev
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[5]
 RAW = ROOT / "docs/performance/raw"
 rows = []
 for variant in ("before", "after"):

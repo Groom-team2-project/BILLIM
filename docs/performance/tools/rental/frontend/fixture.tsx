@@ -2,9 +2,9 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { UiProvider } from '../../../frontend/src/components/overlay/UiProvider';
-import '../../../frontend/src/styles/tokens.css';
-import '../../../frontend/src/styles/global.css';
+import { UiProvider } from '../../../../../frontend/src/components/overlay/UiProvider';
+import '../../../../../frontend/src/styles/tokens.css';
+import '../../../../../frontend/src/styles/global.css';
 
 const params = new URLSearchParams(location.search);
 const variant = params.get('variant') ?? 'after';
@@ -74,7 +74,7 @@ window.fetch = async (input, init = {}) => {
 };
 
 // @ts-expect-error 기준 커밋의 화면을 로컬 서버가 제공하는 가상 모듈로 로드.
-const Page = variant === 'before' ? (await import('virtual:rental-before')).RentalsPage : (await import('../../../frontend/src/pages/rentals/RentalsPage')).RentalsPage;
+const Page = variant === 'before' ? (await import('virtual:rental-before')).RentalsPage : (await import('../../../../../frontend/src/pages/rentals/RentalsPage')).RentalsPage;
 function Chat() { return <h1>채팅 연결 확인 {useLocation().pathname}</h1>; }
 createRoot(document.getElementById('root')!).render(<><h1>합성 응답 · {variant} · 전체 {count}건 · 응답당 {delay}ms</h1><output data-testid="measurement" style={{ display: 'block', maxHeight: 'calc(var(--space-8) * 4)', overflow: 'auto', overflowWrap: 'anywhere' }}>측정 중</output><UiProvider><BrowserRouter><Routes><Route path="/__rental-performance" element={<Page />} /><Route path="/chat/:id" element={<Chat />} /></Routes></BrowserRouter></UiProvider></>);
 started = performance.now();
