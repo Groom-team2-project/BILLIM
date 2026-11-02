@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { ApiMySanction } from "../src/api/reports.ts";
-import { confirmWarning, nextWarning, warningSummary } from "../src/utils/warning-notice.ts";
+import { confirmWarning, nextWarning, warningNoticeBody, warningSummary } from "../src/utils/warning-notice.ts";
 
 const warning = (id: string): ApiMySanction => ({
   id, action: "WARN", publicReason: "규칙 위반", decidedAt: "2026-11-01T00:00:00Z",
@@ -33,4 +33,6 @@ test("경고가 아닌 조치는 건너뛰고 저장소 접근이 실패해도 �
 test("긴 사유는 팝업 크기에 맞게 줄이고 전체 내용은 조치 화면에 남긴다", () => {
   assert.equal(warningSummary("짧은 사유"), "짧은 사유");
   assert.equal(warningSummary("가".repeat(161)), `${"가".repeat(160)}…`);
+  assert.equal(warningNoticeBody("짧은 사유"),
+    "경고 사유\n짧은 사유\n\n자세한 내역은 프로필 → 받은 운영 조치에서 확인할 수 있어요.");
 });

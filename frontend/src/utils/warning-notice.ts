@@ -6,6 +6,10 @@ export function warningSummary(reason: string): string {
   return characters.length > 160 ? `${characters.slice(0, 160).join("")}…` : reason;
 }
 
+export function warningNoticeBody(reason: string): string {
+  return `경고 사유\n${warningSummary(reason)}\n\n자세한 내역은 프로필 → 받은 운영 조치에서 확인할 수 있어요.`;
+}
+
 function key(memberId: string, actionId: string): string {
   return `billim-warning-confirmed:${memberId}:${actionId}`;
 }
