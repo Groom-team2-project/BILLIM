@@ -25,8 +25,8 @@
 ## 변경
 
 - 서버·DB 구조·인증 로직 변경 없음.
-- `performance/rental/appointment-race.js`에 배치 전송·응답·충돌 검증 추가.
-- `performance/rental/run_appointment.py`에 전용 데이터·임시 세션 생성 및 DB 후검증 추가.
+- `docs/performance/tools/rental/appointment-race.js`에 배치 전송·응답·충돌 검증 추가.
+- `docs/performance/tools/rental/run_appointment.py`에 전용 데이터·임시 세션 생성 및 DB 후검증 추가.
 
 ## 결과
 
@@ -63,12 +63,12 @@
 cd backend
 ./gradlew bootJar
 cd ..
-docker compose -f performance/rental/compose.yaml up -d --build --wait
-python3 performance/rental/run_appointment.py
-docker compose -f performance/rental/compose.yaml stop
+docker compose -f docs/performance/tools/rental/compose.yaml up -d --build --wait
+python3 docs/performance/tools/rental/run_appointment.py
+docker compose -f docs/performance/tools/rental/compose.yaml stop
 ```
 
-- 실행마다 새 데이터 추가. 원본 로그는 Git 제외 경로 `performance/rental/local/` 보관.
+- 실행마다 새 데이터 추가. 원본 로그는 Git 제외 경로 `docs/performance/tools/rental/local/` 보관.
 - 임시 토큰은 2시간 만료, DB에는 SHA-256만 저장. 인증 fixture는 실행 중에만 생성 후 삭제.
 
 ## 한계

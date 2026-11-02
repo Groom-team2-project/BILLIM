@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from statistics import median, pstdev
 
-ROOT=Path(__file__).resolve().parents[2]
+ROOT=Path(__file__).resolve().parents[4]
 RAW=ROOT/'docs/performance/rental/raw/list-compare-20261031'
 scrape_sql=sum(json.loads((RAW/'actuator-probe.json').read_text())['sqlDelta'].values())
 rows=[]

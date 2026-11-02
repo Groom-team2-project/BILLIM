@@ -22,7 +22,7 @@
 ## 변경
 
 - 서버·DB 구조·인증 로직 변경 없음.
-- `performance/rental/create-rental.js`와 `run_create.py`에 고유 데이터·구간별 측정·생성 재전송·DB 후검증 추가.
+- `docs/performance/tools/rental/create-rental.js`와 `run_create.py`에 고유 데이터·구간별 측정·생성 재전송·DB 후검증 추가.
 - 실패 결과를 숨기지 않고 구간별 종료 코드·원본 JSON 보관. 후속 실행 도구는 결과가 생성된 실패 구간도 보존하고 다음 구간 측정 가능.
 
 ## 결과
@@ -82,12 +82,12 @@
 cd backend
 ./gradlew bootJar
 cd ..
-docker compose -f performance/rental/compose.yaml up -d --build --wait
-python3 performance/rental/run_create.py
-docker compose -f performance/rental/compose.yaml stop
+docker compose -f docs/performance/tools/rental/compose.yaml up -d --build --wait
+python3 docs/performance/tools/rental/run_create.py
+docker compose -f docs/performance/tools/rental/compose.yaml stop
 ```
 
-- 생성 재전송만 재현: `python3 performance/rental/run_create.py --replay-only`.
+- 생성 재전송만 재현: `python3 docs/performance/tools/rental/run_create.py --replay-only`.
 - 검증 실패 시에도 원본과 DB 후검증 보존 후 비정상 종료. 실패 임계값을 완화하거나 서버 재시도로 오류를 숨기지 않음.
 
 ## 한계

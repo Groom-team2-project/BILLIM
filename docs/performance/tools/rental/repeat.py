@@ -13,7 +13,7 @@ import time
 import uuid
 
 HERE=Path(__file__).resolve().parent
-ROOT=HERE.parents[1]
+ROOT=HERE.parents[3]
 ARCHIVE=ROOT/'docs/performance/rental/raw/repeated'
 COMPOSE=['docker','compose','-f',str(HERE/'compose.yaml')]
 

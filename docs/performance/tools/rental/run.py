@@ -10,7 +10,7 @@ import time
 import urllib.request
 
 HERE = Path(__file__).resolve().parent
-ROOT = HERE.parents[1]
+ROOT = HERE.parents[3]
 LOCAL = Path(os.environ.get("RENTAL_PERF_LOCAL", HERE / "local"))
 COMPOSE = ["docker", "compose", "-f", str(HERE / "compose.yaml")]
 if os.environ.get("RENTAL_PERF_PROJECT"):
@@ -97,7 +97,7 @@ def main():
             print(f'{name} 통과', flush=True)
     finally:
         sql(f"UPDATE auth_sessions SET revoked_at=UTC_TIMESTAMP(6) WHERE token_hash='{token_hash}';")
-    print('측정 완료. 세션 폐기 완료. 결과: performance/rental/local/', flush=True)
+    print('측정 완료. 세션 폐기 완료. 결과: docs/performance/tools/rental/local/', flush=True)
 
 
 if __name__ == '__main__':

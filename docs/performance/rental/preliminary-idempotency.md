@@ -24,7 +24,7 @@
 
 ## 변경
 
-- `performance/rental/idempotency.js`에 요청 배치·응답 일치·키 재사용 거부 검증 추가.
+- `docs/performance/tools/rental/idempotency.js`에 요청 배치·응답 일치·키 재사용 거부 검증 추가.
 - 기존 실행 도구에 `--idempotency` 모드 추가. 기본 동시 승인 모드는 유지.
 - DB 후검증에 승인 버전 1·멱등 기록 수 추가.
 - 임시 세션 2시간 제한, 실행 후 폐기 및 인증 fixture 삭제.
@@ -62,9 +62,9 @@
 cd backend
 ./gradlew bootJar
 cd ..
-docker compose -f performance/rental/compose.yaml up -d --build --wait
-python3 performance/rental/run_approval.py --idempotency
-docker compose -f performance/rental/compose.yaml stop
+docker compose -f docs/performance/tools/rental/compose.yaml up -d --build --wait
+python3 docs/performance/tools/rental/run_approval.py --idempotency
+docker compose -f docs/performance/tools/rental/compose.yaml stop
 ```
 
 ## 한계

@@ -94,5 +94,5 @@ def main(mode='approval'):
 
 if __name__ == '__main__':
     if sys.argv[1:] not in ([], ['--idempotency']):
-        raise SystemExit('사용법: python3 performance/rental/run_approval.py [--idempotency]')
+        raise SystemExit('사용법: python3 docs/performance/tools/rental/run_approval.py [--idempotency]')
     main('idempotency' if sys.argv[1:] else 'approval')

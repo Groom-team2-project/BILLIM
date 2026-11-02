@@ -7,7 +7,7 @@ import statistics
 import sys
 
 HERE=Path(__file__).resolve().parent
-ROOT=HERE.parents[1]
+ROOT=HERE.parents[3]
 DOCS=ROOT/'docs/performance'
 SPECS=[
     ('rental-list','대여목록','list','baseline','GET /api/v1/rentals?role=BORROWER&page=0&size=20','10 VU·준비 30초→유지 3분·응답 후 1초 대기','회원 21·물건 1,000·대여 1,000, 조회 계정에 1,000건 집중','rental-list.js'),
@@ -109,7 +109,7 @@ def main():
         text+='- 주기 작업을 억제한 전용 환경이므로 실제 주기 작업이 동작하는 운영 상황과 차이. 인증·API·DB 구조는 변경하지 않음.\n'
         if label=='create':
             text+='- 데드락·생성 재전송 404는 수정하지 않음. 신규 생성 오류율과 재전송 실패를 별도 평가하며 전체 성공으로 판정하지 않음.\n'
-        text+='\n## 4. 재현\n\n```bash\ncd backend\n./gradlew bootJar\ncd ..\npython3 performance/rental/repeat.py\npython3 performance/rental/report_repeat.py\n```\n\n'
+        text+='\n## 4. 재현\n\n```bash\ncd backend\n./gradlew bootJar\ncd ..\npython3 docs/performance/tools/rental/repeat.py\npython3 docs/performance/tools/rental/report_repeat.py\n```\n\n'
         text+=f'- k6 스크립트: [scripts/{script}](scripts/{script}). 준비 데이터·임시 세션은 실행 도구가 생성·폐기.\n'
         for i,p in enumerate(triples,1):
             rel=p.relative_to(DOCS).as_posix()

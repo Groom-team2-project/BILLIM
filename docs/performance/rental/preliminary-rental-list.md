@@ -32,7 +32,7 @@
 
 - 서버 코드·DB 구조 변경 없음.
 - 전용 Docker 환경·합성 데이터 생성·자동 실행 도구 추가.
-- 요청 결과 JSON과 로그는 `performance/rental/local/`에 저장하고 Git 제외.
+- 요청 결과 JSON과 로그는 `docs/performance/tools/rental/local/`에 저장하고 Git 제외.
 - 비밀값 없는 결과 JSON은 이 문서의 `raw/`에 별도 보관.
 
 ## 결과
@@ -60,14 +60,14 @@
 cd backend
 ./gradlew bootJar
 cd ..
-docker compose -f performance/rental/compose.yaml up -d --build --wait
-python3 performance/rental/run.py
+docker compose -f docs/performance/tools/rental/compose.yaml up -d --build --wait
+python3 docs/performance/tools/rental/run.py
 ```
 
 - 카카오 키·실제 로그인 불필요. 기존 개발 DB와 분리.
 - 최초 전용 DB는 자동 생성, 기존 데이터가 있으면 조건 검증 후 재사용.
 - 대기 요청 만료 시 실행 중단. 동일 상태로 비교하려면 별도 새 전용 DB 필요.
-- 종료: `docker compose -f performance/rental/compose.yaml stop`. 데이터 볼륨 보존.
+- 종료: `docker compose -f docs/performance/tools/rental/compose.yaml stop`. 데이터 볼륨 보존.
 
 ## 한계
 

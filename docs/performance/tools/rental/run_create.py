@@ -132,5 +132,5 @@ COMMIT;"""
 
 if __name__=='__main__':
     if sys.argv[1:] not in ([],['--replay-only']):
-        raise SystemExit('사용법: python3 performance/rental/run_create.py [--replay-only]')
+        raise SystemExit('사용법: python3 docs/performance/tools/rental/run_create.py [--replay-only]')
     main(bool(sys.argv[1:]))

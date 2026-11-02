@@ -1,13 +1,13 @@
 /** 기존 커밋과 작업 트리를 같은 브라우저 조건에서 비교하는 로컬 전용 서버. */
-import { createServer } from '../../../frontend/node_modules/vite/dist/node/index.js';
+import { createServer } from '../../../../../frontend/node_modules/vite/dist/node/index.js';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-const root = fileURLToPath(new URL('../../../', import.meta.url));
+const root = fileURLToPath(new URL('../../../../../', import.meta.url));
 const baseline = process.env.RENTAL_BASE_REF ?? '42efe8d';
 const before = execFileSync('git', ['show', `${baseline}:frontend/src/pages/rentals/RentalsPage.tsx`], { cwd: root, encoding: 'utf8' });
 const beforeId = path.join(root, 'frontend/src/pages/rentals/__rental-before.tsx');
-const entry = path.join(root, 'performance/rental/frontend/fixture.tsx');
+const entry = path.join(root, 'docs/performance/tools/rental/frontend/fixture.tsx');
 const server = await createServer({
   root: path.join(root, 'frontend'),
   configFile: path.join(root, 'frontend/vite.config.ts'),
