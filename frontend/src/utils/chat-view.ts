@@ -1,5 +1,6 @@
 import type { ApiChatMessage, ApiChatRental, ApiChatRoom } from "@/types/chat-api";
 import type { ApiAppointmentProposal, ApiAppointmentSlot } from "@/types/appointment-api";
+import type { ApiItemDetail } from "@/api/items";
 import type { RentalStatusView } from "@/components/custom/rentals/status";
 
 export function chatRentalStatus(rental: ApiChatRental): RentalStatusView | null {
@@ -11,6 +12,15 @@ export function chatRentalStatus(rental: ApiChatRental): RentalStatusView | null
 export function selectableChatRentals(room: ApiChatRoom): ApiChatRental[] {
   if (room.access.reason !== "EXISTING_RENTAL_ONLY") return room.rentals;
   return room.rentals.filter((rental) => room.access.allowedRentalIds.includes(rental.id));
+}
+
+/** 약속은 승인된 대여에서만 가능하므로, 대여 전에는 날짜 선택 화면으로 안내한다. */
+export function canOpenRentalRequestFromChat(room: ApiChatRoom, item: ApiItemDetail | null,
+  memberId: string | null, today: string): boolean {
+  return Boolean(item && memberId && item.id === room.itemId && item.owner.id !== memberId
+    && item.visibility === "PUBLIC" && item.availableEndDate >= today
+    && room.access.canSend && room.access.reason === "NORMAL"
+    && !room.rentals.some((rental) => ["REQUESTED", "APPROVED", "ACTIVE"].includes(rental.status)));
 }
 
 export function chatRentalResponse(rental: ApiChatRental | undefined, memberId: string | null) {

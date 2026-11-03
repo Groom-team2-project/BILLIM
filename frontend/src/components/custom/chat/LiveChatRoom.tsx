@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getChatMessages, getChatRoom, issueChatSocketTicket, sendChatMessage, updateChatReadPosition } from "@/api/chat";
 import { acceptAppointment, getAppointments, proposeAppointment, withdrawAppointment } from "@/api/appointments";
 import { commandRental, getRental } from "@/api/rentals";
+import { getItem, type ApiItemDetail } from "@/api/items";
 import { getCommunityPlaces, type ApiCommunityPlace } from "@/api/communities";
 import { newIdempotencyKey } from "@/api/client";
 import { createReport, reportMessage, type ReportReasonCode } from "@/api/reports";
@@ -26,7 +27,7 @@ import type { ApiChatMessage, ApiChatMessagePage, ApiChatRoom } from "@/types/ch
 import type { ApiAppointmentSlot, AppointmentKind } from "@/types/appointment-api";
 import { ApiError } from "@/api/client";
 import { appointmentView } from "@/utils/appointment-view";
-import { chatBlockedMessage, chatDateRange, chatRentalResponse, chatRentalStatus, chatTimeLabel, chatTimeline, isMoneyRequest, selectableChatRentals } from "@/utils/chat-view";
+import { canOpenRentalRequestFromChat, chatBlockedMessage, chatDateRange, chatRentalResponse, chatRentalStatus, chatTimeLabel, chatTimeline, isMoneyRequest, selectableChatRentals } from "@/utils/chat-view";
 import { countNewChatMessages, isChatAtBottom, isChatMessageEndVisible, mergeChatMessages } from "@/utils/chat-state";
 import { readPendingChatMessages, writePendingChatMessages, type PendingChatMessage } from "@/utils/chat-pending";
 import { chatSocketUrl, parseChatSocketMessage } from "@/utils/chat-realtime";
@@ -55,6 +56,10 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
   const navigate = useNavigate();
   const { memberId } = useSession();
   const [room, setRoom] = useState<ApiChatRoom | null>(null);
+  const [requestItem, setRequestItem] = useState<ApiItemDetail | null>(null);
+  const [today] = useState(() => new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date()));
   const [messages, setMessages] = useState<ApiChatMessage[]>([]);
   const [pending, setPending] = useState<PendingChatMessage[]>(() => readPendingChatMessages(memberId, roomId));
   const [connectionState, setConnectionState] = useState<"connecting" | "connected" | "reconnecting" | "unauthorized">("connecting");
@@ -86,6 +91,18 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
   const olderAnchorRef = useRef<{ id: string; bottom: number } | null>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [seenSequence, setSeenSequence] = useState(0);
+  const requestItemId = room?.itemId;
+  const requestAccessReason = room?.access.reason;
+  const hasOngoingRental = room?.rentals.some((rental) =>
+    rental.status === "REQUESTED" || rental.status === "APPROVED" || rental.status === "ACTIVE") ?? false;
+
+  useEffect(() => {
+    if (!requestItemId || !memberId || requestAccessReason !== "NORMAL" || hasOngoingRental) return;
+    let active = true;
+    getItem(requestItemId).then((item) => { if (active) setRequestItem(item); })
+      .catch(() => { if (active) setRequestItem(null); });
+    return () => { active = false; };
+  }, [requestItemId, requestAccessReason, hasOngoingRental, memberId]);
 
   const recordVisibleMessages = useCallback(() => {
     const element = scrollRef.current;
@@ -599,6 +616,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
   const rentalResponse = chatRentalResponse(selectedRental, memberId);
   const visibleSlots = slots.filter((slot) => slot.rentalId === selectedRentalId);
   const proposalKinds = visibleSlots.filter((slot) => slot.allowedActions.includes("PROPOSE"));
+  const canStartRequest = canOpenRentalRequestFromChat(room, requestItem, memberId, today);
   const showApprovalCard = selectedRental?.status === "APPROVED" || selectedRental?.status === "ACTIVE";
   const timeline = chatTimeline(messages, selectedRental, showApprovalCard, appointmentError ? [] : visibleSlots);
   const hasAppointment = visibleSlots.some((slot) => Boolean(slot.pendingProposal || slot.confirmedProposal));
@@ -634,7 +652,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
         <MoreMenu label="이웃 메뉴" items={safetyItems} />
       </div>
       <ContextBar room={room} selectedRentalId={selectedRentalId}
-        action={selectableRentals.length > 1 || hasAppointment || proposalKinds.length > 0 ?
+        action={selectableRentals.length > 1 || hasAppointment || proposalKinds.length > 0 || canStartRequest ?
           <div className={c("chat-context-actions")}>
             {selectableRentals.length > 1 ? <label className={c("chat-rental-picker")}>
               <span>대여 건</span>
@@ -649,7 +667,10 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
                 </option>)}
               </select>
             </label> : null}
-            {hasAppointment ? <Button variant="secondary" icon="clock"
+            {canStartRequest ? <Button variant="secondary" icon="calendar"
+              onClick={() => navigate(`/items/${encodeURIComponent(room.itemId)}/request`)}>
+              대여 요청
+            </Button> : hasAppointment ? <Button variant="secondary" icon="clock"
               disabled={!appointmentToVisit || appointmentError}
               onClick={() => {
                 if (appointmentToVisit) jumpToCard(cardId(roomId, appointmentToVisit.status, appointmentToVisit.proposal.id));
