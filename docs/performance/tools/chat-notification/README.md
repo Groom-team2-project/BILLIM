@@ -1,7 +1,34 @@
-# 채팅·알림 로컬 성능 테스트
+# 채팅·알림 성능 테스트
 
-> 버전: v0.1.0
-> 수정일: 2026.11.03
+> 버전: v0.4.0
+> 수정일: 2026.11.04
+
+## 배포 서버의 짧은 조회 점검
+
+`deploy-read-smoke.js`는 기본 사용자 1명·조회 24건·요청 종료 후 대기 1초로 동작. 정상 응답 기준 약 25~40초 예상, 느린 서버에서는 최대 2분에 중단. 한 번에 요청 1건, 평균 요청률은 초당 1건 미만. `RequestCount`로 4~60건 지정 가능. 로컬 고부하 스크립트와 별도 실행.
+
+조회 대상은 채팅방 목록(20개), 채팅 미열람 수, 알림 목록(20개), 알림 미열람 수. `RoomId`를 지정하면 해당 방의 메시지 조회(20개)도 순환 대상에 추가. 총 요청 수는 그대로 유지. 실제 대화·거래가 있는 테스트 계정 권장. 비어 있는 계정이면 빈 목록 응답만 검증.
+
+메시지 전송·읽음 처리·대여 상태 변경·WebSocket 연결·데이터 생성 미수행. 조회 요청에 따른 인증 세션 접근 시각 등 서버 내부 갱신은 발생 가능. 배포 서버에서 Docker를 실행하지 않고 테스트 PC에서 실행.
+
+필요 조건: PowerShell 7, Docker Desktop, 테스트 계정의 유효한 `BILLIM_SESSION` 쿠키 값. 서비스에서 로그인한 뒤 브라우저 개발자 도구의 쿠키에서 값 확인. 실행기가 숨김 입력으로 받으므로 명령행에 세션 값 입력 불필요.
+
+```powershell
+pwsh -File docs/performance/tools/chat-notification/run-deploy-read-smoke.ps1 -BaseUrl https://서비스주소
+
+# 메시지 조회 포함: 해당 계정이 참여하는 방 ID 사용
+pwsh -File docs/performance/tools/chat-notification/run-deploy-read-smoke.ps1 -BaseUrl https://서비스주소 -RoomId 123
+```
+
+`BaseUrl`은 `/api/v1` 경로 없이 출처만 지정. 원격 서버는 HTTPS 필수. Netlify 등 기존 서비스 프록시 주소 사용 권장. 서명 검증을 강제하는 백엔드에 직접 접속하는 경우 `-DirectBackend`를 지정하고 기존 `../auth/nf_sign.py`로 발급한 `x-nf-sign` 값을 추가 입력. 서명 검증 설정 변경 불필요.
+
+`billim-deploy-read-날짜시간` 컨테이너를 백그라운드로 실행하고 추적하지 않음. HTTP 오류·인증 실패·요청 제한·잘못된 JSON 등 첫 응답 오류에서 즉시 중단. 요청 제한을 우회하거나 재시도하지 않음. 리다이렉트 미추적. 세션·응답 본문은 출력하지 않음.
+
+종료 후 컨테이너 종료 코드 0과 `local/billim-deploy-read-날짜시간/summary.json` 확인. `endpoint_*_ms`에 경로별 평균·중앙값·p95·최댓값, `http_reqs`에 완료 요청 수, `app_failures`에 응답 검증 실패율 기록. 시간 초과 등으로 일부만 수행하면 요청 수 확인 필요. `manifest.json`에 실행 조건 기록. 같은 디렉터리의 `session.json`은 세션 원문 포함하므로 결과 확인 후 삭제. `local/` 전체는 Git 제외.
+
+24건은 배포 후 상태와 지연을 가볍게 확인하는 표본. 엔드포인트별 요청은 약 4~6건이므로 p95를 안정적인 운영 성능 수치나 최대 처리량으로 해석하지 않음. 배포 전후 비교는 같은 계정·방·경로·요청 수로 수행. 대규모 회귀·포화 지점 검증은 기존 로컬 도구 사용.
+
+검증: `node test-deploy-read-smoke.cjs`에서 요청 경로·상한·오류 중단 검사. k6 `inspect`는 네트워크 비활성 컨테이너에서 통과. 실제 배포 서버 호출 미실행.
 
 ## 워밍업 통제 목록 비교
 
@@ -15,6 +42,8 @@
 - `rich-controlled.py`를 같은 실행 이미지에서 실행. Docker 소켓과 `/scripts` 마운트, `billim-perf-rich_default` 네트워크, 실제 `RUNNER_NAME`, 새 `CONTROLLED_LABEL` 지정. 기존 결과 이름은 덮어쓰지 않음. 예: `--entrypoint python3 billim-perf-rich-runner /scripts/rich-controlled.py`.
 - 통제 측정은 MySQL·백엔드를 매회 재시작하므로 해당 격리 프로젝트의 다른 시험과 동시 사용 금지. `compose.rich.controlled.yaml`로 버퍼 풀 자동 복원 비활성. 측정 중 메시지·대여·알림 변경 미수행.
 - 완료 여부는 실행 컨테이너 종료 코드와 `local/{CONTROLLED_LABEL}-result.json`의 `status`로 확인. `local/`에는 세션 원문이 있으므로 전체 디렉터리를 공유하지 않음.
+- 과거 버전 비교는 `CONTROLLED_BASELINE`·`CONTROLLED_OPTIMIZED` 이미지 태그 지정 가능. `HOST_OLD_BACKEND` 및 `/oldbackend` 마운트로 과거 소스 빌드 가능.
+- 쿼리 진단은 `CONTROLLED_ORDER`에 이미지 태그를 쉼표로 나열하고 `DIAGNOSTIC=true` 지정. 측정 구간 쿼리별 누적 비용과 CPU 카운터 추가 저장. `HOST_FIXED_BACKEND`와 `/fixedbackend` 마운트를 지정하면 전체 빌드·테스트 통과 후 `fixed` 이미지 생성. 측정 실행 중 소스 변경 금지.
 
 후속 목록·유휴 연결·전송·outbox 비교는 [2026.10.31 후속 측정](../../박선우-채팅알림-후속측정.md)에 조건과 결과를 기록했다. `PERF_SHARED_OWNER=true`와 `PERF_FIXTURE_NAME=fixtures-followup.json`을 사용하면 한 회원이 여러 채팅방을 가진 독립 fixture를 생성한다. 이 시험은 Compose 프로젝트를 `billim-perf-followup`으로 지정해 기존 `billim-perf` 볼륨과 분리한다. `measure-room-list.py`, `count-room-list-sql.py`, `measure-idle-queries.py`, `measure-send.py`가 각 경로를 측정한다. outbox 50/100 비교는 `Dockerfile.outbox-benchmark`와 `run-outbox-benchmark.sh`로 만든 Docker 컨테이너 안에서 실행하며, 컨테이너 종료 코드로 완료 여부를 확인한다.
 

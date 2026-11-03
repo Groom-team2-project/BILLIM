@@ -14,6 +14,10 @@ benchmark = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(benchmark)
 PROJECT = benchmark.PROJECT
 LABEL = os.environ['CONTROLLED_LABEL']
+BASELINE = os.environ.get('CONTROLLED_BASELINE', 'baseline')
+OPTIMIZED = os.environ.get('CONTROLLED_OPTIMIZED', 'optimized')
+if any(not value.replace('-', '').isalnum() for value in (BASELINE, OPTIMIZED)):
+    raise ValueError('Invalid image tag')
 if not LABEL.replace('-', '').isalnum():
     raise ValueError('Invalid controlled run label')
 
@@ -36,6 +40,20 @@ def k6(size, warm, filename):
     return json.loads((OUT / filename).read_text())
 
 
+def digest_snapshot():
+    rows = benchmark.sql("""SELECT JSON_OBJECT('digest',DIGEST,'sql',DIGEST_TEXT,
+        'count',COUNT_STAR,'timer',SUM_TIMER_WAIT,'examined',SUM_ROWS_EXAMINED)
+        FROM performance_schema.events_statements_summary_by_digest
+        WHERE SCHEMA_NAME='billim_perf' AND DIGEST IS NOT NULL
+          AND DIGEST_TEXT NOT LIKE '%performance_schema%'""")
+    return {row['digest']: row for row in (json.loads(line) for line in rows.splitlines())}
+
+
+def cpu_snapshot():
+    return {service: benchmark.run('docker', 'exec', f'{PROJECT}-{service}-1',
+        'cat', '/sys/fs/cgroup/cpu.stat', capture_output=True).stdout for service in ('backend', 'mysql')}
+
+
 def main():
     destination = OUT / f'{LABEL}-result.json'
     if destination.exists():
@@ -45,13 +63,33 @@ def main():
     members = sorted({user['memberId'] for pair in fixture['pairs']
                       for user in (pair['owner'], pair['requester'])})
     member_ids = ','.join(str(int(member)) for member in members)
-    result = {'status': 'running', 'order': ['baseline', 'optimized', 'optimized', 'baseline'] * 2,
+    result = {'status': 'running', 'order': [BASELINE, OPTIMIZED, OPTIMIZED, BASELINE] * 2,
               'warmup_requests_per_size': 300, 'vus': 4, 'duration': '30s', 'trials': []}
     reference = {}
     try:
+        if os.environ.get('CONTROLLED_ORDER'):
+            order = os.environ['CONTROLLED_ORDER'].split(',')
+            if any(not tag.replace('-', '').isalnum() for tag in order):
+                raise ValueError('Invalid order image tags')
+            result['order'] = order
+        if os.environ.get('HOST_FIXED_BACKEND'):
+            benchmark.run('docker', 'run', '--rm', '--name', f'{PROJECT}-build-fixed',
+                '--mount', f"type=bind,source={os.environ['HOST_FIXED_BACKEND']},target=/workspace",
+                '--mount', 'type=volume,source=billim-rich-gradle,target=/home/gradle/.gradle',
+                '--mount', 'type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock',
+                '-e', 'DOCKER_HOST=unix:///var/run/docker.sock',
+                '-e', 'TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal',
+                '-w', '/workspace', 'gradle:8.14-jdk21', 'sh', './gradlew', 'build', '--no-daemon')
+            benchmark.run('docker', 'build', '-t', 'billim-perf-rich:fixed', '/fixedbackend')
+        if os.environ.get('HOST_OLD_BACKEND'):
+            benchmark.run('docker', 'run', '--rm', '--name', f'{PROJECT}-build-{BASELINE}',
+                '--mount', f"type=bind,source={os.environ['HOST_OLD_BACKEND']},target=/workspace",
+                '--mount', 'type=volume,source=billim-rich-gradle,target=/home/gradle/.gradle',
+                '-w', '/workspace', 'gradle:8.14-jdk21', 'sh', './gradlew', 'bootJar', '--no-daemon')
+            benchmark.run('docker', 'build', '-t', f'billim-perf-rich:{BASELINE}', '/oldbackend')
         result['images'] = {version: benchmark.run('docker', 'image', 'inspect',
             f'billim-perf-rich:{version}', '--format', '{{.Id}}', capture_output=True).stdout.strip()
-            for version in ('baseline', 'optimized')}
+            for version in dict.fromkeys(result['order'])}
         for trial, version in enumerate(result['order'], 1):
             os.environ['RICH_VERSION'] = version
             # 두 프로세스의 캐시를 회차별 재생성. OS 파일 캐시는 유지.
@@ -91,10 +129,27 @@ def main():
                     after = int(benchmark.sql("SHOW GLOBAL STATUS LIKE 'Com_select';").split()[-1])
                     deltas.append(after - before)
                 filename = f'{LABEL}-{trial}-{version}-{size}.json'
+                if os.environ.get('DIAGNOSTIC') == 'true':
+                    digest_before = digest_snapshot()
+                    cpu_before = cpu_snapshot()
                 summary = k6(size, False, filename)['metrics']
                 entry['sizes'][size] = {'sql': deltas, 'duration': summary['http_req_duration'],
                     'requests': summary['http_reqs'], 'failures': summary['app_failures'],
                     'http_failures': summary['http_req_failed']}
+                if os.environ.get('DIAGNOSTIC') == 'true':
+                    cpu_after = cpu_snapshot()
+                    digest_after = digest_snapshot()
+                    costs = []
+                    for digest, row in digest_after.items():
+                        before = digest_before.get(digest, {'count': 0, 'timer': 0, 'examined': 0})
+                        count = row['count'] - before['count']
+                        if count > 0:
+                            costs.append({'sql': row['sql'], 'count': count,
+                                'total_ms': (row['timer'] - before['timer']) / 1_000_000_000,
+                                'rows_examined': row['examined'] - before['examined']})
+                    entry['sizes'][size]['queries'] = sorted(costs, key=lambda row: row['total_ms'], reverse=True)[:40]
+                    entry['sizes'][size]['cpu_before'] = cpu_before
+                    entry['sizes'][size]['cpu_after'] = cpu_after
             result['trials'].append(entry)
             destination.write_text(json.dumps(result, indent=2))
         result['status'] = 'passed'

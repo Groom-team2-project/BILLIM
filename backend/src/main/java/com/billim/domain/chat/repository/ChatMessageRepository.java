@@ -21,14 +21,16 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 
     List<ChatMessage> findByRoomIdOrderBySequenceDesc(Long roomId, Pageable pageable);
 
-    @Query("""
-        select message from ChatMessage message
-        where message.roomId in :roomIds
-          and message.sequence = (
-              select max(latest.sequence) from ChatMessage latest
-              where latest.roomId = message.roomId
-          )
-        """)
+    // 방별 최대 순번을 먼저 구해 메시지 행마다 최대값 집계가 반복되는 실행 계획 방지.
+    @Query(value = """
+        select message.* from messages message
+        join (
+            select room_id, max(sequence) as latest_sequence
+            from messages where room_id in (:roomIds)
+            group by room_id
+        ) latest on message.room_id = latest.room_id
+                and message.sequence = latest.latest_sequence
+        """, nativeQuery = true)
     List<ChatMessage> findLatestMessagesInRooms(@Param("roomIds") List<Long> roomIds);
 
     @Query("""
