@@ -1,0 +1,141 @@
+apiVersion: 1
+
+# 운영(env=prod) 알림만 디스코드 전송. 복제 환경은 부하 측정으로 임계값을 일부러 넘기므로 제외
+
+# 기본 템플릿은 라벨 전체·사설 IP까지 출력 — 요약 한 줄로 축소
+templates:
+  - orgId: 1
+    name: billim-discord
+    template: |
+      {{ define "billim.title" }}{{ if eq .Status "firing" }}🔴 [장애]{{ else }}🟢 [복구]{{ end }} {{ .CommonLabels.alertname }}{{ end }}
+      {{ define "billim.message" }}{{ range .Alerts.Firing }}{{ .Annotations.summary }}
+      {{ end }}{{ range .Alerts.Resolved }}{{ .Labels.server }} 정상화
+      {{ end }}대시보드: 포트 포워딩 후 localhost:3000{{ end }}
+
+contactPoints:
+  - orgId: 1
+    name: billim-discord
+    receivers:
+      - uid: billim-discord
+        type: discord
+        settings:
+          url: $DISCORD_WEBHOOK_URL
+          use_discord_username: false
+          title: '{{ template "billim.title" . }}'
+          message: '{{ template "billim.message" . }}'
+
+policies:
+  - orgId: 1
+    receiver: billim-discord
+    group_by: ["alertname", "server"]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h   # 해소 전까지 4시간마다 재알림
+
+groups:
+  - orgId: 1
+    name: billim-app
+    folder: BILLIM
+    interval: 1m
+    rules:
+      - uid: billim-instance-down
+        title: 서버 수집 실패
+        condition: C
+        for: 1m
+        noDataState: Alerting   # 대상 자체가 사라진 경우도 장애로 취급
+        execErrState: Error
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.server }} 지표 수집 실패 — 서버 다운 또는 9090 차단"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: billim-prometheus
+            model: { refId: A, instant: true, expr: 'up{job="billim-app", env="prod"}' }
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: lt, params: [1] } }] }
+
+      # 5xx·p95는 5분간 요청 30건 이상일 때만 판정 — 저트래픽에서 1~2건으로 비율·분위수가 튀는 오탐 방지
+      - uid: billim-5xx-ratio
+        title: 5xx 비율 1% 초과
+        condition: C
+        for: 5m
+        noDataState: OK   # 요청이 없는 시간대는 정상
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.server }} 5xx 비율{{ with $values.B }} {{ humanizePercentage .Value }}{{ end }}"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: billim-prometheus
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                sum by (server) (rate(http_server_requests_seconds_count{job="billim-app", env="prod", status=~"5.."}[5m]))
+                / sum by (server) (rate(http_server_requests_seconds_count{job="billim-app", env="prod"}[5m]))
+                and sum by (server) (increase(http_server_requests_seconds_count{job="billim-app", env="prod"}[5m])) >= 30
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [0.01] } }] }
+
+      - uid: billim-p95-slow
+        title: p95 응답시간 500ms 초과
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.server }} p95{{ with $values.B }} {{ humanizeDuration .Value }}{{ end }}"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: billim-prometheus
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                histogram_quantile(0.95, sum by (server, le)
+                (rate(http_server_requests_seconds_bucket{job="billim-app", env="prod"}[5m])))
+                and sum by (server) (increase(http_server_requests_seconds_count{job="billim-app", env="prod"}[5m])) >= 30
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [0.5] } }] }
+
+      - uid: billim-heap-high
+        title: JVM 힙 사용률 90% 초과
+        condition: C
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.server }} 힙 사용률{{ with $values.B }} {{ humanizePercentage .Value }}{{ end }}"
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: billim-prometheus
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                sum by (server) (jvm_memory_used_bytes{job="billim-app", env="prod", area="heap"})
+                / sum by (server) (jvm_memory_max_bytes{job="billim-app", env="prod", area="heap"} > 0)
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [0.9] } }] }
