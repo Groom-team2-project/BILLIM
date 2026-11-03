@@ -250,6 +250,20 @@ billim:
     # 운영은 HTTPS 전제. 환경 변수 누락으로 http 쿠키가 나가는 실수 방지
     cookie-secure: true
 
+management:
+  metrics:
+    # 서버별 p95 집계용 히스토그램 — 기본 노출은 요청 수·합계·최댓값뿐. 버킷 범위 5ms~10s로 제한해 시계열 수 억제
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
+      minimum-expected-value:
+        "[http.server.requests]": 5ms
+      maximum-expected-value:
+        "[http.server.requests]": 10s
+      # 지연 SLO(500ms 이내 비율) 판정용 경계 — 기본 버킷에 500ms 정확값이 없음
+      slo:
+        "[http.server.requests]": 500ms
+
 # 운영에서는 API 문서 비공개. 비로그인에게 전체 API 구조 노출 방지
 springdoc:
   api-docs:
