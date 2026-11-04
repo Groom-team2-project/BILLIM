@@ -26,8 +26,12 @@
         "includeAll": true,
         "multi": true,
         "current": {
-          "text": "All",
-          "value": "$__all"
+          "text": [
+            "prod"
+          ],
+          "value": [
+            "prod"
+          ]
         },
         "refresh": 2
       }
@@ -575,7 +579,7 @@
       "id": 5,
       "type": "stat",
       "title": "p95 응답시간",
-      "description": "",
+      "description": "히스토그램 상한 10초 — 10초 이상 지연은 10초로 표시",
       "datasource": {
         "type": "prometheus",
         "uid": "billim-prometheus"
@@ -831,8 +835,18 @@
           },
           "expr": "sum(increase(http_server_requests_seconds_count{job=\"billim-app\", env=~\"$env\", uri!~\"/actuator.*\", outcome=\"SERVER_ERROR\"}[$__interval]))",
           "legendFormat": "서버 오류"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "billim-prometheus"
+          },
+          "expr": "sum(increase(http_server_requests_seconds_count{job=\"billim-app\", env=~\"$env\", uri!~\"/actuator.*\", outcome=\"REDIRECTION\"}[$__interval]))",
+          "legendFormat": "리다이렉트"
         }
-      ]
+      ],
+      "interval": "1m"
     },
     {
       "id": 8,
@@ -1197,7 +1211,7 @@
       "id": 14,
       "type": "timeseries",
       "title": "서버별 p95 응답시간",
-      "description": "",
+      "description": "히스토그램 상한 10초 — 10초 이상 지연은 10초로 표시",
       "datasource": {
         "type": "prometheus",
         "uid": "billim-prometheus"
@@ -1299,7 +1313,8 @@
           "legendFormat": "{{le}}",
           "format": "heatmap"
         }
-      ]
+      ],
+      "interval": "1m"
     },
     {
       "id": 16,
@@ -1424,7 +1439,8 @@
             }
           }
         }
-      ]
+      ],
+      "description": "히스토그램 상한 10초 — 10초 이상 지연은 10초로 표시"
     },
     {
       "id": 17,

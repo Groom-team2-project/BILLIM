@@ -46,7 +46,7 @@ groups:
         execErrState: Error
         labels: { severity: critical }
         annotations:
-          summary: "{{ $labels.server }} 지표 수집 실패 — 서버 다운 또는 9090 차단"
+          summary: "{{ if $labels.server }}{{ $labels.server }} 지표 수집 실패 — 서버 다운 또는 9090 차단{{ else }}수집 대상 없음 — targets 파일·Prometheus 확인{{ end }}"
         data:
           - refId: A
             relativeTimeRange: { from: 300, to: 0 }
