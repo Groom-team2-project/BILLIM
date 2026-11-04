@@ -1,0 +1,3 @@
+.env
+# 실제 대상은 사설 IP — 서버에서만 작성
+prometheus/targets/*.json

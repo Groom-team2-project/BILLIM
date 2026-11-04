@@ -1,0 +1,37 @@
+name: billim-monitoring   # 모니터링 전용 EC2에서 실행. 앱 서버에는 올리지 않음
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d   # 운영 종료(11.23)까지 전체 보관
+      - --web.enable-lifecycle              # 설정 변경 후 재시작 없이 다시 읽기
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/targets:/etc/prometheus/targets:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9091:9090"   # 외부 미개방. 확인은 Session Manager 포트 포워딩
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    env_file: .env   # 관리자 비밀번호·디스코드 웹후크. 저장소 미포함
+    environment:
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"   # 외부 미개방. 접속은 Session Manager 포트 포워딩
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:
