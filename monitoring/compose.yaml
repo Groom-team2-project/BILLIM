@@ -6,7 +6,7 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=30d   # 운영 종료(11.23)까지 전체 보관
-      - --web.enable-lifecycle              # 설정 변경 후 재시작 없이 다시 읽기
+      # 종료·재로드 API(--web.enable-lifecycle) 미사용 — 포트 포워딩 사용자도 수집을 멈출 수 없게. prometheus.yml 변경은 컨테이너 재시작
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/targets:/etc/prometheus/targets:ro

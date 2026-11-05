@@ -44,7 +44,7 @@ docker compose up -d
 
 | 항목 | 방법 |
 | --- | --- |
-| AWS 권한 | IAM 사용자에 `ssm:StartSession` (관리자 그룹이면 이미 있음) |
+| AWS 권한 | `ssm:StartSession`(모니터링 인스턴스·`AWS-StartPortForwardingSession` 문서로 제한) · `ssmmessages:OpenDataChannel` · `ec2:DescribeInstances`. 관리자 그룹이면 이미 있음 |
 | 도구 | `brew install awscli` · `brew install --cask session-manager-plugin` |
 | 자격 증명 | IAM 콘솔에서 본인 액세스 키 발급 → `aws configure` (리전 `ap-northeast-2`) |
 
@@ -55,6 +55,7 @@ docker compose up -d
 M=$(aws ec2 describe-instances --region ap-northeast-2 \
   --filters Name=tag:Name,Values=billim-monitoring Name=instance-state-name,Values=running \
   --query 'Reservations[0].Instances[0].InstanceId' --output text)
+echo $M   # None이면 EC2 콘솔에서 billim-monitoring의 ID를 찾아 M=<인스턴스 ID>로 지정
 
 # Grafana — 브라우저 http://localhost:3000 (창을 닫으면 접속 종료)
 aws ssm start-session --region ap-northeast-2 --target $M \
