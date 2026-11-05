@@ -21,6 +21,15 @@ public class ChatRoomLinkedRentalService {
     private final ChatRoomRentalReadRepository rentalReadRepository;
 
     @Transactional(readOnly = true)
+    public List<Rental> getForRooms(List<Long> roomIds, Long memberId) {
+        if (memberId == null || memberId < 1) {
+            throw new BusinessException(ErrorCode.UNAUTHENTICATED);
+        }
+        if (roomIds.isEmpty()) return List.of();
+        return rentalReadRepository.findLinkedInRooms(roomIds, memberId);
+    }
+
+    @Transactional(readOnly = true)
     public List<Rental> get(Long roomId, Long memberId) {
         if (roomId == null || roomId < 1) {
             throw new BusinessException(ErrorCode.INVALID_REQUEST);

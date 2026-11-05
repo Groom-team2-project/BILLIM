@@ -25,6 +25,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import com.billim.domain.rental.entity.Rental;
 
 @Service
 @RequiredArgsConstructor
@@ -62,12 +67,49 @@ public class ChatRoomViewService {
         ChatRoomListBaseService.RoomBasePage basePage =
             listBaseService.getFiltered(memberId, filter, page, size);
 
-        Map<Long, String> thumbnails = thumbnailUrls(basePage.items(), memberId);
-        List<ChatRoomResponse> items = basePage.items().stream()
-            .map(base -> toResponse(base, memberId, thumbnails))
-            .toList();
+        List<ChatRoomResponse> items = listResponses(basePage.items(), memberId);
 
         return ChatRoomPageResponse.from(basePage, items);
+    }
+
+    private List<ChatRoomResponse> listResponses(List<ChatRoomBaseService.RoomBase> bases, Long memberId) {
+        if (bases.isEmpty()) return List.of();
+        var itemIds = bases.stream().map(base -> Long.valueOf(base.itemId())).distinct().toList();
+        var items = itemRepository.findAllById(itemIds).stream()
+            .collect(Collectors.toMap(Item::getId, Function.identity()));
+        Long communityId = membershipQuery.findActiveCommunityId(memberId).orElse(null);
+        boolean restricted = sanctionService.isRestricted(memberId);
+        Set<Long> blocked = blockQuery.findBlockedAmong(memberId,
+            bases.stream().map(base -> Long.valueOf(base.otherMember().id())).distinct().toList());
+        var linked = linkedRentalService.getForRooms(
+            bases.stream().map(base -> Long.valueOf(base.id())).toList(), memberId);
+        var byRoom = linked.stream().collect(Collectors.groupingBy(Rental::getChatRoomId));
+        var summaries = rentalQueryService.getRentalSummaries(linked.stream().map(Rental::getId).toList(), memberId);
+        Map<Long, String> thumbnails = new HashMap<>();
+        for (var thumbnail : itemImageRepository.findThumbnails(itemIds)) {
+            Item item = items.get(thumbnail.getItemId());
+            if (item != null && !item.isDeleted() && (item.isOwnedBy(memberId)
+                    || (item.getVisibility() == ItemVisibility.PUBLIC
+                        && Objects.equals(item.getCommunityId(), communityId)
+                        && !blocked.contains(item.getOwnerId())))) {
+                thumbnails.put(item.getId(), MediaFileResponse.thumbnailUrl(thumbnail.getMediaFileId()));
+            }
+        }
+        return bases.stream().map(base -> {
+            Item item = items.get(Long.valueOf(base.itemId()));
+            if (item == null) throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+            var restriction = !Objects.equals(item.getCommunityId(), communityId)
+                ? ChatRoomAccessPolicy.Restriction.COMMUNITY_CHANGED
+                : item.getVisibility() != ItemVisibility.PUBLIC ? ChatRoomAccessPolicy.Restriction.ITEM_UNAVAILABLE
+                : restricted ? ChatRoomAccessPolicy.Restriction.RESTRICTED
+                : blocked.contains(Long.valueOf(base.otherMember().id())) ? ChatRoomAccessPolicy.Restriction.BLOCKED
+                : ChatRoomAccessPolicy.Restriction.NONE;
+            Long roomId = Long.valueOf(base.id());
+            var rentals = byRoom.getOrDefault(roomId, List.of());
+            return ChatRoomResponse.from(base, rentals.stream().map(r -> summaries.get(r.getId())).toList(),
+                accessPolicy.resolve(roomId, memberId, restriction,
+                    ChatRoomLinkedRentalService.allowedRentalIds(rentals)), thumbnails.get(item.getId()));
+        }).toList();
     }
 
     private ChatRoomResponse toResponse(

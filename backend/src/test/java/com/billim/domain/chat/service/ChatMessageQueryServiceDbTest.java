@@ -52,6 +52,7 @@ class ChatMessageQueryServiceDbTest {
     @Autowired CategoryRepository categoryRepository;
     @Autowired ChatParticipantRepository participantRepository;
     @Autowired ChatMessageQueryService queryService;
+    @Autowired com.billim.domain.chat.repository.ChatMessageRepository messageRepository;
 
     private Long roomId;
 
@@ -164,6 +165,37 @@ class ChatMessageQueryServiceDbTest {
             ));
         }
         em.flush();
+    }
+
+    @Test
+    @DisplayName("여러 방의 최신 메시지를 정확히 한 건씩 반환하고 빈 방과 대상 외 방은 제외")
+    void batchLatestReturnsOneMessagePerRequestedRoom() {
+        sendFiveMessages();
+        ChatRoom original = em.find(ChatRoom.class, roomId);
+        ChatRoom second = ChatRoom.open(original.getItemId(), OWNER_ID, 3L, NOW);
+        ChatRoom empty = ChatRoom.open(original.getItemId(), OWNER_ID, 4L, NOW);
+        ChatRoom excluded = ChatRoom.open(original.getItemId(), OWNER_ID, 5L, NOW);
+        em.persist(second);
+        em.persist(empty);
+        em.persist(excluded);
+        em.flush();
+        for (ChatRoom room : List.of(second, excluded)) {
+            em.persist(ChatMessage.text(room.getId(), room.allocateSequence(NOW), OWNER_ID,
+                "다른 방 메시지", null, UUID.randomUUID(), NOW));
+        }
+        em.flush();
+        em.clear();
+
+        var result = messageRepository.findLatestMessagesInRooms(List.of(roomId, second.getId(), empty.getId()));
+
+        assertThat(result).hasSize(2);
+        assertThat(result).filteredOn(message -> message.getRoomId().equals(roomId))
+            .singleElement().satisfies(message -> {
+                assertThat(message.getSequence()).isEqualTo(5);
+                assertThat(message.getBody()).isEqualTo("메시지 5");
+            });
+        assertThat(result).filteredOn(message -> message.getRoomId().equals(second.getId()))
+            .singleElement().satisfies(message -> assertThat(message.getSequence()).isEqualTo(1));
     }
 
     private List<Long> sequences(MessagePageResponse page) {

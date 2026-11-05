@@ -17,6 +17,7 @@ FIXTURE_NAME = os.environ.get("PERF_FIXTURE_NAME", "fixtures.json")
 if Path(FIXTURE_NAME).name != FIXTURE_NAME or not FIXTURE_NAME.endswith(".json"):
     raise SystemExit("PERF_FIXTURE_NAME must be a JSON filename")
 OUTPUT = HERE / "local" / FIXTURE_NAME
+BASE_URL = os.environ.get("PERF_BASE_URL", "http://localhost:18080")
 PAIRS = int(os.environ.get("PERF_PAIRS", "8"))
 NOTIFICATIONS_PER_MEMBER = int(os.environ.get("PERF_NOTIFICATIONS_PER_MEMBER", "100"))
 SHARED_OWNER = os.environ.get("PERF_SHARED_OWNER", "false").lower() == "true"
@@ -114,7 +115,7 @@ def refresh_csrf(fixtures):
 
     def verify(user):
         request = urllib.request.Request(
-            "http://localhost:18080/api/v1/auth/csrf",
+            f"{BASE_URL}/api/v1/auth/csrf",
             headers={"Cookie": f"BILLIM_SESSION={user['token']}"},
         )
         with urllib.request.urlopen(request, timeout=10) as response:

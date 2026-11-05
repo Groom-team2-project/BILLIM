@@ -208,6 +208,30 @@ class ChatRoomViewServiceTest {
         when(itemRepository.findAllById(List.of(ITEM_ID))).thenReturn(List.of(item()));
     }
 
+    @Test
+    @DisplayName("일괄 목록에서도 차단된 상대의 사진과 일반 전송을 제한")
+    void batchListPreservesBlockedAccess() {
+        var base = new ChatRoomBaseService.RoomBase("901", "101", "100", "전동드릴",
+            new com.billim.domain.member.dto.MemberSummaryResponse("1", "상대", Instant.EPOCH), 0, null, null);
+        when(listBaseService.getFiltered(MEMBER_ID, "ALL", 0, 20)).thenReturn(
+            new ChatRoomListBaseService.RoomBasePage(List.of(base), 0, 20, 1, false));
+        when(itemRepository.findAllById(List.of(ITEM_ID))).thenReturn(List.of(item()));
+        when(membershipQuery.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.of(COMMUNITY_ID));
+        when(blockQuery.findBlockedAmong(MEMBER_ID, List.of(1L))).thenReturn(java.util.Set.of(1L));
+        when(linkedRentalService.getForRooms(List.of(ROOM_ID), MEMBER_ID)).thenReturn(List.of());
+        when(rentalQueryService.getRentalSummaries(List.of(), MEMBER_ID)).thenReturn(java.util.Map.of());
+        ItemImageRepository.Thumbnail thumbnail = mock(ItemImageRepository.Thumbnail.class);
+        when(thumbnail.getItemId()).thenReturn(ITEM_ID);
+        when(thumbnail.getMediaFileId()).thenReturn(77L);
+        when(itemImageRepository.findThumbnails(List.of(ITEM_ID))).thenReturn(List.of(thumbnail));
+
+        var response = viewService.list(MEMBER_ID, "ALL", 0, 20).items().getFirst();
+
+        assertThat(response.access().canSend()).isFalse();
+        assertThat(response.access().reason()).isEqualTo("BLOCKED");
+        assertThat(response.itemThumbnailUrl()).isNull();
+    }
+
     private Item item() {
         Item item = Item.create(
             1L, COMMUNITY_ID, 1L, 1L, "전동드릴", null,
