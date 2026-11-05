@@ -6,7 +6,7 @@ services:
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=30d   # 운영 종료(11.23)까지 전체 보관
-      - --web.enable-lifecycle              # 설정 변경 후 재시작 없이 다시 읽기
+      # 종료·재로드 API(--web.enable-lifecycle) 미사용 — 포트 포워딩 사용자도 수집을 멈출 수 없게. prometheus.yml 변경은 컨테이너 재시작
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/targets:/etc/prometheus/targets:ro
@@ -22,6 +22,9 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      # 접근은 포트 포워딩(AWS 권한) 단계에서 통제 — 로그인 없이 조회만 허용. 설정 변경은 관리자 로그인 필요
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
