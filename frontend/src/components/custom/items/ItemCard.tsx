@@ -57,8 +57,8 @@ function Avail({ item, range }: { item: Item; range?: boolean }) {
   }
   return (
     <span className={c("item-avail")}>
-      <Icon name="check" size={13} />
-      {range ? "선택한 날짜 가능" : "지금 요청 가능"}
+      <Icon name={range ? "check" : "clock"} size={13} />
+      {range ? "선택한 날짜 가능" : "대여 날짜 확인"}
     </span>
   );
 }
