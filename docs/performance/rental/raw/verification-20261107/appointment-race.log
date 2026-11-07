@@ -1,0 +1,61 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /tmp/billim-appointment-verify-20261107/appointment-race.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 10 max VUs, 10m30s max duration (incl. graceful stop):
+              * race: 1 iterations for each of 10 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate==1' rate=100.00%
+
+    unexpected_responses
+    ✓ 'rate==0' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 40      90.969668/s
+    checks_succeeded...: 100.00% 40 out of 40
+    checks_failed......: 0.00%   0 out of 40
+
+    ✓ 수락·철회 중 한 건만 성공
+    ✓ 나머지 한 건은 최신 버전 충돌
+
+    CUSTOM
+    accept_successes...............: 10     22.742417/s
+    change_success_duration........: avg=156.91ms min=68.83ms  med=123ms    max=288.92ms p(90)=272.87ms p(95)=281.88ms p(99)=287.51ms
+    unexpected_responses...........: 0.00%  0 out of 40
+    version_conflict_duration......: avg=195.89ms min=73.1ms   med=174.91ms max=325.32ms p(90)=317.24ms p(95)=322.9ms  p(99)=324.83ms
+    withdraw_successes.............: 10     22.742417/s
+
+    HTTP
+    http_req_duration..............: avg=176.4ms  min=68.83ms  med=145.75ms max=325.32ms p(90)=304.89ms p(95)=316.93ms p(99)=324.32ms
+      { expected_response:true }...: avg=156.91ms min=68.83ms  med=123ms    max=288.92ms p(90)=272.87ms p(95)=281.88ms p(99)=287.51ms
+    http_req_failed................: 50.00% 20 out of 40
+    http_reqs......................: 40     90.969668/s
+
+    EXECUTION
+    iteration_duration.............: avg=398.54ms min=349.86ms med=405.83ms max=438.78ms p(90)=428.53ms p(95)=433.65ms p(99)=437.76ms
+    iterations.....................: 10     22.742417/s
+
+    NETWORK
+    data_received..................: 23 kB  53 kB/s
+    data_sent......................: 17 kB  40 kB/s
+
+
+
+
+running (00m00.4s), 00/10 VUs, 10 complete and 0 interrupted iterations
+race ✓ [ 100% ] 10 VUs  00m00.4s/10m0s  10/10 iters, 1 per VU
