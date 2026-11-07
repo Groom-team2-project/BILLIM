@@ -8,6 +8,7 @@ import {
   type ApiAdminReport,
   type ReportActionType,
   type ReportReasonCode,
+  getAdminReport,
   getAdminReports,
   resolveReport,
 } from "@/api/reports";
@@ -47,6 +48,11 @@ type List =
   | { state: "error"; message: string }
   | { state: "ok"; rows: ApiAdminReport[] };
 
+type Target =
+  | { state: "loading"; row: ApiAdminReport }
+  | { state: "error"; row: ApiAdminReport; message: string }
+  | { state: "ok"; row: ApiAdminReport };
+
 function dateLabel(iso: string): string {
   const at = new Date(iso);
   return `${at.getMonth() + 1}/${at.getDate()}`;
@@ -55,7 +61,8 @@ function dateLabel(iso: string): string {
 export function AdminReportsPage() {
   const { toast } = useUi();
   const [filter, setFilter] = useState<Filter>(undefined);
-  const [target, setTarget] = useState<ApiAdminReport | null>(null);
+  const [target, setTarget] = useState<Target | null>(null);
+  const [detailRetry, setDetailRetry] = useState(0);
   const [list, setList] = useState<List>({ state: "loading" });
   const [retry, setRetry] = useState(0);
 
@@ -75,17 +82,44 @@ export function AdminReportsPage() {
     };
   }, [filter, retry]);
 
+  const targetId = target?.row.report.id;
+  useEffect(() => {
+    if (!targetId) return;
+    let alive = true;
+    getAdminReport(targetId)
+      .then((row) => {
+        if (!alive) return;
+        if (row.report.status !== "PENDING") {
+          setTarget({ state: "error", row, message: "이미 처리된 신고예요. 목록을 새로 불러와 주세요." });
+          setRetry((n) => n + 1);
+          return;
+        }
+        setTarget({ state: "ok", row });
+      })
+      .catch((e: unknown) => {
+        if (!alive) return;
+        setTarget((current) => current?.row.report.id === targetId ? {
+          state: "error",
+          row: current.row,
+          message: e instanceof ApiError ? e.message : "신고 내용을 불러오지 못했어요.",
+        } : current);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [targetId, detailRetry]);
+
   const onResolve = async (action: ReportActionType, label: string, note: string) => {
-    if (!target) return;
+    if (target?.state !== "ok") return;
     try {
-      await resolveReport(target.report.id, {
-        expectedVersion: target.report.version,
+      await resolveReport(target.row.report.id, {
+        expectedVersion: target.row.report.version,
         // 명세는 publicReason을 필수로 본다. 메모를 비우면 조치 문구를 사유로 남긴다
         publicReason: note || label,
         action,
         internalNote: note || undefined,
       });
-      toast(`${target.report.targetMember.displayName} 님 신고를 ${label} 처리했어요`);
+      toast(`${target.row.report.targetMember.displayName} 님 신고를 ${label} 처리했어요`);
       setRetry((n) => n + 1);
     } catch (e: unknown) {
       if (e instanceof ApiError && e.code === "VERSION_CONFLICT") {
@@ -164,7 +198,7 @@ export function AdminReportsPage() {
                     </div>
                   </div>
                   {!done ? (
-                    <Button variant="secondary" size="sm" onClick={() => setTarget(row)}>
+                    <Button variant="secondary" size="sm" onClick={() => setTarget({ state: "loading", row })}>
                       처리
                     </Button>
                   ) : null}
@@ -182,7 +216,15 @@ export function AdminReportsPage() {
 
       {target ? (
         <ActionModal
-          name={target.report.targetMember.displayName}
+          name={target.row.report.targetMember.displayName}
+          reason={REASON_LABEL[target.row.report.reasonCode]}
+          report={target.state === "ok" ? target.row : null}
+          loading={target.state === "loading"}
+          error={target.state === "error" ? target.message : undefined}
+          onRetry={() => {
+            setTarget({ state: "loading", row: target.row });
+            setDetailRetry((n) => n + 1);
+          }}
           onClose={() => setTarget(null)}
           onConfirm={onResolve}
         />
