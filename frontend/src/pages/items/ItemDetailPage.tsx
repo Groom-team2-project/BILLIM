@@ -18,6 +18,7 @@ import { PhotoSlider } from "@/components/custom/items/PhotoSlider";
 import { OwnerCard } from "@/components/custom/profile/OwnerCard";
 import { ApiError } from "@/api/client";
 import { openChatRoom } from "@/api/chat";
+import { createReport } from "@/api/reports";
 import { type ApiItemDetail, changeItemVisibility, getItem } from "@/api/items";
 import styles from "@/pages/items/ItemDetailPage.module.css";
 import { classes } from "@/utils/classes";
@@ -35,6 +36,7 @@ import {
 import { objectParticle } from "@/utils/korean";
 import { setCurrentItem, useCurrentItem } from "@/stores/currentItem";
 import { useCommunityPlaces } from "@/hooks/useCommunityPlaces";
+import { toReasonCode, toReasonDetail } from "@/utils/reportReason";
 
 const c = classes(styles);
 
@@ -149,6 +151,23 @@ export function ItemDetailPage() {
       setChatBusy(false);
     }
   };
+  const onReport = () => report({
+    name: owner,
+    title: "이 물건을 신고할까요?",
+    onConfirm: async (reason) => {
+      try {
+        await createReport({
+          targetType: "ITEM",
+          targetId: item.id,
+          reasonCode: toReasonCode(reason),
+          detail: toReasonDetail(reason),
+        });
+        toast("신고를 접수했어요");
+      } catch (e: unknown) {
+        toast(e instanceof ApiError ? e.message : "신고를 접수하지 못했어요");
+      }
+    },
+  });
 
   const applyVisibility = async (next: "PUBLIC" | "HIDDEN") => {
     setBusy(true);
@@ -270,7 +289,7 @@ export function ItemDetailPage() {
           <button
             type="button"
             className={c("t-label detail-report")}
-            onClick={() => report({ name: owner, onConfirm: () => toast("신고를 접수했어요") })}
+            onClick={onReport}
           >
             이 물건 신고하기
           </button>

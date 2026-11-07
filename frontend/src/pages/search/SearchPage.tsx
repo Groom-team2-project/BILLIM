@@ -258,7 +258,9 @@ export function SearchPage() {
               ) : (
                 <>
                   <Alert tone="info">
-                    가능 여부는 지금 기준이에요. 요청 후 소유자가 승인할 때 한 번 더 확인해요.
+                    {period
+                      ? "선택한 날짜의 가능 여부는 지금 기준이에요. 소유자가 승인할 때 다시 확인해요."
+                      : "대여 날짜를 선택하면 그 기간에 비어 있는 물건을 찾을 수 있어요."}
                   </Alert>
                   {items.map((item) => <ItemCard key={item.id} item={toCardItem(item)} layout="row" range={!!period} />)}
                   {result?.state === "ok" && result.hasNext ? (

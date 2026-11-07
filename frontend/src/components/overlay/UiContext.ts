@@ -26,6 +26,8 @@ export type ReasonOptions = {
 export type ReportOptions = {
   /** 신고 대상 이웃 이름 */
   name: string;
+  /** 회원이 아닌 대상의 신고 제목 */
+  title?: string;
   onConfirm?: (reason: string) => void;
 };
 

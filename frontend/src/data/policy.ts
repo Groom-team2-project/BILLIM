@@ -32,7 +32,7 @@ export const POLICIES: Record<string, Policy> = {
 export const HUBS: Record<string, PolicyHub> = {
   help: {
     title: "고객센터 · 도움말",
-    body: "자주 찾는 안내예요. 항목을 눌러 자세히 볼 수 있어요. 해결되지 않으면 1:1 문의로 남겨 주세요.",
+    body: "자주 찾는 안내예요. 항목을 눌러 자세히 볼 수 있어요.",
     links: [["safety", "안전 거래 가이드"], ["prohibited", "빌려주면 안 되는 물품"], ["damage", "분실·파손 처리"], ["dispute", "분쟁·신고 처리"], ["trust", "신뢰 지표란"], ["community", "커뮤니티 규칙"]],
   },
   about: {
