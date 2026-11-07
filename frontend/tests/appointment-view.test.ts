@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { appointmentDateLabel, appointmentInstant, appointmentView } from "../src/utils/appointment-view.ts";
+import { appointmentDateLabel, appointmentInstant, appointmentView, preferredAppointmentPlaceIndex } from "../src/utils/appointment-view.ts";
+
+test("약속 장소는 대여 장소를 우선하고 목록에 없으면 첫 공용 장소를 고른다", () => {
+  const places = [{ name: "서초119안전센터" }, { name: "서초2동주민센터" }];
+  assert.equal(preferredAppointmentPlaceIndex(places, "서초2동주민센터"), 1);
+  assert.equal(preferredAppointmentPlaceIndex(places, "없는 장소"), 0);
+  assert.equal(preferredAppointmentPlaceIndex([], "서초2동주민센터"), 0);
+});
 
 test("약속 제안 시 서울 시간과 대여 날짜를 UTC 시각으로 보낸다", () => {
   assert.equal(appointmentInstant("2026-10-18", "09:30"), "2026-10-18T00:30:00.000Z");

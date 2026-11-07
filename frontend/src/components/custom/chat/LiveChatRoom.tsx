@@ -27,7 +27,7 @@ import type { ApiChatMessage, ApiChatMessagePage, ApiChatRoom } from "@/types/ch
 import type { ApiAppointmentSlot, AppointmentKind } from "@/types/appointment-api";
 import { ApiError } from "@/api/client";
 import { appointmentView } from "@/utils/appointment-view";
-import { canOpenRentalRequestFromChat, chatBlockedMessage, chatDateRange, chatRentalResponse, chatRentalStatus, chatTimeLabel, chatTimeline, isMoneyRequest, selectableChatRentals } from "@/utils/chat-view";
+import { canOpenRentalRequestFromChat, chatActivityLinks, chatBlockedMessage, chatDateRange, chatRentalResponse, chatRentalStatus, chatTimeLabel, chatTimeline, isMoneyRequest, selectableChatRentals } from "@/utils/chat-view";
 import { countNewChatMessages, isChatAtBottom, isChatMessageEndVisible, mergeChatMessages } from "@/utils/chat-state";
 import { readPendingChatMessages, writePendingChatMessages, type PendingChatMessage } from "@/utils/chat-pending";
 import { chatSocketUrl, parseChatSocketMessage } from "@/utils/chat-realtime";
@@ -625,19 +625,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
     && entry.slot.allowedActions.includes("ACCEPT"))
     ?? appointmentCards.find((entry) => entry.status === "pending")
     ?? appointmentCards.find((entry) => entry.status === "confirmed");
-  const quickLinks: { id: string; label: string }[] = [];
-  for (const entry of timeline) {
-    if (entry.kind === "rental-request" && selectedRental?.status === "REQUESTED") {
-      quickLinks.push({ id: cardId(roomId, "request", selectedRental.id),
-        label: rentalResponse?.isOwner ? "대여 요청 · 응답 필요" : "대여 요청 · 승인 대기" });
-    } else if (entry.kind === "rental-approved" && selectedRental) {
-      quickLinks.push({ id: cardId(roomId, "approved", selectedRental.id), label: "대여 승인 · 약속 보기" });
-    } else if (entry.kind === "appointment") {
-      const kind = entry.slot.kind === "RETURN" ? "반납" : "전달";
-      quickLinks.push({ id: cardId(roomId, entry.status, entry.proposal.id),
-        label: `${kind} 약속 · ${entry.status === "confirmed" ? "확정" : "제안"}` });
-    }
-  }
+  const quickLinks = chatActivityLinks(selectedRental, memberId, timeline);
   const newMessageCount = countNewChatMessages(messages, seenSequence, room.otherMember.id);
 
   return (
@@ -691,8 +679,8 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
       {quickLinks.length > 0 ? <nav className={c("chat-activity")} aria-label="진행 중인 대여 알림">
         <span className={c("t-caption chat-activity-title")}>진행 중</span>
         <div className={c("chat-activity-links")}>
-          {quickLinks.map((link) => <button key={link.id} type="button" className={c("chat-activity-link")}
-            onClick={() => jumpToCard(link.id)}>{link.label}</button>)}
+          {quickLinks.map((link) => <button key={cardId(roomId, link.kind, link.id)} type="button" className={c("chat-activity-link")}
+            onClick={() => jumpToCard(cardId(roomId, link.kind, link.id))}>{link.label}</button>)}
         </div>
       </nav> : null}
       <div ref={scrollRef} className={c("chat-room-scroll")} onScroll={onScroll}>
@@ -804,6 +792,7 @@ export function LiveChatRoom({ roomId, onRead, onMessage, onAppointmentChanged, 
         initialKind={sheetKind} onClose={() => setSheetKind(undefined)} live={{
           dates: { give: selectedRental.startDate, back: selectedRental.endDate },
           places,
+          preferredPlaceName: selectedRental.placeName,
           kinds: proposalKinds.map((slot) => slot.kind === "PICKUP" ? "give" : "back"),
           onSubmit: submitAppointment,
         }} /> : null}
