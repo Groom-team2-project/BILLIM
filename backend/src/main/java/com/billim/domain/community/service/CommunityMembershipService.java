@@ -1,5 +1,8 @@
 package com.billim.domain.community.service;
 
+import java.util.stream.Collectors;
+import java.util.Collection;
+import java.util.Map;
 import com.billim.domain.community.dto.MembershipResponse;
 import com.billim.domain.community.entity.CommunityMembership;
 import com.billim.domain.community.entity.MembershipStatus;
@@ -50,5 +53,15 @@ public class CommunityMembershipService implements CommunityMembershipQuery {
         return membershipRepository.findByMemberIdAndCommunityId(memberId, communityId)
                 .filter(membership -> membership.isValidAt(clock.instant()))
                 .isPresent();
+    }
+
+    @Override
+    public Map<Long, Long> findValidCommunityIds(Collection<Long> memberIds) {
+        if (memberIds.isEmpty()) return Map.of();
+        Instant now = clock.instant();
+        return membershipRepository.findByMemberIdInAndStatus(memberIds, MembershipStatus.ACTIVE).stream()
+                .filter(membership -> membership.isValidAt(now))
+                .collect(Collectors.toMap(CommunityMembership::getMemberId,
+                        CommunityMembership::getCommunityId));
     }
 }

@@ -13,6 +13,8 @@ import java.util.Optional;
 
 public interface CommunityMembershipRepository extends JpaRepository<CommunityMembership, Long> {
 
+    List<CommunityMembership> findByMemberIdInAndStatus(Collection<Long> memberIds, MembershipStatus status);
+
     Optional<CommunityMembership> findByMemberIdAndCommunityId(long memberId, long communityId);
 
     /** 활성 소속은 회원당 하나. 재인증 시 이탈시킬 이전 소속을 찾는다 */

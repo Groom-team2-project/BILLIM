@@ -38,6 +38,13 @@ public interface SanctionRepository extends JpaRepository<Sanction, Long> {
             """)
     boolean existsEffective(@Param("memberId") long memberId, @Param("now") Instant now);
 
+    @Query("""
+            SELECT DISTINCT s.memberId FROM Sanction s
+             WHERE s.memberId IN :memberIds AND s.revokedAt IS NULL
+               AND s.startsAt <= :now AND (s.endsAt IS NULL OR s.endsAt > :now)
+            """)
+    List<Long> findEffectiveMemberIds(@Param("memberIds") Collection<Long> memberIds, @Param("now") Instant now);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Sanction s WHERE s.id = :id")
     Optional<Sanction> findByIdForUpdate(@Param("id") long id);

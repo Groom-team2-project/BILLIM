@@ -1,6 +1,7 @@
 package com.billim.domain.rental.service;
 
 import com.billim.domain.community.repository.CommunityPlaceRepository;
+import com.billim.domain.community.entity.CommunityPlace;
 import com.billim.domain.community.service.CommunityMembershipQuery;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.entity.ItemVisibility;
@@ -13,6 +14,13 @@ import com.billim.global.exception.BusinessException;
 import com.billim.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import java.util.List;
+import java.util.Map;
+import java.util.HashSet;
+import java.util.function.BiPredicate;
+import java.util.function.LongPredicate;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** 신규 요청·승인에 적용하는 동네·차단·제재·장소 정책 */
 @Component
@@ -53,14 +61,52 @@ public class RentalRequestPolicy {
 
     /** 조회 응답의 승인 버튼 조건. 실제 승인에서는 잠금 아래 재검사 */
     public boolean canApprove(Item item, Rental rental) {
+        return canApprove(item, rental, this::active, memberships::hasValidMembership,
+                blocks::isBlockedBetween, sanctions::isRestricted,
+                (id, community) -> places.findByIdAndCommunityId(id, community)
+                        .filter(CommunityPlace::isActive).isPresent());
+    }
+
+    /** 목록 승인 후보만 일괄 판정. 실제 승인 명령의 잠금·재검사와 분리 */
+    public Map<Long, Boolean> canApproveAll(List<Rental> rentals, Map<Long, Item> items) {
+        if (rentals.isEmpty()) return Map.of();
+        var candidates = rentals.stream().filter(r -> items.containsKey(r.getItemId())).toList();
+        if (candidates.isEmpty()) return Map.of();
+        var memberIds = new HashSet<Long>();
+        candidates.forEach(r -> {
+            memberIds.add(items.get(r.getItemId()).getOwnerId());
+            memberIds.add(r.getBorrowerId());
+        });
+        var activeMembers = members.findAllById(memberIds).stream().filter(Member::isActive)
+                .map(Member::getId).collect(Collectors.toSet());
+        var communities = memberships.findValidCommunityIds(memberIds);
+        var restricted = sanctions.findRestrictedAmong(memberIds);
+        var placeIds = candidates.stream().map(Rental::getPlaceId).collect(Collectors.toSet());
+        var pagePlaces = places.findAllById(placeIds).stream().collect(Collectors.toMap(
+                CommunityPlace::getId, Function.identity()));
+        var blocked = candidates.stream().map(r -> items.get(r.getItemId()).getOwnerId()).distinct()
+                .collect(Collectors.toMap(Function.identity(), owner -> blocks.findBlockedAmong(owner,
+                        candidates.stream().filter(r -> items.get(r.getItemId()).getOwnerId().equals(owner))
+                                .map(Rental::getBorrowerId).collect(Collectors.toSet()))));
+        return candidates.stream().collect(Collectors.toMap(Rental::getId, r -> canApprove(items.get(r.getItemId()), r,
+                activeMembers::contains, (id, community) -> community.equals(communities.get(id)),
+                (owner, borrower) -> blocked.get(owner).contains(borrower), restricted::contains,
+                (id, community) -> {
+                    var place = pagePlaces.get(id);
+                    return place != null && place.isActive() && place.getCommunityId().equals(community);
+                })));
+    }
+
+    private boolean canApprove(Item item, Rental rental, LongPredicate active,
+                               BiPredicate<Long, Long> membership, BiPredicate<Long, Long> blocked,
+                               LongPredicate restricted, BiPredicate<Long, Long> place) {
         return !item.isDeleted() && item.getVisibility() == ItemVisibility.PUBLIC
-                && active(item.getOwnerId()) && active(rental.getBorrowerId())
-                && memberships.hasValidMembership(item.getOwnerId(), item.getCommunityId())
-                && memberships.hasValidMembership(rental.getBorrowerId(), item.getCommunityId())
-                && !blocks.isBlockedBetween(item.getOwnerId(), rental.getBorrowerId())
-                && !sanctions.isRestricted(item.getOwnerId()) && !sanctions.isRestricted(rental.getBorrowerId())
-                && places.findByIdAndCommunityId(rental.getPlaceId(), rental.getCommunityId())
-                        .filter(com.billim.domain.community.entity.CommunityPlace::isActive).isPresent();
+                && active.test(item.getOwnerId()) && active.test(rental.getBorrowerId())
+                && membership.test(item.getOwnerId(), item.getCommunityId())
+                && membership.test(rental.getBorrowerId(), item.getCommunityId())
+                && !blocked.test(item.getOwnerId(), rental.getBorrowerId())
+                && !restricted.test(item.getOwnerId()) && !restricted.test(rental.getBorrowerId())
+                && place.test(rental.getPlaceId(), rental.getCommunityId());
     }
 
     private void requireRelationship(Item item, long borrowerId) {
@@ -85,7 +131,7 @@ public class RentalRequestPolicy {
 
     private String requirePlace(long placeId, long communityId) {
         return places.findByIdAndCommunityId(placeId, communityId)
-                .filter(com.billim.domain.community.entity.CommunityPlace::isActive)
+                .filter(CommunityPlace::isActive)
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST)).getName();
     }
 }

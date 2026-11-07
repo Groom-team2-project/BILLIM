@@ -1,5 +1,7 @@
 package com.billim.domain.safety.service;
 
+import java.util.Set;
+import java.util.Collection;
 import com.billim.domain.safety.dto.SanctionPageResponse;
 import com.billim.domain.safety.dto.SanctionResponse;
 import com.billim.domain.safety.entity.Sanction;
@@ -84,5 +86,11 @@ public class SanctionService {
      */
     public boolean isRestricted(long memberId) {
         return sanctionRepository.existsEffective(memberId, clock.instant());
+    }
+
+    /** 단건과 같은 유효 기간 기준으로 후보 회원의 제한 여부 일괄 조회 */
+    public Set<Long> findRestrictedAmong(Collection<Long> memberIds) {
+        if (memberIds.isEmpty()) return Set.of();
+        return Set.copyOf(sanctionRepository.findEffectiveMemberIds(memberIds, clock.instant()));
     }
 }
