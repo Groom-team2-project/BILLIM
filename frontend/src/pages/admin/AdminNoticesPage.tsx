@@ -4,8 +4,9 @@ import { Icon } from "@/components/ui/icon";
 import { Alert } from "@/components/ui/alert";
 import { useUi } from "@/components/overlay/UiContext";
 import { ErrorState, Loading, SkeletonItem } from "@/components/ui/state";
+import { RegionPicker } from "@/components/custom/community/RegionPicker";
 import { ApiError } from "@/api/client";
-import { type ApiCommunity, searchCommunities } from "@/api/communities";
+import type { ApiCommunity } from "@/api/communities";
 import { type ApiNotice, createNotice, deleteNotice, getAdminNotices } from "@/api/notices";
 import adminStyles from "@/components/custom/admin/admin.module.css";
 import { classes } from "@/utils/classes";
@@ -27,9 +28,8 @@ export function AdminNoticesPage() {
   const [list, setList] = useState<List>({ state: "loading" });
   const [retry, setRetry] = useState(0);
 
-  const [communities, setCommunities] = useState<ApiCommunity[]>([]);
   const [open, setOpen] = useState(false);
-  const [communityId, setCommunityId] = useState("");
+  const [target, setTarget] = useState<ApiCommunity | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
@@ -50,21 +50,6 @@ export function AdminNoticesPage() {
     };
   }, [retry]);
 
-  // 공지 작성에는 대상 동네가 필요하다. 활성 동네 목록을 받아 선택지로 쓴다
-  useEffect(() => {
-    let alive = true;
-    searchCommunities()
-      .then((page) => {
-        if (!alive) return;
-        setCommunities(page.items);
-        setCommunityId((prev) => prev || (page.items[0]?.id ?? ""));
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, []);
-
   const closeCompose = () => {
     setOpen(false);
     setTitle("");
@@ -72,11 +57,11 @@ export function AdminNoticesPage() {
   };
 
   const submit = async () => {
-    if (!title.trim() || !body.trim() || !communityId) return;
+    if (!title.trim() || !body.trim() || !target) return;
     setSaving(true);
     try {
       await createNotice({
-        communityId,
+        communityId: target.id,
         title: title.trim(),
         body: body.trim(),
         pinned: false,
@@ -120,7 +105,7 @@ export function AdminNoticesPage() {
     });
   };
 
-  const canSubmit = Boolean(title.trim() && body.trim() && communityId) && !saving;
+  const canSubmit = Boolean(title.trim() && body.trim() && target) && !saving;
 
   return (
     <div className={c("adm-body")}>
@@ -130,21 +115,12 @@ export function AdminNoticesPage() {
 
       {open ? (
         <div className={c("adm-card adm-compose")}>
-          <div>
-            <p className={c("t-label adm-muted adm-section-label")}>동네 선택</p>
-            <div className={c("adm-comm")}>
-              {communities.map((community) => (
-                <button
-                  key={community.id}
-                  type="button"
-                  className={c(`adm-comm-b${communityId === community.id ? " adm-comm-b--on" : ""}`)}
-                  onClick={() => setCommunityId(community.id)}
-                >
-                  {community.name}
-                </button>
-              ))}
-            </div>
-          </div>
+          <RegionPicker
+            selected={target}
+            onPick={setTarget}
+            title="공지 대상 동네"
+            hint="선택한 동네의 이웃에게만 보여요."
+          />
           <input
             className={c("adm-input")}
             placeholder="공지 제목을 입력하세요"

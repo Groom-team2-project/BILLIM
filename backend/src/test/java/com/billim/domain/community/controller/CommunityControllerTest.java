@@ -6,6 +6,9 @@ import com.billim.domain.community.dto.MembershipResponse;
 import com.billim.domain.community.dto.NearbyCommunitiesResponse;
 import com.billim.domain.community.dto.PlaceListResponse;
 import com.billim.domain.community.dto.PlaceResponse;
+import com.billim.domain.community.dto.RegionLevel;
+import com.billim.domain.community.dto.RegionOptionsResponse;
+import com.billim.domain.community.dto.RegionScope;
 import com.billim.domain.community.dto.VerifyLocationRequest;
 import com.billim.domain.community.service.CommunityPlaceService;
 import com.billim.domain.community.service.CommunityQueryService;
@@ -32,6 +35,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -76,7 +80,7 @@ class CommunityControllerTest {
     @Test
     @DisplayName("동네 검색은 ID를 문자열로 내리고 keyword를 서비스에 전달한다")
     void searchPassesKeyword() throws Exception {
-        when(queryService.search(eq("새솔"), anyInt(), anyInt()))
+        when(queryService.search(eq("새솔"), any(RegionScope.class), anyBoolean(), anyInt(), anyInt()))
                 .thenReturn(new CommunityPageResponse(List.of(community()), 0, 20, 1, false));
 
         mockMvc.perform(get("/api/v1/communities")
@@ -87,19 +91,108 @@ class CommunityControllerTest {
                 .andExpect(jsonPath("$.items[0].verificationRadiusM").value(500))
                 .andExpect(jsonPath("$.items[0].verifiedMemberCount").value(12));
 
-        verify(queryService).search("새솔", 0, 20);
+        verify(queryService).search("새솔", RegionScope.ALL, false, 0, 20);
     }
 
     @Test
     @DisplayName("keyword 없이도 검색할 수 있다. 위치는 필요하지 않다")
     void searchWithoutKeyword() throws Exception {
-        when(queryService.search(any(), anyInt(), anyInt()))
+        when(queryService.search(any(), any(RegionScope.class), anyBoolean(), anyInt(), anyInt()))
                 .thenReturn(new CommunityPageResponse(List.of(), 0, 20, 0, false));
 
         mockMvc.perform(get("/api/v1/communities").with(authentication(login())))
                 .andExpect(status().isOk());
 
-        verify(queryService).search(null, 0, 20);
+        verify(queryService).search(null, RegionScope.ALL, false, 0, 20);
+    }
+
+    @Test
+    @DisplayName("고른 지역 단계를 범위로 서비스에 전달한다")
+    void searchPassesRegionScope() throws Exception {
+        when(queryService.search(any(), any(RegionScope.class), anyBoolean(), anyInt(), anyInt()))
+                .thenReturn(new CommunityPageResponse(List.of(), 0, 20, 0, false));
+
+        mockMvc.perform(get("/api/v1/communities")
+                        .param("sido", "경기도")
+                        .param("sigungu", "수원시")
+                        .param("gu", "영통구")
+                        .param("dong", "영통1동")
+                        .with(authentication(login())))
+                .andExpect(status().isOk());
+
+        verify(queryService).search(
+                null, new RegionScope("경기도", "수원시", "영통구", "영통1동"), false, 0, 20);
+    }
+
+    @Test
+    @DisplayName("hasMembers를 주면 가입자가 있는 동네만 요청한다. 기본값은 끈 상태다")
+    void searchPassesHasMembers() throws Exception {
+        when(queryService.search(any(), any(RegionScope.class), anyBoolean(), anyInt(), anyInt()))
+                .thenReturn(new CommunityPageResponse(List.of(), 0, 20, 0, false));
+
+        mockMvc.perform(get("/api/v1/communities")
+                        .param("hasMembers", "true")
+                        .with(authentication(login())))
+                .andExpect(status().isOk());
+
+        verify(queryService).search(null, RegionScope.ALL, true, 0, 20);
+    }
+
+    @Test
+    @DisplayName("단계 옵션은 level과 상위 단계를 서비스에 전달한다")
+    void regionOptionsPassesLevelAndScope() throws Exception {
+        when(queryService.findRegionOptions(any(), any(RegionScope.class), anyBoolean()))
+                .thenReturn(new RegionOptionsResponse(RegionLevel.SIGUNGU, List.of("강남구", "마포구")));
+
+        mockMvc.perform(get("/api/v1/communities/regions")
+                        .param("level", "SIGUNGU")
+                        .param("sido", "서울특별시")
+                        .with(authentication(login())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.level").value("SIGUNGU"))
+                .andExpect(jsonPath("$.items[0]").value("강남구"));
+
+        verify(queryService).findRegionOptions(
+                RegionLevel.SIGUNGU, new RegionScope("서울특별시", "", "", ""), false);
+    }
+
+    @Test
+    @DisplayName("단계 옵션도 hasMembers를 그대로 전달한다")
+    void regionOptionsPassesHasMembers() throws Exception {
+        when(queryService.findRegionOptions(any(), any(RegionScope.class), anyBoolean()))
+                .thenReturn(new RegionOptionsResponse(RegionLevel.SIDO, List.of("서울특별시")));
+
+        mockMvc.perform(get("/api/v1/communities/regions")
+                        .param("level", "SIDO")
+                        .param("hasMembers", "true")
+                        .with(authentication(login())))
+                .andExpect(status().isOk());
+
+        verify(queryService).findRegionOptions(RegionLevel.SIDO, RegionScope.ALL, true);
+    }
+
+    @Test
+    @DisplayName("level이 없거나 값이 아니면 400이고 서비스를 부르지 않는다")
+    void regionOptionsRequiresValidLevel() throws Exception {
+        mockMvc.perform(get("/api/v1/communities/regions").with(authentication(login())))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(get("/api/v1/communities/regions")
+                        .param("level", "EUPMYEONDONG").with(authentication(login())))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(queryService);
+    }
+
+    @Test
+    @DisplayName("로그인하지 않은 단계 옵션 요청은 막혀 서비스까지 오지 않는다")
+    void regionOptionsRequiresLogin() throws Exception {
+        // 이 슬라이스에는 운영 SecurityFilterChain이 없어 Boot 기본 보안(OAuth2 리다이렉트)이 응답한다.
+        // ItemControllerTest와 같은 기준으로 "막혔는지"만 본다
+        mockMvc.perform(get("/api/v1/communities/regions").param("level", "SIDO"))
+                .andExpect(result ->
+                        assertThat(result.getResponse().getStatus()).isGreaterThanOrEqualTo(300));
+
+        verifyNoInteractions(queryService);
     }
 
     @Test

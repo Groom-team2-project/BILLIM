@@ -1,5 +1,6 @@
 package com.billim.domain.community.service;
 
+import com.billim.domain.community.dto.RegionScope;
 import com.billim.domain.community.entity.Community;
 import com.billim.domain.community.entity.CommunityStatus;
 import com.billim.domain.community.entity.Region;
@@ -18,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -49,9 +51,8 @@ class CommunitySearchSupplementTest {
         regionResolver = mock(RegionResolver.class);
         autoRegistrar = mock(CommunityAutoRegistrar.class);
 
-        when(communityRepository.searchByKeyword(any(), anyString(), any(Pageable.class)))
-                .thenReturn(Page.empty());
-        when(communityRepository.findByStatusOrderByNameAscIdAsc(any(), any(Pageable.class)))
+        when(communityRepository.search(
+                any(), anyString(), anyString(), anyString(), anyBoolean(), any(Pageable.class)))
                 .thenReturn(Page.empty());
 
         service = new CommunityQueryService(
@@ -67,7 +68,7 @@ class CommunitySearchSupplementTest {
         when(communityRepository.findByRegionCodeAndStatus(YEOKSAM.code(), CommunityStatus.ACTIVE))
                 .thenReturn(Optional.empty());
 
-        service.search("역삼", 0, 20);
+        service.search("역삼", RegionScope.ALL, false, 0, 20);
 
         verify(autoRegistrar).register(YEOKSAM);
     }
@@ -79,7 +80,7 @@ class CommunitySearchSupplementTest {
         when(communityRepository.findByRegionCodeAndStatus(YEOKSAM.code(), CommunityStatus.ACTIVE))
                 .thenReturn(Optional.of(mock(Community.class)));
 
-        service.search("역삼", 0, 20);
+        service.search("역삼", RegionScope.ALL, false, 0, 20);
 
         verify(autoRegistrar, never()).register(any(Region.class));
     }
@@ -87,25 +88,52 @@ class CommunitySearchSupplementTest {
     @Test
     @DisplayName("한 글자 검색어로는 지도를 부르지 않는다")
     void skipsShortKeyword() {
-        service.search("역", 0, 20);
+        service.search("역", RegionScope.ALL, false, 0, 20);
 
         verifyNoInteractions(regionResolver, autoRegistrar);
     }
 
     @Test
-    @DisplayName("빈 검색어는 활성 동네 목록이고 지도를 부르지 않는다")
+    @DisplayName("빈 검색어는 조건 없는 활성 동네 목록이고 지도를 부르지 않는다")
     void skipsBlankKeyword() {
-        service.search("   ", 0, 20);
+        service.search("   ", RegionScope.ALL, false, 0, 20);
 
-        verify(communityRepository).findByStatusOrderByNameAscIdAsc(any(), any(Pageable.class));
+        verify(communityRepository).search(
+                eq(CommunityStatus.ACTIVE), eq(""), eq(""), eq(""), eq(false), any(Pageable.class));
         verifyNoInteractions(regionResolver, autoRegistrar);
     }
 
     @Test
     @DisplayName("두 번째 페이지는 등록하지 않는다. 첫 페이지에서 끝난 일이다")
     void skipsLaterPages() {
-        service.search("역삼", 1, 20);
+        service.search("역삼", RegionScope.ALL, false, 1, 20);
 
         verifyNoInteractions(regionResolver, autoRegistrar);
+    }
+
+    @Test
+    @DisplayName("지역 범위를 고른 검색은 지도를 부르지 않는다. 범위 옵션이 등록된 동네에서 나왔다")
+    void skipsScopedSearch() {
+        service.search("역삼", RegionScope.of("서울특별시", "강남구", null, null), false, 0, 20);
+
+        verifyNoInteractions(regionResolver, autoRegistrar);
+    }
+
+    @Test
+    @DisplayName("고른 상위 단계는 공개 주소 접두사가 된다. 토큰 끝에 공백을 둔다")
+    void scopeBecomesAddressPrefix() {
+        service.search("", RegionScope.of("경기도", "수원시", "영통구", null), false, 0, 20);
+
+        verify(communityRepository).search(eq(CommunityStatus.ACTIVE),
+                eq("경기도 수원시 영통구 "), eq(""), eq(""), eq(false), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("읍·면·동까지 고르면 접두사가 아니라 확정된 공개 주소로 비교한다")
+    void dongBecomesExactAddress() {
+        service.search("", RegionScope.of("서울특별시", "강남구", null, "역삼1동"), false, 0, 20);
+
+        verify(communityRepository).search(eq(CommunityStatus.ACTIVE),
+                eq("서울특별시 강남구 "), eq("서울특별시 강남구 역삼1동"), eq(""), eq(false), any(Pageable.class));
     }
 }

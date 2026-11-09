@@ -52,15 +52,16 @@ export function JoinPage() {
   // 로딩은 상태로 두지 않고 "결과가 현재 검색어의 것인지"로 가린다.
   // 효과 안에서 setState하면 입력마다 렌더가 한 번 더 돈다
   const key = `${retry}:${query}`;
-  // 한 글자는 요청하지 않으므로 로딩도 아니다
-  const tooShort = query.length > 0 && query.length < MIN_KEYWORD;
-  const loading = source === "search" && !tooShort && result?.key !== key;
+  // 짧은 검색어는 요청하지 않으므로 로딩도 아니다.
+  // 빈 검색어도 마찬가지다 — 전국 동네 중 앞 20곳을 나열하면 고를 근거가 없다
+  const waiting = source === "search" && query.length < MIN_KEYWORD;
+  const loading = source === "search" && !waiting && result?.key !== key;
 
-  // 이름 검색 — 처음에는 전체 활성 동네를 보여준다 (위치 없이 검색 가능, E_009)
+  // 이름 검색 (E_009). 위치 없이 검색할 수 있고, 아직 등록되지 않은 행정동은 검색이 등록한다
   useEffect(() => {
-    if (source !== "search" || tooShort) return;
+    if (source !== "search" || waiting) return;
     let alive = true;
-    searchCommunities(query || undefined)
+    searchCommunities(query)
       .then((page) => {
         if (alive) {
           setResult({
@@ -77,7 +78,7 @@ export function JoinPage() {
     return () => {
       alive = false;
     };
-  }, [key, query, source, tooShort]);
+  }, [key, query, source, waiting]);
 
   /** 현재 위치로 주변 동네 찾기 (E_071). 이 조회 자체는 인증이 아니다 */
   const onLocate = async () => {
@@ -148,7 +149,7 @@ export function JoinPage() {
           </Alert>
         )}
 
-        <p className={c("t-label join-results-label")}>검색 결과</p>
+        {!waiting && <p className={c("t-label join-results-label")}>검색 결과</p>}
 
         {loading && (
           <Loading label="동네를 불러오는 중">
@@ -159,19 +160,19 @@ export function JoinPage() {
           </Loading>
         )}
 
-        {!loading && !tooShort && result?.state === "error" && (
+        {!loading && !waiting && result?.state === "error" && (
           <ErrorState onRetry={() => setRetry((n) => n + 1)}>
             {result.message}
           </ErrorState>
         )}
 
-        {!loading && !tooShort && result?.state === "ok" && result.items.length === 0 && (
+        {!loading && !waiting && result?.state === "ok" && result.items.length === 0 && (
           <EmptyState icon="search" title="찾는 동네가 없어요">
             이름을 다시 확인하거나 현재 위치로 찾아 주세요.
           </EmptyState>
         )}
 
-        {!loading && !tooShort && result?.state === "ok" && result.items.length > 0 && (
+        {!loading && !waiting && result?.state === "ok" && result.items.length > 0 && (
           <div
             className={c("join-card")}
             ref={listRef}
@@ -212,11 +213,15 @@ export function JoinPage() {
           </div>
         )}
 
-        {tooShort && (
-          <p className={c("t-caption join-muted")}>두 글자 이상 입력해 주세요.</p>
+        {waiting && (
+          <p className={c("t-caption join-muted")}>
+            {query.length === 0
+              ? "동네나 단지 이름을 입력하거나, 현재 위치로 찾아 주세요."
+              : "두 글자 이상 입력해 주세요."}
+          </p>
         )}
 
-        {!loading && !tooShort && result?.state === "ok" && result.truncated && (
+        {!loading && !waiting && result?.state === "ok" && result.truncated && (
           <p className={c("t-caption join-muted")}>
             {source === "nearby"
               ? "가까운 동네 20개만 보여줘요. 찾는 동네가 없으면 이름으로 검색해 주세요."

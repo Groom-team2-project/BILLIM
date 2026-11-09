@@ -5,6 +5,9 @@ import com.billim.domain.community.dto.CommunityResponse;
 import com.billim.domain.community.dto.MembershipResponse;
 import com.billim.domain.community.dto.NearbyCommunitiesResponse;
 import com.billim.domain.community.dto.PlaceListResponse;
+import com.billim.domain.community.dto.RegionLevel;
+import com.billim.domain.community.dto.RegionOptionsResponse;
+import com.billim.domain.community.dto.RegionScope;
 import com.billim.domain.community.dto.VerifyLocationRequest;
 import com.billim.domain.community.service.CommunityPlaceService;
 import com.billim.domain.community.service.CommunityQueryService;
@@ -36,6 +39,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1/communities")
 public class CommunityController {
 
+    /** 지역 단계 값의 길이 상한. 가장 긴 시·도가 "강원특별자치도"라 넉넉하다 */
+    private static final int REGION_MAX = 40;
+
     /** POST의 Idempotency-Key 형식 (명세 0.3: UUID 필수) */
     private static final String UUID_PATTERN =
             "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}";
@@ -52,15 +58,44 @@ public class CommunityController {
         this.placeService = placeService;
     }
 
-    /** E_009 동네 검색. 위치 없이 검색할 수 있다 */
+    /**
+     * E_009 동네 검색. 위치 없이 검색할 수 있다.
+     *
+     * <p>지역 단계(E_073에서 고른 값)로 범위를 좁힐 수 있다. 위에서 아래로 채워야 하며
+     * 비우면 전체다. 범위와 keyword를 함께 주면 범위 안에서 이름을 찾는다.
+     */
     @GetMapping
     public CommunityPageResponse search(
             @RequestParam(required = false) @Size(max = 100) String keyword,
+            @RequestParam(required = false) @Size(max = REGION_MAX) String sido,
+            @RequestParam(required = false) @Size(max = REGION_MAX) String sigungu,
+            @RequestParam(required = false) @Size(max = REGION_MAX) String gu,
+            @RequestParam(required = false) @Size(max = REGION_MAX) String dong,
+            @RequestParam(defaultValue = "false") boolean hasMembers,
             @RequestParam(defaultValue = "0") @PositiveOrZero int page,
             @RequestParam(defaultValue = "20") @Positive @Max(50) int size,
             @AuthenticationPrincipal LoginMember member) {
         requireLogin(member);
-        return queryService.search(keyword, page, size);
+        return queryService.search(
+                keyword, RegionScope.of(sido, sigungu, gu, dong), hasMembers, page, size);
+    }
+
+    /**
+     * E_073 동네 선택 단계 옵션. 등록된 활성 동네의 공개 주소에서 모은다.
+     *
+     * <p>고정 경로가 {@code /{communityId}}보다 먼저 선언돼야 하므로 위에 둔다.
+     */
+    @GetMapping("/regions")
+    public RegionOptionsResponse findRegionOptions(
+            @RequestParam RegionLevel level,
+            @RequestParam(required = false) @Size(max = REGION_MAX) String sido,
+            @RequestParam(required = false) @Size(max = REGION_MAX) String sigungu,
+            @RequestParam(required = false) @Size(max = REGION_MAX) String gu,
+            @RequestParam(defaultValue = "false") boolean hasMembers,
+            @AuthenticationPrincipal LoginMember member) {
+        requireLogin(member);
+        return queryService.findRegionOptions(
+                level, RegionScope.of(sido, sigungu, gu, null), hasMembers);
     }
 
     /**
