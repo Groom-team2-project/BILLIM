@@ -4,7 +4,7 @@ import { Chip } from "@/components/ui/chip";
 import { Icon } from "@/components/ui/icon";
 import { Segmented } from "@/components/ui/segmented";
 import type { ApiCommunityPlace } from "@/api/communities";
-import { appointmentDateLabel, appointmentInstant } from "@/utils/appointment-view";
+import { appointmentDateLabel, appointmentInstant, preferredAppointmentPlaceIndex } from "@/utils/appointment-view";
 import styles from "@/components/custom/chat/AppointmentSheet.module.css";
 import { classes } from "@/utils/classes";
 
@@ -33,6 +33,7 @@ type AppointmentSheetProps = {
   live?: {
     dates: Record<Kind, string>;
     places: ApiCommunityPlace[];
+    preferredPlaceName: string;
     kinds: Kind[];
     onSubmit: (kind: Kind, scheduledAt: string, placeId: string) => Promise<boolean>;
   };
@@ -46,7 +47,7 @@ const clockTime: Record<string, string> = {
 export function AppointmentSheet({ onClose, initialKind = "give", onSubmit, live }: AppointmentSheetProps) {
   const [kind, setKind] = useState<Kind>(initialKind);
   const [time, setTime] = useState("오전 10:00");
-  const [place, setPlace] = useState(0);
+  const [place, setPlace] = useState(() => preferredAppointmentPlaceIndex(live?.places ?? PLACES, live?.preferredPlaceName));
   const [customTime, setCustomTime] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [now, setNow] = useState(() => Date.now());

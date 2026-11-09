@@ -28,3 +28,8 @@ export function appointmentView(proposal: ApiAppointmentProposal): Appointment {
     place: proposal.place.name,
   };
 }
+
+export function preferredAppointmentPlaceIndex(places: readonly { name: string }[], preferredName?: string): number {
+  const index = places.findIndex((place) => place.name === preferredName);
+  return index >= 0 ? index : 0;
+}
