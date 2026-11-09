@@ -26,6 +26,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.testcontainers.mysql.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -63,6 +64,7 @@ class ItemRepositoryTest {
     @Autowired ItemRepository itemRepository;
     @Autowired CategoryRepository categoryRepository;
     @Autowired ItemImageRepository itemImageRepository;
+    @Autowired MediaFileRepository mediaFileRepository;
 
     private long seq = 0;
 
@@ -351,4 +353,59 @@ class ItemRepositoryTest {
     void noRangeMeansNoRentalCondition() {
         assertThat(ItemSpecifications.availableForRental(null, null, NOW)).isNull();
     }
+
+    // ───── 사진 정리 작업 조회 (MediaCleanupJob) ─────
+
+    private long mediaIdOf(Item item) {
+        return itemImageRepository.findThumbnails(List.of(item.getId())).getFirst().getMediaFileId();
+    }
+
+    private List<Long> ids(List<MediaFileRepository.StoredMedia> found) {
+        return found.stream().map(MediaFileRepository.StoredMedia::getId).toList();
+    }
+
+    @Test
+    @DisplayName("정리 조회는 만료 임시 사진, 보관 기간이 지난 삭제 표시 사진·삭제 물건 사진만 고른다")
+    void cleanupQueriesPickOnlyExpiredTargets() {
+        MediaFile temp = media(OWNER);                     // 임시, NOW+24h 만료
+        MediaFile removedOld = media(OWNER);
+        removedOld.markDeleted(NOW);                      // 보관 기간 지남
+        MediaFile removedNew = media(OWNER);
+        removedNew.markDeleted(NOW.plus(Duration.ofDays(10)));
+        Item deletedOld = item("오래전 삭제");
+        deletedOld.delete(NOW);
+        Item deletedNew = item("최근 삭제");
+        deletedNew.delete(NOW.plus(Duration.ofDays(10)));
+        Item alive = item("공개 중");
+        em.flush();
+        PageRequest page = PageRequest.of(0, 50);
+        Instant cutoff = NOW.plusSeconds(1);
+
+        assertThat(ids(mediaFileRepository.findExpiredTemp(NOW.plus(Duration.ofHours(25)), 0, page)))
+                .containsExactly(temp.getId());
+        assertThat(ids(mediaFileRepository.findDeletedBefore(cutoff, 0, page)))
+                .containsExactly(removedOld.getId());
+        assertThat(ids(mediaFileRepository.findOfItemsDeletedBefore(cutoff, 0, page)))
+                .containsExactly(mediaIdOf(deletedOld))
+                .doesNotContain(mediaIdOf(deletedNew), mediaIdOf(alive));
+    }
+
+    @Test
+    @DisplayName("물건 연결을 먼저 지우면 삭제 물건의 사진 행을 지울 수 있고, 물건 행은 남는다")
+    void cleanupDeletesLinkThenMediaRow() {
+        Item deleted = item("삭제 물건");
+        deleted.delete(NOW);
+        em.flush();
+        long mediaId = mediaIdOf(deleted);
+
+        itemImageRepository.deleteByMediaFileIdIn(List.of(mediaId));
+        mediaFileRepository.deleteAllByIdIn(List.of(mediaId));
+        em.flush();
+        em.clear();
+
+        assertThat(mediaFileRepository.findById(mediaId)).isEmpty();
+        assertThat(itemRepository.findById(deleted.getId())).isPresent();
+        assertThat(itemImageRepository.findThumbnails(List.of(deleted.getId()))).isEmpty();
+    }
 }
+

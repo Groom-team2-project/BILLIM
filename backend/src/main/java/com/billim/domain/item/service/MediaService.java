@@ -207,7 +207,8 @@ public class MediaService {
         }
     }
 
-    private static String thumbnailKey(String key) {
+    // 정리 작업도 같은 규칙으로 썸네일을 지운다
+    static String thumbnailKey(String key) {
         return key + ".thumb.jpg";
     }
 

@@ -2,6 +2,7 @@ package com.billim.domain.item.repository;
 
 import com.billim.domain.item.entity.ItemImage;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -25,4 +26,9 @@ public interface ItemImageRepository extends JpaRepository<ItemImage, Long> {
     // 사진이 연결된 물건 ID (사진 읽기 권한 판정용)
     @Query("select ii.item.id from ItemImage ii where ii.mediaFileId = :mediaFileId")
     Optional<Long> findItemIdByMediaFileId(@Param("mediaFileId") Long mediaFileId);
+
+    // 정리 작업: 사진 행을 지우기 전에 물건과의 연결을 먼저 지운다 (fk_item_images_media)
+    @Modifying(clearAutomatically = true)
+    @Query("delete from ItemImage ii where ii.mediaFileId in :mediaFileIds")
+    int deleteByMediaFileIdIn(@Param("mediaFileIds") Collection<Long> mediaFileIds);
 }
