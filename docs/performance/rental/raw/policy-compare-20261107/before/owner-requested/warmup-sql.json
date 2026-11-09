@@ -1,0 +1,60 @@
+{
+  "elapsedSeconds": 10.852470874786377,
+  "sqlDelta": {
+    "select": 44044,
+    "insert": 0,
+    "update": 0,
+    "delete": 0
+  },
+  "requests": 344,
+  "sqlPerRequest": 128.03488372093022,
+  "k6ExitCode": 0,
+  "actuatorSamples": [
+    {
+      "at": 1794033299.4018712,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 8.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.5827016E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 1700904.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 7.1889656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1704960.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.1642752E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 2.8858624E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8520312E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.36153168E8",
+        "process_cpu_usage 0.0"
+      ]
+    },
+    {
+      "at": 1794033302.920205,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 5.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.6203088E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 1920000.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 7.3428608E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1705728.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.5910912E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.7342208E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8566656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.38788656E8",
+        "process_cpu_usage 0.4124374553252323"
+      ]
+    },
+    {
+      "at": 1794033306.852809,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 5099192.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 319376.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.3400016E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1705728.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6562176E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.8582272E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8300176E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.38061072E8",
+        "process_cpu_usage 0.2731394030978466"
+      ]
+    }
+  ],
+  "actuatorErrors": []
+}

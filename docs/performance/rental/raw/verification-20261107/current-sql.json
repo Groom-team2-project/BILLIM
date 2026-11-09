@@ -1,0 +1,24 @@
+[
+  {
+    "role": "borrower",
+    "path": "/api/v1/rentals?role=BORROWER&page=0&size=20",
+    "items": 20,
+    "sqlDelta": {
+      "delete": 0,
+      "select": 5,
+      "insert": 0,
+      "update": 0
+    }
+  },
+  {
+    "role": "owner",
+    "path": "/api/v1/rentals?role=OWNER&status=REQUESTED&page=0&size=20",
+    "items": 20,
+    "sqlDelta": {
+      "delete": 0,
+      "select": 128,
+      "insert": 0,
+      "update": 0
+    }
+  }
+]

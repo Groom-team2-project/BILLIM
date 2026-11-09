@@ -114,12 +114,13 @@ public class RentalQueryService implements RentalPartyQuery {
                 page, size, result.getTotalElements(), result.hasNext());
     }
 
-    /** 페이지 안의 회원·물건·점유만 일괄 조회. 다른 요청과 결과를 공유하지 않는 읽기 문맥. */
+    /** 페이지 안의 회원·물건·점유·승인 정책 일괄 조회. 다른 요청과 결과를 공유하지 않는 읽기 문맥. */
     private record ListReads(Map<Long, Member> members, Map<Long, Item> items,
-                             Map<Long, Instant> activeDueAt, Set<Long> conflictingRequests) {}
+                             Map<Long, Instant> activeDueAt, Set<Long> conflictingRequests,
+                             Map<Long, Boolean> approvals) {}
 
     private ListReads preloadList(List<Rental> page, long memberId, Instant now) {
-        if (page.isEmpty()) return new ListReads(Map.of(), Map.of(), Map.of(), Set.of());
+        if (page.isEmpty()) return new ListReads(Map.of(), Map.of(), Map.of(), Set.of(), Map.of());
         var memberIds = new HashSet<Long>();
         page.forEach(r -> { memberIds.add(r.getOwnerId()); memberIds.add(r.getBorrowerId()); });
         var pageMembers = members.findAllById(memberIds).stream()
@@ -140,7 +141,7 @@ public class RentalQueryService implements RentalPartyQuery {
                 activeDueAt.merge(row.getItemId(), row.getDueAt(), (a, b) -> a.isBefore(b) ? a : b));
         var conflicts = requests.isEmpty() ? Set.<Long>of() : Set.copyOf(rentals.findConflictingRequestIds(
                 requests.stream().map(Rental::getId).toList(), OCCUPYING_STATUSES));
-        return new ListReads(pageMembers, pageItems, activeDueAt, conflicts);
+        return new ListReads(pageMembers, pageItems, activeDueAt, conflicts, policy.canApproveAll(requests, pageItems));
     }
 
     public RentalCountStatusResponse getRentalCountStatus(LoginMember member) {
@@ -264,7 +265,8 @@ public class RentalQueryService implements RentalPartyQuery {
         Instant now = clock.instant();
         if (!rental.getRequestExpiresAt().isAfter(now) || rental.getStartDate().isBefore(today)) return false;
         return (reads == null ? items.findById(rental.getItemId()) : Optional.ofNullable(reads.items().get(rental.getItemId())))
-                .filter(item -> policy.canApprove(item, rental)
+                .filter(item -> (reads == null ? policy.canApprove(item, rental)
+                        : reads.approvals().getOrDefault(rental.getId(), false))
                 && !rental.getStartDate().isBefore(item.getAvailableStartDate())
                 && !rental.getEndDate().isAfter(item.getAvailableEndDate())
                 && !hasOverdue(item.getId(), now, reads)

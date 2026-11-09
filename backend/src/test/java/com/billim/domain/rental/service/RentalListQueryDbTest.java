@@ -59,6 +59,12 @@ class RentalListQueryDbTest {
         for (long id : new long[]{9600, 9601}) member(id);
         for (long id = 9620; id < 9640; id++) member(id);
         when(policy.canApprove(any(), any())).thenReturn(true);
+        when(policy.canApproveAll(any(), any())).thenAnswer(invocation -> {
+            java.util.List<com.billim.domain.rental.entity.Rental> requests = invocation.getArgument(0);
+            java.util.Map<Long, com.billim.domain.item.entity.Item> pageItems = invocation.getArgument(1);
+            return requests.stream().collect(Collectors.toMap(com.billim.domain.rental.entity.Rental::getId,
+                    r -> policy.canApprove(pageItems.get(r.getItemId()), r)));
+        });
     }
 
     private void member(long id) {

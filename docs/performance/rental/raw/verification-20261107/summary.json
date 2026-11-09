@@ -1,0 +1,98 @@
+[
+  {
+    "case": "borrowed",
+    "vus": 1,
+    "duration": "30s",
+    "exitCode": 0,
+    "requests": 128,
+    "rps": 4.264190593328807,
+    "p95Ms": 50.198649999999994,
+    "p99Ms": 61.35589,
+    "failed": 0,
+    "checks": 1
+  },
+  {
+    "case": "borrowed",
+    "vus": 10,
+    "duration": "30s",
+    "exitCode": 0,
+    "requests": 1300,
+    "rps": 43.2775341659487,
+    "p95Ms": 45.022399999999976,
+    "p99Ms": 95.43274999999993,
+    "failed": 0,
+    "checks": 1
+  },
+  {
+    "case": "borrowed",
+    "vus": 30,
+    "duration": "30s",
+    "exitCode": 0,
+    "requests": 4117,
+    "rps": 136.56207157464627,
+    "p95Ms": 44.68459999999996,
+    "p99Ms": 105.10636,
+    "failed": 0,
+    "checks": 1
+  },
+  {
+    "case": "borrowed",
+    "vus": 10,
+    "duration": "180s",
+    "exitCode": 0,
+    "requests": 7981,
+    "rps": 44.28624951461166,
+    "p95Ms": 35.649,
+    "p99Ms": 47.18619999999999,
+    "failed": 0,
+    "checks": 1
+  },
+  {
+    "case": "owner-requested",
+    "vus": 1,
+    "duration": "30s",
+    "exitCode": 0,
+    "requests": 120,
+    "rps": 3.96521449497376,
+    "p95Ms": 62.4297,
+    "p99Ms": 99.37943999999999,
+    "failed": 0,
+    "checks": 1
+  },
+  {
+    "case": "owner-requested",
+    "vus": 10,
+    "duration": "30s",
+    "exitCode": 0,
+    "requests": 1230,
+    "rps": 40.67214858891618,
+    "p95Ms": 60.6243,
+    "p99Ms": 69.49103,
+    "failed": 0,
+    "checks": 1
+  },
+  {
+    "case": "owner-requested",
+    "vus": 30,
+    "duration": "30s",
+    "exitCode": 0,
+    "requests": 3840,
+    "rps": 127.11562271527046,
+    "p95Ms": 58.36999999999998,
+    "p99Ms": 136.64431,
+    "failed": 0,
+    "checks": 1
+  },
+  {
+    "case": "owner-requested",
+    "vus": 10,
+    "duration": "180s",
+    "exitCode": 0,
+    "requests": 7302,
+    "rps": 40.56218229206882,
+    "p95Ms": 63.3363,
+    "p99Ms": 87.50582999999997,
+    "failed": 0,
+    "checks": 1
+  }
+]
