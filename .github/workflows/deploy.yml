@@ -77,7 +77,7 @@ jobs:
               --arg redisCompose "$REDIS_COMPOSE_KEY" \
               --arg r "$REGION" \
               --argjson redis "$1" \
-              '{commands: (
+              '{executionTimeout: ["240"], commands: (
                 [
                   "set -eu",
                   "export PATH=$PATH:/snap/bin",
@@ -88,7 +88,9 @@ jobs:
                   "command -v docker >/dev/null",
                   "docker compose version >/dev/null",
                   "docker compose -f /home/ubuntu/BILLIM/backend/compose.redis.prod.yaml up -d --wait"
-                ] else [] end)
+                ] else [
+                  "grep -Eq \"^REDIS_URL=redis://\" /home/ubuntu/BILLIM/backend/.env.prod && ! grep -Eq \"^REDIS_URL=redis://(127\\.0\\.0\\.1|localhost)\" /home/ubuntu/BILLIM/backend/.env.prod || { echo \"REDIS_URL이 공유 Redis 주소가 아님\" >&2; exit 1; }"
+                ] end)
                 + [
                   ("aws s3 cp s3://" + $b + "/" + $k + " /home/ubuntu/BILLIM/backend/app.jar.new --region " + $r),
                   "chown ubuntu:ubuntu /home/ubuntu/BILLIM/backend/app.jar.new",
@@ -125,16 +127,40 @@ jobs:
               esac
               sleep 5
             done
-            echo "⏱️ 타임아웃"; return 1
+            echo "⏱️ 타임아웃"; return 1   # 원격은 executionTimeout(240초)으로 먼저 종료
           }
+
+          # 사전 검증 — 대상 없음·Redis 서버 누락 시 아무것도 바꾸지 않고 중단
+          read -r -a ids <<< "$INSTANCE_IDS"
+          if [ "${#ids[@]}" -eq 0 ]; then
+            echo "❌ 배포 대상 서버 없음 (EC2_INSTANCE_IDS·EC2_INSTANCE_ID)"; exit 1
+          fi
+          if [[ " ${ids[*]} " != *" $REDIS_INSTANCE_ID "* ]]; then
+            echo "❌ REDIS_INSTANCE_ID가 배포 대상에 없음"; exit 1
+          fi
+
+          # Redis 서버 먼저 — 나머지 서버가 기동 시 Redis에 연결
+          ordered=("$REDIS_INSTANCE_ID")
+          for id in "${ids[@]}"; do
+            [ "$id" = "$REDIS_INSTANCE_ID" ] || ordered+=("$id")
+          done
 
           # 한 대씩 교체 — 대상 그룹에서 뺀 서버만 재시작해 나머지가 요청 처리
           # 실패 시 해당 서버는 등록 취소 상태로 두고 중단 (비정상 서버로 요청 유입 방지)
-          for id in $INSTANCE_IDS; do
+          for id in "${ordered[@]}"; do
             echo "::group::$id"
             target="Id=$id,Port=8080"
 
             if [ -n "$TARGET_GROUP_ARN" ]; then
+              # 이 서버가 유일한 정상 대상이면 중단 — 빼는 순간 전체 중단. 이미 비정상인 서버는 빼도 영향 없음
+              health=$(aws elbv2 describe-target-health --target-group-arn "$TARGET_GROUP_ARN" \
+                --query "TargetHealthDescriptions[].[Target.Id,TargetHealth.State]" --output text)
+              self=$(awk -v id="$id" '$1 == id { print $2 }' <<< "$health")
+              others=$(awk -v id="$id" '$1 != id && $2 == "healthy"' <<< "$health" | wc -l)
+              if [ "$self" = "healthy" ] && [ "$others" -eq 0 ]; then
+                echo "❌ 다른 정상 서버 없음 — 등록 취소 시 서비스 중단"; exit 1
+              fi
+
               aws elbv2 deregister-targets --target-group-arn "$TARGET_GROUP_ARN" --targets "$target"
               aws elbv2 wait target-deregistered --target-group-arn "$TARGET_GROUP_ARN" --targets "$target"
               echo "대상 그룹 등록 취소 완료"
