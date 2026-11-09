@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { BarsCat, BarsWeek, StatTile } from "@/components/custom/admin/charts";
 import { ErrorState, Loading, SkeletonItem } from "@/components/ui/state";
-import { SearchField } from "@/components/ui/search-field";
+import { RegionPicker } from "@/components/custom/community/RegionPicker";
 import { ApiError } from "@/api/client";
-import { type ApiCommunity, searchCommunities } from "@/api/communities";
+import type { ApiCommunity } from "@/api/communities";
 import { getAdminReports } from "@/api/reports";
 import { type ApiAdminStats, getAdminStatistics } from "@/api/statistics";
 import adminStyles from "@/components/custom/admin/admin.module.css";
@@ -34,59 +34,22 @@ function weekdayLabel(date: string): string {
 }
 
 type Stats =
+  /** 동네를 고르기 전. 통계는 동네 단위라 고르지 않으면 보여줄 것이 없다 */
+  | { state: "idle" }
   | { state: "loading" }
   | { state: "error"; message: string }
   | { state: "ok"; data: ApiAdminStats };
 
 export function AdminDashboardPage() {
   const navigate = useNavigate();
-  const [communities, setCommunities] = useState<ApiCommunity[]>([]);
-  const [communityId, setCommunityId] = useState("");
-  const [stats, setStats] = useState<Stats>({ state: "loading" });
+  const [selected, setSelected] = useState<ApiCommunity | null>(null);
+  const [stats, setStats] = useState<Stats>({ state: "idle" });
   const [pendingAll, setPendingAll] = useState<number | null>(null);
   const [retry, setRetry] = useState(0);
-  const [keyword, setKeyword] = useState("");
-  const [query, setQuery] = useState("");
-  const [totalCommunities, setTotalCommunities] = useState(0);
 
   const from = kstDate(-(PERIOD_DAYS - 1));
   const to = kstDate(0);
-
-  // 위치 인증이 동네를 자동 등록해 전국 동네가 쌓인다. 전부 버튼으로 깔 수 없어 검색으로 좁힌다
-  useEffect(() => {
-    const id = setTimeout(() => setQuery(keyword.trim()), 300);
-    return () => clearTimeout(id);
-  }, [keyword]);
-
-  useEffect(() => {
-    let alive = true;
-    searchCommunities(query || undefined)
-      .then((page) => {
-        if (!alive) return;
-        setCommunities(page.items);
-        setTotalCommunities(page.totalElements);
-        // 검색 결과가 바뀌면 고른 동네가 목록에 없을 수 있다. 첫 동네로 되돌린다
-        setCommunityId((prev) =>
-          page.items.some((community) => community.id === prev) ? prev : (page.items[0]?.id ?? ""),
-        );
-        if (page.items.length === 0) {
-          setStats({
-            state: "error",
-            message: query ? "검색 결과가 없어요." : "등록된 동네가 없어요.",
-          });
-        }
-      })
-      .catch((e: unknown) => {
-        if (!alive) return;
-        setStats({
-          state: "error",
-          message: e instanceof ApiError ? e.message : "동네 목록을 불러오지 못했어요.",
-        });
-      });
-    return () => {
-      alive = false;
-    };
-  }, [query]);
+  const communityId = selected?.id ?? "";
 
   useEffect(() => {
     if (!communityId) return;
@@ -116,13 +79,11 @@ export function AdminDashboardPage() {
     };
   }, [retry]);
 
-  const selected = communities.find((community) => community.id === communityId);
-
   /** 동네를 바꾸면 이전 동네 수치가 남지 않게 바로 로딩으로 돌린다 */
-  const selectCommunity = (id: string) => {
-    if (id === communityId) return;
+  const pickCommunity = (community: ApiCommunity) => {
+    if (community.id === communityId) return;
     setStats({ state: "loading" });
-    setCommunityId(id);
+    setSelected(community);
   };
 
   const retryLoad = () => {
@@ -132,36 +93,14 @@ export function AdminDashboardPage() {
 
   return (
     <div className={c("adm-body")}>
-      <div>
-        <p className={c("t-label adm-muted adm-section-label")}>동네 선택</p>
-        <SearchField
-          placeholder="동네 이름으로 찾기"
-          label="동네 검색"
-          value={keyword}
-          onChange={setKeyword}
-        />
-        {totalCommunities > communities.length && (
-          <p className={c("t-caption adm-muted")}>
-            동네 {totalCommunities.toLocaleString()}곳 중 {communities.length}곳만 보여요. 이름으로 찾아 주세요.
-          </p>
-        )}
-      </div>
+      <RegionPicker
+        selected={selected}
+        onPick={pickCommunity}
+        hint="고른 동네의 최근 7일 통계를 보여줘요."
+      />
 
-      {communities.length > 0 && (
-        <div>
-          <div className={c("adm-comm")}>
-            {communities.map((community) => (
-              <button
-                key={community.id}
-                type="button"
-                className={c(`adm-comm-b${communityId === community.id ? " adm-comm-b--on" : ""}`)}
-                onClick={() => selectCommunity(community.id)}
-              >
-                {community.name}
-              </button>
-            ))}
-          </div>
-        </div>
+      {stats.state === "idle" && (
+        <p className={c("t-caption adm-muted")}>동네를 고르면 통계를 보여드려요.</p>
       )}
 
       {stats.state === "loading" && (

@@ -3,6 +3,7 @@ package com.billim.domain.community.service;
 import com.billim.MockChatRedisListener;
 
 import com.billim.domain.community.dto.MembershipResponse;
+import com.billim.domain.community.dto.RegionScope;
 import com.billim.domain.community.dto.VerifyLocationRequest;
 import com.billim.domain.community.entity.Community;
 import com.billim.domain.community.entity.CommunityMembership;
@@ -115,9 +116,9 @@ class CommunityFlowDbTest {
     @Test
     @DisplayName("이름 부분 검색으로 활성 동네를 찾고, 키워드를 비우면 전체를 준다")
     void searchByName() {
-        assertThat(queryService.search("새솔", 0, 20).items())
+        assertThat(queryService.search("새솔", RegionScope.ALL, false, 0, 20).items())
                 .extracting("name").containsExactly("새솔마을 5단지");
-        assertThat(queryService.search(null, 0, 20).items()).hasSize(2);
+        assertThat(queryService.search(null, RegionScope.ALL, false, 0, 20).items()).hasSize(2);
     }
 
     @Test
@@ -125,7 +126,7 @@ class CommunityFlowDbTest {
     void inactiveCommunityIsHidden() {
         long inactive = saveCommunity("폐지된마을", 37.6, 127.1, CommunityStatus.INACTIVE);
 
-        assertThat(queryService.search(null, 0, 20).items()).hasSize(2);
+        assertThat(queryService.search(null, RegionScope.ALL, false, 0, 20).items()).hasSize(2);
         assertThatThrownBy(() -> queryService.findActive(inactive))
                 .isInstanceOfSatisfying(BusinessException.class,
                         e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));

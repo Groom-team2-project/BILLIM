@@ -49,9 +49,63 @@ export type VerifyLocationBody = {
   accuracyMeters: number;
 };
 
-/** E_009 동네 검색. 이름·공개 주소 부분 검색. keyword를 비우면 활성 동네 목록 */
-export function searchCommunities(keyword?: string, page = 0, size = 20): Promise<ApiCommunityPage> {
-  return api<ApiCommunityPage>("/communities", { query: { keyword, page, size } });
+/** 동네 선택 단계 (E_073). 위에서 아래로 좁힌다 */
+export type RegionLevel = "SIDO" | "SIGUNGU" | "GU" | "DONG";
+
+/**
+ * 고른 상위 단계. 위에서 아래로 채운다 — 위를 비우고 아래만 채우면 400이다.
+ * 비어 있으면 "전체"다.
+ */
+export type RegionScope = {
+  sido?: string;
+  sigungu?: string;
+  gu?: string;
+  dong?: string;
+};
+
+export type ApiRegionOptions = { level: RegionLevel; items: string[] };
+
+/**
+ * E_073 동네 선택 단계 옵션. **등록된** 활성 동네의 공개 주소에서 모은다.
+ *
+ * 전국 행정동 목록이 아니다. 아직 아무도 인증하지 않은 행정동은 나오지 않고,
+ * 그 동네로 처음 들어가는 길은 이름 검색(E_009)이다.
+ * `GU`는 "수원시 영통구"처럼 시 아래 구가 있는 지역만 값이 있고, 없으면 빈 배열이다.
+ *
+ * `hasMembers`는 가입자가 있는 동네만 센다. 검색만 해도 행정동이 동네로 등록되므로
+ * 아무도 없는 동네가 섞인다.
+ */
+export function getRegionOptions(
+  level: RegionLevel,
+  scope: RegionScope = {},
+  hasMembers = false,
+): Promise<ApiRegionOptions> {
+  const { sido, sigungu, gu } = scope;
+  return api<ApiRegionOptions>("/communities/regions", {
+    query: { level, sido, sigungu, gu, hasMembers: hasMembers ? "true" : undefined },
+  });
+}
+
+/**
+ * E_009 동네 검색. 이름·공개 주소 부분 검색. keyword를 비우면 활성 동네 목록.
+ * `scope`를 주면 그 지역 안으로 좁히고, keyword와 함께 주면 범위 안에서 이름을 찾는다.
+ * `hasMembers`의 뜻은 `getRegionOptions`와 같다.
+ */
+export function searchCommunities(
+  keyword?: string,
+  page = 0,
+  size = 20,
+  scope: RegionScope = {},
+  hasMembers = false,
+): Promise<ApiCommunityPage> {
+  const { sido, sigungu, gu, dong } = scope;
+  return api<ApiCommunityPage>("/communities", {
+    query: {
+      keyword, sido, sigungu, gu, dong,
+      hasMembers: hasMembers ? "true" : undefined,
+      page, size,
+    },
+  });
 }
 
 /** E_010 동네 정보 조회. 비활성 동네는 404 */

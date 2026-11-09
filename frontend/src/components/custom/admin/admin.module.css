@@ -54,33 +54,6 @@
 }
 
 /* 대시보드 */
-.adm-section-label {
-  margin: 0 0 var(--space-2);
-}
-
-.adm-comm {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.adm-comm-b {
-  border: 1px solid var(--line-control);
-  background: var(--surface);
-  color: var(--ink);
-  border-radius: var(--radius-full);
-  padding: 6px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.adm-comm-b--on {
-  background: var(--action);
-  color: var(--on-action);
-  border-color: var(--action);
-}
-
 .adm-kpis {
   display: grid;
   grid-template-columns: 1fr 1fr;
