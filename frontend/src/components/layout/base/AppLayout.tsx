@@ -10,10 +10,12 @@ import styles from "@/components/layout/base/AppLayout.module.css";
 import { classes } from "@/utils/classes";
 import { ApiError } from "@/api/client";
 import { changeItemVisibility } from "@/api/items";
+import { createReport } from "@/api/reports";
 import { setCurrentItem, useCurrentItem } from "@/stores/currentItem";
 import { UNKNOWN_OWNER } from "@/utils/itemView";
 import { objectParticle } from "@/utils/korean";
 import { ownerProfilePath } from "@/utils/profileRoute";
+import { toReasonCode, toReasonDetail } from "@/utils/reportReason";
 import { WarningNotice } from "@/components/custom/profile/WarningNotice";
 
 const c = classes(styles);
@@ -63,6 +65,26 @@ export function AppLayout() {
   // 물건 상세의 더보기 — 상세 화면이 불러온 실제 물건(B_020)을 쓴다. 불러오기 전에는 메뉴 없음
   const moreItem = useCurrentItem(itemMatch?.[1] ?? "");
   const doReport = (name: string) => report({ name, onConfirm: () => toast("신고를 접수했어요") });
+  const reportItem = () => {
+    if (!moreItem) return;
+    report({
+      name: moreItem.owner.displayName ?? UNKNOWN_OWNER,
+      title: "이 물건을 신고할까요?",
+      onConfirm: async (reason) => {
+        try {
+          await createReport({
+            targetType: "ITEM",
+            targetId: moreItem.id,
+            reasonCode: toReasonCode(reason),
+            detail: toReasonDetail(reason),
+          });
+          toast("신고를 접수했어요");
+        } catch (e: unknown) {
+          toast(e instanceof ApiError ? e.message : "신고를 접수하지 못했어요");
+        }
+      },
+    });
+  };
   const changeVisibility = async (next: "PUBLIC" | "HIDDEN") => {
     if (!moreItem) return;
     try {
@@ -99,7 +121,7 @@ export function AppLayout() {
           {
             label: "이 물건 신고하기",
             danger: true,
-            onSelect: () => doReport(moreItem.owner.displayName ?? UNKNOWN_OWNER),
+            onSelect: reportItem,
           },
         ]
     : chatRoomMatch && chatName && previewChat

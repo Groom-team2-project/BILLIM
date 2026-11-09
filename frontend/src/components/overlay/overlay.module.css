@@ -42,6 +42,40 @@
   max-width: 340px;
 }
 
+.ui-modal--report {
+  max-height: calc(100dvh - var(--space-12));
+  overflow-y: auto;
+}
+
+.ui-report-context {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  max-height: 30dvh;
+  overflow-y: auto;
+}
+
+.ui-report-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ui-report-label {
+  color: var(--ink-muted);
+}
+
+.ui-report-value {
+  margin: 0;
+  font-size: 14px;
+  line-height: 21px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .ui-modal-hint {
   margin: 0;
   color: var(--ink-muted);

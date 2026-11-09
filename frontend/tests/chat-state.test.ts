@@ -4,7 +4,7 @@ import type { ApiChatMessage, ApiChatRoom } from "../src/types/chat-api.ts";
 import type { ApiAppointmentSlot } from "../src/types/appointment-api.ts";
 import type { ApiItemDetail } from "../src/api/items.ts";
 import { countNewChatMessages, isChatAtBottom, isChatMessageEndVisible, mergeChatMessages, promoteChatRoom } from "../src/utils/chat-state.ts";
-import { canOpenRentalRequestFromChat, chatRentalResponse, chatTimeline, isMoneyRequest, selectableChatRentals } from "../src/utils/chat-view.ts";
+import { canOpenRentalRequestFromChat, chatActivityLinks, chatRentalResponse, chatTimeline, isMoneyRequest, selectableChatRentals } from "../src/utils/chat-view.ts";
 
 function message(sequence: number): ApiChatMessage {
   return {
@@ -101,6 +101,25 @@ test("요청 응답은 소유자에게만 열리고 서버가 승인 불가로 �
   assert.deepEqual(chatRentalResponse({ ...rental, allowedActions: ["REJECT"] }, "owner"),
     { isOwner: true, canApprove: false, canReject: true });
   assert.equal(chatRentalResponse({ ...rental, status: "APPROVED" }, "owner"), null);
+});
+
+test("완료된 대여의 약속은 대화에 남지만 진행 중 링크에서는 빠진다", () => {
+  const rental = { id: "r1", status: "APPROVED", owner: { id: "owner" } } as ApiChatRoom["rentals"][number];
+  const slot = { kind: "RETURN" } as ApiAppointmentSlot;
+  const timeline = [
+    { kind: "rental-approved" as const },
+    { kind: "appointment" as const, slot, proposal: { id: "p1" } as NonNullable<ApiAppointmentSlot["confirmedProposal"]>,
+      status: "confirmed" as const },
+  ];
+  assert.deepEqual(chatActivityLinks(rental, "owner", timeline), [
+    { kind: "approved", id: "r1", label: "대여 승인 · 약속 보기" },
+    { kind: "confirmed", id: "p1", label: "반납 약속 · 확정" },
+  ]);
+  assert.deepEqual(chatActivityLinks({ ...rental, status: "ACTIVE" }, "owner", timeline),
+    chatActivityLinks(rental, "owner", timeline));
+  for (const status of ["RETURNED", "REJECTED", "CANCELED", "EXPIRED"] as const) {
+    assert.deepEqual(chatActivityLinks({ ...rental, status }, "owner", timeline), []);
+  }
 });
 
 test("대여 카드는 요청 사건 뒤에 남고 이후 채팅이 와도 맨 아래로 이동하지 않는다", () => {

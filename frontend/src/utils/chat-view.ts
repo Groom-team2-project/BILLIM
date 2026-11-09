@@ -39,6 +39,25 @@ export type ChatTimelineEntry =
   | { kind: "rental-approved" }
   | { kind: "appointment"; slot: ApiAppointmentSlot; proposal: ApiAppointmentProposal; status: "confirmed" | "pending" };
 
+export function chatActivityLinks(rental: ApiChatRental | undefined, memberId: string | null,
+  timeline: ChatTimelineEntry[]): { kind: string; id: string; label: string }[] {
+  if (!rental || !["REQUESTED", "APPROVED", "ACTIVE"].includes(rental.status)) return [];
+  const links: { kind: string; id: string; label: string }[] = [];
+  for (const entry of timeline) {
+    if (entry.kind === "rental-request" && rental.status === "REQUESTED") {
+      links.push({ kind: "request", id: rental.id,
+        label: rental.owner.id === memberId ? "대여 요청 · 응답 필요" : "대여 요청 · 승인 대기" });
+    } else if (entry.kind === "rental-approved") {
+      links.push({ kind: "approved", id: rental.id, label: "대여 승인 · 약속 보기" });
+    } else if (entry.kind === "appointment") {
+      const kind = entry.slot.kind === "RETURN" ? "반납" : "전달";
+      links.push({ kind: entry.status, id: entry.proposal.id,
+        label: `${kind} 약속 · ${entry.status === "confirmed" ? "확정" : "제안"}` });
+    }
+  }
+  return links;
+}
+
 function appointmentTimeLabel(scheduledAt: string): string {
   const date = new Date(scheduledAt);
   if (Number.isNaN(date.getTime())) return "";

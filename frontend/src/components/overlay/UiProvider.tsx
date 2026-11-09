@@ -85,7 +85,7 @@ function ReportModal({ opts, onClose }: { opts: ReportOptions; onClose: () => vo
   return (
     <div className={c("ui-scrim")} onClick={onClose}>
       <div className={c("ui-modal ui-modal--wide")} role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <h3 className={c("ui-modal-title")}>{opts.name} 님을 신고할까요?</h3>
+        <h3 className={c("ui-modal-title")}>{opts.title ?? `${opts.name} 님을 신고할까요?`}</h3>
         <p className={c("ui-modal-body")}>신고 이유를 선택해 주세요. 접수된 신고는 운영팀이 확인해요.</p>
         <div className={c("ui-opts")} role="radiogroup" aria-label="신고 이유">
           {REPORT_REASONS.map((r) => (
