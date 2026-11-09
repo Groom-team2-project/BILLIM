@@ -99,10 +99,10 @@ class MediaCleanupJobTest {
     @DisplayName("파일 삭제에 실패한 사진은 행을 남겨 다음 정리에서 다시 시도한다")
     void keepsRowWhenFileDeleteFails() throws IOException {
         when(mediaFiles.findDeletedBefore(any(), eq(0L), any())).thenReturn(List.of(stored(1, "a.jpg")));
-        doThrow(new IOException("디스크 오류")).when(storage).delete("a.jpg");
+        lenient().doThrow(new IOException("디스크 오류")).when(storage).delete("a.jpg");
         when(mediaFiles.findOfItemsDeletedBefore(any(), eq(0L), any()))
                 .thenReturn(List.of(stored(2, "b.jpg"), stored(3, "c.jpg")));
-        doThrow(new IOException("디스크 오류")).when(storage).delete("c.jpg");
+        lenient().doThrow(new IOException("디스크 오류")).when(storage).delete("c.jpg");
 
         job.purge();
 
