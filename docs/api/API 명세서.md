@@ -1,7 +1,7 @@
 # API 명세서
 
-> 버전 : v0.1.25\
-> 수정일 : 2026.11.09
+> 버전 : v0.1.26\
+> 수정일 : 2026.11.10
 
 ## 0. 공통 규약
 
@@ -149,6 +149,9 @@
 | [E_070](#147-e_070-정책안내-정적-문서) | 노현섭 | P1 | GET | /api/v1/policies/{policyKey} | 정책·안내 정적 문서 |
 | [E_071](#45-e_071-현재-위치로-주변-동네-찾기) | 노현섭 | P0 | POST | /api/v1/communities/nearby | 현재 위치로 주변 동네 찾기 |
 | [E_073](#46-e_073-동네-선택-단계-옵션) | 노현섭 | P1 | GET | /api/v1/communities/regions | 동네 선택 단계 옵션 |
+| [E_074](#47-e_074-내-동네-목록) | 노현섭 | P1 | GET | /api/v1/members/me/communities | 내 동네 목록 |
+| [E_075](#48-e_075-현재-동네-변경) | 노현섭 | P1 | POST | /api/v1/members/me/communities/{communityId}/select | 현재 동네 변경 |
+| [E_076](#49-e_076-저장-동네-이탈) | 노현섭 | P1 | DELETE | /api/v1/members/me/communities/{communityId} | 저장 동네 이탈 |
 
 ## 2. 인증 (auth)
 
@@ -319,10 +322,15 @@
 - 관련 테이블: communities
 - 목업 연결: verify
 
-### 4.3 E_011 위치 인증 및 활성 동네 선택
+### 4.3 E_011 위치 인증 및 동네 추가
 
 - `POST /api/v1/communities/{communityId}/verifications` · 노현섭 · P0
-- 설명: 현재 위치는 이 요청에서만 사용. 판정은 행정동·반경 병행이다. 현재 좌표의 행정동이 동네의 행정동과 같으면 통과하고(정확도 상한 미적용), 다르거나 지도 연동이 응답하지 않으면 기존 반경 판정으로 다시 본다. 반경 판정에서 범위 밖 403 LOCATION_OUTSIDE, 정확도 초과 422 LOCATION_INACCURATE. 성공 시 이전 소속 LEFT, 선택 소속 ACTIVE, members.active_community_id 갱신. 좌표는 DB·로그·멱등 응답에 저장하지 않는다. 최초/재인증 모두 200.
+- 설명: 현재 위치는 이 요청에서만 사용. 판정은 행정동·반경 병행이다. 현재 좌표의 행정동이 동네의 행정동과 같으면 통과하고(정확도 상한 미적용), 다르거나 지도 연동이 응답하지 않으면 기존 반경 판정으로 다시 본다. 반경 판정에서 범위 밖 403 LOCATION_OUTSIDE, 정확도 초과 422 LOCATION_INACCURATE. 좌표는 DB·로그·멱등 응답에 저장하지 않는다. 최초/재인증 모두 200.
+- **저장 동네에 더한다.** 저장 동네는 **최대 2개**다(V23). 성공 시 선택 소속이 ACTIVE가 되고 `members.active_community_id`가 방금 인증한 동네로 바뀐다 — 즉 **현재 동네**가 된다.
+  - 예전에는 이전 소속을 LEFT로 내려 하나만 남겼다. 이제 쌓인다.
+  - 이미 저장한 동네를 다시 인증하면 새 행을 만들지 않고 인증 시각·만료만 갱신한다. 슬롯은 유지된다.
+  - 이미 2개면 **409 `COMMUNITY_LIMIT_EXCEEDED`**. 어느 동네를 뺄지는 회원이 정한다(E_076). 자동으로 밀어내면 모르는 사이에 그 동네 거래 권한을 잃는다.
+- 용어: **저장 동네**(ACTIVE 소속, 최대 2) / **현재 동네**(`members.active_community_id`, 하나). 거래·채팅 권한은 저장 동네 전체를, 홈 피드·물건 목록은 현재 동네를 기준으로 한다. (도메인 가이드 결정 '저장 동네와 현재 동네')
 - 요청 본문: VerifyLocationRequest
 - 성공 응답: 200 Membership
 - 관련 테이블: members, communities, community_memberships
@@ -368,6 +376,42 @@
 - 오류: 400 `INVALID_REQUEST` — `level`이 없거나 값이 아닐 때, 상위 단계가 비었을 때, 단계를 위에서 아래로 채우지 않았을 때
 - 관련 테이블: communities
 - 목업 연결: admin(대시보드·공지 관리)
+
+### 4.7 E_074 내 동네 목록
+
+- `GET /api/v1/members/me/communities` · 노현섭 · P1
+- 설명: 본인만. **저장 동네**(최대 2)와 **현재 동네**를 함께 준다. 슬롯 순서라 대체로 추가한 순서다.
+- 인증이 만료된 저장 동네도 담는다 — 재인증 대상이라 화면에 보여야 한다. `isValid`로 구분한다.
+- 동네 행이 사라진 소속은 이름을 조립할 수 없어 목록에서 빠진다.
+- 요청 본문: 없음
+- 성공 응답: 200 MyCommunities
+- 관련 테이블: community_memberships, communities, members
+- 목업 연결: neighborhoods, home(내 동네 설정)
+
+### 4.8 E_075 현재 동네 변경
+
+- `POST /api/v1/members/me/communities/{communityId}/select` · 노현섭 · P1
+- 설명: 본인만. 현재 동네를 **저장 동네 중 다른 쪽으로** 바꾼다. 홈 피드·물건 목록의 기준이 바뀐다.
+- 저장 동네가 아니면 **404** — 없는 동네와 남의 소속을 구분해 알려 주지 않는다.
+- 인증이 만료된 저장 동네로도 전환된다. 전환은 피드 기준을 바꾸는 일이고, 거래는 각 명령 API가 유효 소속을 다시 검사한다.
+- **소속은 바뀌지 않는다.** 전환해도 양쪽 동네의 거래·채팅 권한은 그대로다.
+- 요청 본문: 없음
+- 성공 응답: 200 MyCommunities (바뀐 전체 상태)
+- 관련 테이블: members, community_memberships
+- 목업 연결: home(내 동네 설정)
+
+### 4.9 E_076 저장 동네 이탈
+
+- `DELETE /api/v1/members/me/communities/{communityId}` · 노현섭 · P1
+- 설명: 본인만. 저장 동네에서 뺀다. 소속이 LEFT가 되고 슬롯이 비어 다른 동네를 더할 수 있다.
+- **마지막 하나는 뺄 수 없다 — 409 `COMMUNITY_LAST_MEMBERSHIP`.** 마지막까지 빼면 미인증 상태가 되어 아무것도 할 수 없다. 동네를 옮기려면 새 동네를 먼저 인증한 뒤(E_011) 예전 동네를 뺀다.
+- 현재 동네를 뺐으면 **남은 동네가 현재 동네가 된다.** 비워 두면 피드 기준이 사라진다.
+- 저장 동네가 아니면 404.
+- 뺀 동네의 물건·장소·채팅은 더 볼 수 없다. 진행 중인 거래가 있으면 먼저 정리해야 한다.
+- 요청 본문: 없음
+- 성공 응답: 200 MyCommunities (바뀐 전체 상태)
+- 관련 테이블: community_memberships, members
+- 목업 연결: neighborhoods
 
 ## 5. 카테고리·사진 (categories·media)
 
@@ -1241,6 +1285,25 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | --- | --- | --- | --- |
 | level | string | Y | 값: SIDO, SIGUNGU, GU, DONG. 요청한 단계 |
 | items | string[] | Y | 중복 없이 가나다순. 해당 단계가 없는 지역은 빈 배열 |
+### MyCommunities
+내 동네 상태 (E_074 ~ E_076). 저장 동네는 최대 2개, 현재 동네는 하나다.
+
+| 필드 | 타입 | 필수 | 제약·의미 |
+| --- | --- | --- | --- |
+| items | MyCommunity[] | Y | 저장 동네. 슬롯 순서. 최대 2개 |
+| currentCommunityId | string | N | 현재 동네. 저장 동네가 없으면 null |
+### MyCommunity
+저장 동네 한 건.
+
+| 필드 | 타입 | 필수 | 제약·의미 |
+| --- | --- | --- | --- |
+| communityId | string | Y | ID 문자열 |
+| communityName | string | Y | — |
+| displayAddress | string | Y | 공개 주소 |
+| isCurrent | boolean | Y | 지금 피드 기준이 되는 동네인지 |
+| isValid | boolean | Y | 인증이 만료되지 않았는지. false면 재인증해야 거래할 수 있다 |
+| verifiedAt | string(date-time) | Y | 마지막 인증 시각 |
+| verificationExpiresAt | string(date-time) | Y | 인증 만료 |
 ### Place
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |

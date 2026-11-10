@@ -425,9 +425,9 @@ class AdminStatisticsServiceDbTest {
     private void saveMembership(long memberId, long communityId, Instant createdAt) {
         jdbc.update("""
                 INSERT INTO community_memberships
-                    (member_id, community_id, status, verified_at, verification_expires_at,
-                     created_at, updated_at)
-                VALUES (?, ?, 'ACTIVE', ?, ?, ?, ?)
+                    (member_id, community_id, status, active_slot, verified_at,
+                     verification_expires_at, created_at, updated_at)
+                VALUES (?, ?, 'ACTIVE', 1, ?, ?, ?, ?)
                 """, memberId, communityId,
                 utc(createdAt),
                 utc(createdAt.plusSeconds(30 * 86400L)),

@@ -17,8 +17,12 @@ public interface CommunityMembershipRepository extends JpaRepository<CommunityMe
 
     Optional<CommunityMembership> findByMemberIdAndCommunityId(long memberId, long communityId);
 
-    /** 활성 소속은 회원당 하나. 재인증 시 이탈시킬 이전 소속을 찾는다 */
-    Optional<CommunityMembership> findByMemberIdAndStatus(long memberId, MembershipStatus status);
+    /**
+     * 회원의 저장 동네 목록. 슬롯 순서로 준다 (최대 2, V23).
+     * 빈 슬롯을 고르고 상한을 검사하는 데 쓴다.
+     */
+    List<CommunityMembership> findByMemberIdAndStatusOrderByActiveSlotAsc(
+            long memberId, MembershipStatus status);
 
     /**
      * 동네별 유효 인증 회원 수 (API 명세 Community.verifiedMemberCount).
