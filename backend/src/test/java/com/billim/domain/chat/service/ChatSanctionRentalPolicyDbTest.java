@@ -3,6 +3,8 @@ package com.billim.domain.chat.service;
 import com.billim.MockChatRedisListener;
 import com.billim.domain.chat.entity.ChatRoom;
 import com.billim.domain.chat.repository.ChatRoomRentalReadRepository;
+import com.billim.domain.chat.repository.ChatRoomRepository;
+import com.billim.domain.chat.repository.ChatParticipantRepository;
 import com.billim.domain.community.service.CommunityMembershipService;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.repository.CategoryRepository;
@@ -31,6 +33,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -67,6 +71,8 @@ class ChatSanctionRentalPolicyDbTest {
     @Autowired ReportActionRepository actions;
     @Autowired SanctionRepository sanctions;
     @Autowired ChatRoomRentalReadRepository eligibility;
+    @Autowired ChatRoomRepository rooms;
+    @Autowired ChatParticipantRepository participants;
     @Autowired ChatRoomOpenService open;
     @Autowired ChatRoomViewService view;
     @Autowired ChatSendAccessPolicy send;
@@ -198,6 +204,103 @@ class ChatSanctionRentalPolicyDbTest {
     private List<Long> allowed(List<Rental> candidates) {
         return eligibility.findAllowedRentalIds(candidates.stream().map(Rental::getId).toList(),
             List.of(RentalStatus.APPROVED, RentalStatus.ACTIVE), now);
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    @DisplayName("방 없는 과거 승인 거래는 어느 쪽이 제재돼도 방 생성·허용 거래만 연결·재사용 가능")
+    void opensLegacyRentalRoomForEitherSanctionedParticipant(boolean ownerRestricted) {
+        Long legacyItem = legacyItem();
+        Rental approved = legacyRental(legacyItem, borrower, now.minusSeconds(120));
+        Rental requested = legacyRental(legacyItem, borrower, null);
+        Rental late = legacyRental(legacyItem, borrower, now.minusSeconds(30));
+        sanction(ownerRestricted ? owner : borrower, now.minusSeconds(60), ReportActionType.BAN);
+
+        var response = view.open(legacyItem, borrower);
+        Long roomId = Long.valueOf(response.id());
+        assertThat(response.access().reason()).isEqualTo("EXISTING_RENTAL_ONLY");
+        assertThat(response.access().canSend()).isTrue();
+        assertThat(response.access().allowedRentalIds()).containsExactly(approved.getId().toString());
+        assertThat(response.rentals()).extracting(rental -> rental.id()).containsExactly(approved.getId().toString());
+        assertThat(approved.getChatRoomId()).isEqualTo(roomId);
+        assertThat(requested.getChatRoomId()).isNull();
+        assertThat(late.getChatRoomId()).isNull();
+        assertThat(participants.findByRoomIdAndMemberId(roomId, owner)).isPresent();
+        assertThat(participants.findByRoomIdAndMemberId(roomId, borrower)).isPresent();
+        assertThat(view.open(legacyItem, borrower).id()).isEqualTo(response.id());
+        assertThat(rooms.count()).isEqualTo(2);
+
+        ChatRoom created = rooms.findById(roomId).orElseThrow();
+        for (Long member : List.of(owner, borrower)) {
+            assertCode(() -> send.requireCanSend(created, member, null));
+            assertThatCode(() -> send.requireCanSend(created, member, approved.getId())).doesNotThrowAnyException();
+            assertThat(view.get(roomId, member).access().allowedRentalIds())
+                .containsExactly(approved.getId().toString());
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 2, 3, 4, 5})
+    @DisplayName("미승인·동시/이후 승인·종료·승인 시각 없는 과거 거래는 제재 중 방 생성 불가")
+    void ineligibleLegacyRentalCannotOpenRoom(int scenario) {
+        Long legacyItem = legacyItem();
+        Instant start = now.minusSeconds(60);
+        Rental rental = legacyRental(legacyItem, borrower,
+            scenario == 0 ? null : scenario == 1 ? start : scenario == 2 ? start.plusSeconds(1) : start.minusSeconds(60));
+        if (scenario == 3) rental.cancel("취소 검증");
+        if (scenario == 4) {
+            rental.handover(now);
+            rental.returnItem(now, null);
+        }
+        if (scenario == 5) org.springframework.test.util.ReflectionTestUtils.setField(rental, "approvedAt", null);
+        rentals.saveAndFlush(rental);
+        sanction(owner, start, ReportActionType.BAN);
+
+        assertCode(() -> view.open(legacyItem, borrower));
+        assertThat(rooms.count()).isEqualTo(1);
+        assertThat(rental.getChatRoomId()).isNull();
+    }
+
+    @Test
+    @DisplayName("다른 요청자의 과거 승인 거래를 이용해 제재 중 방 생성 불가")
+    void anotherBorrowerCannotUseLegacyRentalException() {
+        Long legacyItem = legacyItem();
+        Rental approved = legacyRental(legacyItem, borrower, now.minusSeconds(120));
+        Long stranger = members.saveAndFlush(Member.register("무관한 회원")).getId();
+        when(memberships.findActiveCommunityId(stranger)).thenReturn(Optional.of(100L));
+        sanction(owner, now.minusSeconds(60), ReportActionType.BAN);
+
+        assertCode(() -> view.open(legacyItem, stranger));
+        assertThat(rooms.count()).isEqualTo(1);
+        assertThat(approved.getChatRoomId()).isNull();
+    }
+
+    @Test
+    @DisplayName("다른 방에 이미 연결된 거래를 제재 예외로 재연결 불가")
+    void doesNotReassignRentalFromAnotherRoom() {
+        Long legacyItem = legacyItem();
+        Rental approved = legacyRental(legacyItem, borrower, now.minusSeconds(120));
+        approved.linkChatRoom(room.getId());
+        rentals.saveAndFlush(approved);
+        sanction(owner, now.minusSeconds(60), ReportActionType.BAN);
+
+        assertCode(() -> view.open(legacyItem, borrower));
+        assertThat(rooms.count()).isEqualTo(1);
+        assertThat(approved.getChatRoomId()).isEqualTo(room.getId());
+    }
+
+    private Long legacyItem() {
+        return items.saveAndFlush(Item.create(owner, 100L,
+            categories.findByActiveTrueOrderBySortOrderAscIdAsc().getFirst().getId(), 10L,
+            "채팅방 없는 기존 거래", null, LocalDate.now(), LocalDate.now().plusDays(30), now)).getId();
+    }
+
+    private Rental legacyRental(Long legacyItem, Long requester, Instant approvedAt) {
+        Rental rental = Rental.request(legacyItem, owner, requester, 100L,
+            LocalDate.ofInstant(now, java.time.ZoneId.of("Asia/Seoul")), LocalDate.now().plusDays(2),
+            now.plusSeconds(3600), now.plusSeconds(86400 * 3), "채팅방 없는 기존 거래", 10L, "정문");
+        if (approvedAt != null) rental.approve(approvedAt);
+        return rentals.saveAndFlush(rental);
     }
 
     private void assertCode(org.assertj.core.api.ThrowableAssert.ThrowingCallable action) {

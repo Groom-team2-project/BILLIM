@@ -36,11 +36,16 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @DataJpaTest
-@Import({ChatRoomOpenServiceDbTest.MySql.class, ChatRoomOpenService.class})
+@Import({ChatRoomOpenServiceDbTest.MySql.class, ChatRoomOpenService.class, ChatRoomLinkedRentalService.class})
 class ChatRoomOpenServiceDbTest {
 
     @TestConfiguration(proxyBeanMethods = false)
     static class MySql {
+        @Bean
+        java.time.Clock clock() {
+            return java.time.Clock.systemUTC();
+        }
+
         @Bean
         @ServiceConnection
         MySQLContainer mysqlContainer() {
