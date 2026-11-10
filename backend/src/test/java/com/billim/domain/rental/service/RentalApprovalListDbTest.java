@@ -1,6 +1,7 @@
 package com.billim.domain.rental.service;
 
 import com.billim.domain.community.service.CommunityMembershipService;
+import com.billim.domain.community.service.CurrentCommunityStore;
 import com.billim.domain.safety.service.BlockService;
 import com.billim.domain.safety.service.SanctionService;
 import com.billim.domain.safety.service.MemberRowLock;
@@ -29,7 +30,8 @@ import static org.assertj.core.api.Assertions.*;
 
 @DataJpaTest(showSql = false, properties = {"spring.jpa.hibernate.ddl-auto=validate", "spring.jpa.properties.hibernate.generate_statistics=true", "logging.level.org.hibernate.stat=OFF"})
 @Import({RentalApprovalListDbTest.Config.class, RentalQueryService.class, AppointmentService.class,
-        RentalRequestPolicy.class, CommunityMembershipService.class, BlockService.class, SanctionService.class, MemberRowLock.class})
+        RentalRequestPolicy.class, CommunityMembershipService.class, CurrentCommunityStore.class,
+        BlockService.class, SanctionService.class, MemberRowLock.class})
 class RentalApprovalListDbTest {
     private static final LoginMember OWNER = new LoginMember(9600L, MemberRole.USER);
     @TestConfiguration(proxyBeanMethods = false)
@@ -49,8 +51,10 @@ class RentalApprovalListDbTest {
         jdbc.update("INSERT INTO communities(id,name,display_address,center_latitude,center_longitude,verification_radius_m,created_at,updated_at) VALUES(9600,'동네','공용 주소',37,127,500,NOW(6),NOW(6)),(9601,'다른 동네','공용 주소',37,127,500,NOW(6),NOW(6))");
         jdbc.update("INSERT INTO community_places(id,community_id,name,latitude,longitude,active,created_at,updated_at) VALUES(9600,9600,'정문',37,127,TRUE,NOW(6),NOW(6))");
         for (long id=9600;id<=9620;id++) {
-            jdbc.update("INSERT INTO members(id,display_name,created_at,updated_at) VALUES(?,'합성 회원',NOW(6),NOW(6))",id);
-            jdbc.update("INSERT INTO community_memberships(member_id,community_id,status,verified_at,verification_expires_at,created_at,updated_at) VALUES(?,9600,'ACTIVE','2026-10-01','2026-11-01',NOW(6),NOW(6))",id);
+            // active_community_id는 현재 동네다. 저장 동네가 둘까지 되면서 소속 판정 창구가
+            // 이 값을 기준으로 바뀌었다 — 비워 두면 유효 소속이 없는 회원이 된다 (V23)
+            jdbc.update("INSERT INTO members(id,display_name,active_community_id,created_at,updated_at) VALUES(?,'합성 회원',9600,NOW(6),NOW(6))",id);
+            jdbc.update("INSERT INTO community_memberships(member_id,community_id,status,active_slot,verified_at,verification_expires_at,created_at,updated_at) VALUES(?,9600,'ACTIVE',1,'2026-10-01','2026-11-01',NOW(6),NOW(6))",id);
         }
         for (long id=9601;id<=9620;id++) {
             jdbc.update("INSERT INTO items(id,owner_id,community_id,category_id,place_id,title,available_start_date,available_end_date,visibility,created_at,updated_at) SELECT ?,9600,9600,id,9600,'물건','2026-10-01','2026-11-01','PUBLIC',NOW(6),NOW(6) FROM categories ORDER BY id LIMIT 1",id);
@@ -73,7 +77,7 @@ class RentalApprovalListDbTest {
     void preservesPolicyDecisions(String scenario) {
         switch(scenario) {
             case "membership-expired" -> jdbc.update("UPDATE community_memberships SET verification_expires_at='2026-10-09 15:00:00' WHERE member_id=9601");
-            case "membership-left" -> jdbc.update("UPDATE community_memberships SET status='LEFT',left_at=NOW(6) WHERE member_id=9601");
+            case "membership-left" -> jdbc.update("UPDATE community_memberships SET status='LEFT',active_slot=NULL,left_at=NOW(6) WHERE member_id=9601");
             case "membership-other" -> jdbc.update("UPDATE community_memberships SET community_id=9601 WHERE member_id=9601");
             case "owner-expired" -> jdbc.update("UPDATE community_memberships SET verification_expires_at='2026-10-09 15:00:00' WHERE member_id=9600");
             case "blocked-forward" -> jdbc.update("INSERT INTO blocks(blocker_id,blocked_id,created_at,updated_at) VALUES(9600,9601,NOW(6),NOW(6))");

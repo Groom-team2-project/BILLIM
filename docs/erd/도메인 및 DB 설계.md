@@ -1,7 +1,7 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.14\
-> 수정일 : 2026.10.31
+> 버전 : v0.1.15\
+> 수정일 : 2026.11.10
 
 ## 1. 공통 규칙
 
@@ -101,7 +101,7 @@ erDiagram
 | display_name | varchar(30) | N | 2~30자 표시 이름 | — |
 | role | varchar(10) | N | USER / ADMIN. 기본 USER | — |
 | status | varchar(20) | N | ACTIVE / WITHDRAWN. 일시·영구 제한은 sanctions에서 판정 | — |
-| active_community_id | bigint | Y | 선택된 커뮤니티. 유효 소속과의 일치는 서비스 검사 | communities.id |
+| active_community_id | bigint | Y | **현재 동네**. 저장 동네(최대 2) 중 지금 피드 기준이 되는 하나. 유효 소속과의 일치는 서비스 검사 | communities.id |
 | withdrawn_at | datetime(6) | Y | 탈퇴 정책 확정 후 사용 | — |
 | version | bigint | N | 낙관적 잠금. 기본 0 | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
@@ -202,17 +202,26 @@ erDiagram
 | verified_at | datetime(6) | N | 마지막 성공 인증 시각 | — |
 | verification_expires_at | datetime(6) | N | verified_at + 30일 제안 | — |
 | left_at | datetime(6) | Y | 이전 소속에서 이탈한 시각 | — |
-| active_member_id | bigint | Y | 생성 컬럼(VIRTUAL). ACTIVE면 member_id, 아니면 NULL. 활성 소속 유일성 전용 (V22) | — |
+| active_slot | int | Y | 저장 동네 슬롯 1~2. ACTIVE가 아니면 NULL. 회원당 개수를 묶는 수단 (V23) | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
-인덱스: UNIQUE (member_id, community_id) · UNIQUE (active_member_id) — 활성 소속 유일 (V22) · INDEX (community_id, status, verification_expires_at)
+인덱스: UNIQUE (member_id, community_id) · UNIQUE (member_id, active_slot) — 저장 동네 최대 2 (V23) · INDEX (community_id, status, verification_expires_at)
 
-- 활성 소속은 회원당 하나. members 잠금 아래 검사하고 **DB도 보장한다**(V22).
-  MySQL에 부분 유니크 인덱스가 없어 ACTIVE일 때만 값이 생기는 생성 컬럼으로 대신한다.
-  유니크 인덱스는 NULL을 여러 개 허용하므로 이탈 행은 제한 없이 쌓인다.
-- 동네를 바꿀 때는 이전 소속을 **먼저 flush해** 이탈로 내린 뒤 새 소속을 세운다.
-  한 번에 flush하면 Hibernate가 INSERT를 UPDATE보다 앞세워 이 제약에 걸린다.
+제약: CHECK `ck_community_memberships_active_slot` — ACTIVE면 슬롯 1~2, 아니면 NULL (V23)
+
+- **저장 동네는 회원당 둘까지.** members 잠금 아래 검사하고 **DB도 보장한다**(V23).
+  "최대 2개"는 유니크 인덱스로 표현할 수 없어 슬롯을 쓴다 — ACTIVE 소속마다 1 또는 2를 주고
+  `(member_id, active_slot)`에 UNIQUE를 건다. 유니크 인덱스는 NULL을 여러 개 허용하므로
+  이탈 행은 제한 없이 쌓인다. 슬롯은 계산할 수 없어 생성 컬럼이 아니라 실제 컬럼이고,
+  빈 슬롯을 고르는 책임은 서비스에 있다.
+- CHECK는 NULL 비교를 **먼저 걸러낸다.** `active_slot IN (1,2)`만 쓰면 슬롯 없는 ACTIVE에서
+  결과가 NULL이 되고, MySQL은 CHECK가 NULL이면 통과시킨다.
+- **어느 쪽이 현재 동네인지는 이 테이블이 아니라 `members.active_community_id`가 가진다.**
+  거래·채팅 권한은 저장 동네 전체를, 홈 피드·물건 목록은 현재 동네를 기준으로 한다.
+  (도메인 가이드 결정 '저장 동네와 현재 동네')
+- V22는 하나를 강제했고 V23이 이를 걷어냈다. 그래서 동네를 바꿀 때 이전 소속을 먼저
+  flush하던 순서 맞춤도 필요 없어졌다 — 이제 더하기만 하고 이탈은 별도 요청이다(E_076).
 - 개인 위치·정확도·이동 기록은 저장하지 않는다. 인증 재시도는 같은 행을 갱신한다.
 
 #### community_places — 물건과 약속이 공유하는 공용 장소 · P0

@@ -7,7 +7,7 @@ import com.billim.domain.chat.repository.ChatRoomRepository;
 import com.billim.domain.community.service.CommunityMembershipQuery;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.repository.ItemRepository;
-import com.billim.domain.item.service.ItemAccessPolicy;
+import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.rental.repository.RentalRepository;
 import com.billim.domain.rental.entity.Rental;
 import com.billim.domain.safety.service.BlockQuery;
@@ -26,7 +26,6 @@ import java.util.List;
 public class ChatRoomOpenService {
 
     private final ItemRepository itemRepository;
-    private final ItemAccessPolicy itemAccessPolicy;
     private final CommunityMembershipQuery membershipQuery;
     private final BlockQuery blockQuery;
     private final SanctionService sanctionService;
@@ -48,12 +47,10 @@ public class ChatRoomOpenService {
         if (item.isOwnedBy(requesterId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
-        if (!itemAccessPolicy.canView(item, requesterId)) {
+        if (item.isDeleted() || item.getVisibility() != ItemVisibility.PUBLIC) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
-        if (membershipQuery.findActiveCommunityId(requesterId)
-            .filter(communityId -> communityId.equals(item.getCommunityId()))
-            .isEmpty()) {
+        if (!membershipQuery.hasValidMembership(requesterId, item.getCommunityId())) {
             throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
         }
         if (blockQuery.isBlockedBetween(requesterId, item.getOwnerId())) {

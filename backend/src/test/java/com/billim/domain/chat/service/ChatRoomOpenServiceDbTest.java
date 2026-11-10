@@ -6,7 +6,7 @@ import com.billim.domain.chat.repository.ChatRoomRepository;
 import com.billim.domain.community.service.CommunityMembershipQuery;
 import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.repository.CategoryRepository;
-import com.billim.domain.item.service.ItemAccessPolicy;
+import com.billim.domain.item.entity.ItemVisibility;
 import com.billim.domain.safety.service.BlockQuery;
 import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
@@ -27,12 +27,9 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @DataJpaTest
@@ -61,7 +58,6 @@ class ChatRoomOpenServiceDbTest {
     @Autowired ChatRoomRepository roomRepository;
     @Autowired ChatParticipantRepository participantRepository;
     @Autowired ChatRoomOpenService openService;
-    @MockitoBean ItemAccessPolicy accessPolicy;
     @MockitoBean CommunityMembershipQuery membershipQuery;
     @MockitoBean BlockQuery blockQuery;
     @MockitoBean SanctionService sanctionService;
@@ -83,14 +79,12 @@ class ChatRoomOpenServiceDbTest {
         em.persist(item);
         em.flush();
         itemId = item.getId();
-        when(membershipQuery.findActiveCommunityId(REQUESTER_ID))
-            .thenReturn(Optional.of(100L));
+        when(membershipQuery.hasValidMembership(REQUESTER_ID, 100L)).thenReturn(true);
     }
 
     @Test
     @DisplayName("문의 방을 만들고 같은 문의를 반복하면 기존 방과 참여자 두 명을 재사용한다")
     void createsAndReusesRoom() {
-        when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(true);
 
         ChatRoom created = openService.open(itemId, REQUESTER_ID);
         ChatRoom reopened = openService.open(itemId, REQUESTER_ID);
@@ -110,7 +104,7 @@ class ChatRoomOpenServiceDbTest {
                 assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.FORBIDDEN)
             );
 
-        when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(false);
+        em.find(Item.class, itemId).changeVisibility(ItemVisibility.HIDDEN, Instant.now());
         assertThatThrownBy(() -> openService.open(itemId, REQUESTER_ID))
             .isInstanceOfSatisfying(BusinessException.class, exception ->
                 assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND)
@@ -123,7 +117,6 @@ class ChatRoomOpenServiceDbTest {
     @Test
     @DisplayName("제재된 요청자는 새 문의 방을 만들 수 없다")
     void restrictedRequesterCannotCreateRoom() {
-        when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(true);
         when(sanctionService.isRestricted(REQUESTER_ID)).thenReturn(true);
 
         assertThatThrownBy(() -> openService.open(itemId, REQUESTER_ID))
@@ -136,7 +129,6 @@ class ChatRoomOpenServiceDbTest {
     @Test
     @DisplayName("정상 회원도 제재된 물건 소유자에게 새 문의 방을 열 수 없다")
     void restrictedOwnerCannotReceiveNewRoom() {
-        when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(true);
         when(sanctionService.isRestricted(OWNER_ID)).thenReturn(true);
         assertThatThrownBy(() -> openService.open(itemId, REQUESTER_ID))
             .isInstanceOfSatisfying(BusinessException.class, exception ->
@@ -148,7 +140,6 @@ class ChatRoomOpenServiceDbTest {
     @Test
     @DisplayName("문의 방이 이미 있어도 제재된 요청자는 열기 요청으로 재사용할 수 없다")
     void restrictedRequesterCannotReopenRoom() {
-        when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(true);
         ChatRoom existing = openService.open(itemId, REQUESTER_ID);
         when(sanctionService.isRestricted(REQUESTER_ID)).thenReturn(true);
 
@@ -163,9 +154,7 @@ class ChatRoomOpenServiceDbTest {
     @Test
     @DisplayName("유효한 동네 소속이 없으면 문의 방을 만들지 않는다")
     void invalidMembershipCannotCreateRoom() {
-        when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(true);
-        when(membershipQuery.findActiveCommunityId(REQUESTER_ID))
-            .thenReturn(Optional.empty());
+        when(membershipQuery.hasValidMembership(REQUESTER_ID, 100L)).thenReturn(false);
 
         assertThatThrownBy(() -> openService.open(itemId, REQUESTER_ID))
             .isInstanceOfSatisfying(BusinessException.class, exception ->
@@ -176,7 +165,6 @@ class ChatRoomOpenServiceDbTest {
     @Test
     @DisplayName("차단 관계이면 문의 방을 새로 만들지 않는다")
     void blockedRequesterCannotCreateRoom() {
-        when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(true);
         when(blockQuery.isBlockedBetween(REQUESTER_ID, OWNER_ID)).thenReturn(true);
 
         assertThatThrownBy(() -> openService.open(itemId, REQUESTER_ID))
@@ -196,7 +184,6 @@ class ChatRoomOpenServiceDbTest {
             """).executeUpdate();
         insertRental(9101L, REQUESTER_ID);
         insertRental(9102L, 3L);
-        when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(true);
 
         Long roomId = openService.open(itemId, REQUESTER_ID).getId();
         openService.open(itemId, REQUESTER_ID);

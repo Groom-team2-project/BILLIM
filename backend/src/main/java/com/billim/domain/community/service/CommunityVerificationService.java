@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -38,7 +39,7 @@ public class CommunityVerificationService {
 
     private final CommunityQueryService communityQueryService;
     private final CommunityMembershipRepository membershipRepository;
-    private final ActiveCommunityWriter activeCommunityWriter;
+    private final CurrentCommunityStore currentCommunityStore;
     private final RegionResolver regionResolver;
     private final Clock clock;
 
@@ -51,14 +52,14 @@ public class CommunityVerificationService {
     public CommunityVerificationService(
             CommunityQueryService communityQueryService,
             CommunityMembershipRepository membershipRepository,
-            ActiveCommunityWriter activeCommunityWriter,
+            CurrentCommunityStore currentCommunityStore,
             RegionResolver regionResolver,
             Clock clock,
             @Value("${billim.community.verification.max-accuracy-meters:5000}") double maxAccuracyMeters,
             @Value("${billim.community.verification.accuracy-tolerance:true}") boolean accuracyTolerance) {
         this.communityQueryService = communityQueryService;
         this.membershipRepository = membershipRepository;
-        this.activeCommunityWriter = activeCommunityWriter;
+        this.currentCommunityStore = currentCommunityStore;
         this.regionResolver = regionResolver;
         this.clock = clock;
         this.maxAccuracyMeters = maxAccuracyMeters;
@@ -75,18 +76,15 @@ public class CommunityVerificationService {
         Community community = communityQueryService.requireActive(communityId);
         Method method = requireVerified(community, location);
 
-        activeCommunityWriter.lock(memberId);
+        currentCommunityStore.lock(memberId);
         Instant now = clock.instant();
 
-        leavePreviousMembership(memberId, communityId, now);
-        // 이전 소속을 먼저 DB에 내린다. 한 번에 flush하면 Hibernate가 INSERT를 UPDATE보다 앞세워
-        // 새 ACTIVE가 들어간 뒤 이전 ACTIVE가 내려가고, 활성 소속 유일 제약에 걸린다. (V22)
+        CommunityMembership membership = joinOrReverify(memberId, communityId, now);
+        // 잠금 안에서 DB에 반영한다. 슬롯 유니크(V23) 위반을 여기서 받아야 한다
         membershipRepository.flush();
 
-        CommunityMembership membership = activateMembership(memberId, communityId, now);
-        membershipRepository.flush();
-
-        activeCommunityWriter.select(memberId, communityId, now);
+        // 방금 인증한 동네를 현재 동네로 삼는다. 저장 동네가 둘이어도 피드 기준은 하나다
+        currentCommunityStore.select(memberId, communityId, now);
 
         // 좌표·정확도는 남기지 않는다. 어느 동네를 언제 어떤 기준으로 확인했는지만 기록한다
         log.info("동네 인증: memberId={} communityId={} 판정={}", memberId, communityId, method);
@@ -156,22 +154,52 @@ public class CommunityVerificationService {
         REGION, RADIUS
     }
 
-    private void leavePreviousMembership(long memberId, long communityId, Instant now) {
-        Optional<CommunityMembership> previous =
-                membershipRepository.findByMemberIdAndStatus(memberId, MembershipStatus.ACTIVE);
+    /**
+     * 저장 동네에 더하거나, 이미 저장된 동네면 인증만 갱신한다.
+     *
+     * <p>예전에는 다른 동네를 인증하면 이전 소속을 이탈시켰다. 이제 둘까지 쌓이고, 셋째는
+     * 거부한다 — 어느 동네를 뺄지는 회원이 정할 일이다(E_076 이탈). 자동으로 밀어내면
+     * 모르는 사이에 그 동네 거래 권한을 잃는다.
+     *
+     * <p>같은 동네를 다시 인증하면 새 행을 만들지 않고 기존 행을 갱신한다 (ERD 4.2).
+     */
+    private CommunityMembership joinOrReverify(long memberId, long communityId, Instant now) {
+        List<CommunityMembership> saved = membershipRepository
+                .findByMemberIdAndStatusOrderByActiveSlotAsc(memberId, MembershipStatus.ACTIVE);
+        Optional<CommunityMembership> existing =
+                membershipRepository.findByMemberIdAndCommunityId(memberId, communityId);
 
-        previous.filter(membership -> membership.getCommunityId() != communityId)
-                .ifPresent(membership -> membership.leave(now));
+        Optional<CommunityMembership> alreadySaved =
+                existing.filter(CommunityMembership::isActive);
+        if (alreadySaved.isPresent()) {
+            CommunityMembership membership = alreadySaved.get();
+            membership.reverify(now);
+            return membership;
+        }
+        if (saved.size() >= CommunityMembership.MAX_ACTIVE) {
+            throw new BusinessException(ErrorCode.COMMUNITY_LIMIT_EXCEEDED);
+        }
+
+        int slot = freeSlot(saved);
+        if (existing.isPresent()) {
+            CommunityMembership membership = existing.get();
+            membership.rejoin(slot, now);
+            return membership;
+        }
+        return membershipRepository.save(
+                CommunityMembership.verified(memberId, communityId, slot, now));
     }
 
-    /** 같은 동네를 다시 인증하면 새 행을 만들지 않고 기존 행을 갱신한다 (ERD 4.2) */
-    private CommunityMembership activateMembership(long memberId, long communityId, Instant now) {
-        return membershipRepository.findByMemberIdAndCommunityId(memberId, communityId)
-                .map(membership -> {
-                    membership.reverify(now);
-                    return membership;
-                })
-                .orElseGet(() -> membershipRepository.save(
-                        CommunityMembership.verified(memberId, communityId, now)));
+    /** 쓰이지 않는 가장 작은 슬롯. 상한 검사를 지난 뒤에만 부른다 */
+    private int freeSlot(List<CommunityMembership> saved) {
+        for (int slot = 1; slot <= CommunityMembership.MAX_ACTIVE; slot++) {
+            int candidate = slot;
+            boolean taken = saved.stream()
+                    .anyMatch(membership -> candidate == membership.getActiveSlot());
+            if (!taken) {
+                return slot;
+            }
+        }
+        throw new IllegalStateException("빈 슬롯이 없다. 상한 검사를 건너뛰었다");
     }
 }

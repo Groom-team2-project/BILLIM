@@ -35,7 +35,6 @@ import org.testcontainers.utility.DockerImageName;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -92,8 +91,7 @@ class ChatRoomViewFlowDbTest {
             LocalDate.now().minusDays(1), LocalDate.now().plusDays(30), Instant.now()
         );
         itemId = itemRepository.save(item).getId();
-        when(membershipQuery.findActiveCommunityId(requesterId))
-            .thenReturn(Optional.of(COMMUNITY_ID));
+        when(membershipQuery.hasValidMembership(requesterId, COMMUNITY_ID)).thenReturn(true);
     }
 
     @Test
@@ -154,16 +152,14 @@ class ChatRoomViewFlowDbTest {
             .containsExactly(String.valueOf(rentalId));
         assertThat(sanctioned.access().reason()).isEqualTo("EXISTING_RENTAL_ONLY");
 
-        when(membershipQuery.findActiveCommunityId(requesterId))
-            .thenReturn(Optional.empty());
+        when(membershipQuery.hasValidMembership(requesterId, COMMUNITY_ID)).thenReturn(false);
         ChatRoomResponse changed = viewService.get(roomId, requesterId);
         assertThat(changed.access().canSend()).isFalse();
         assertThat(changed.access().allowedRentalIds()).isEmpty();
         assertThat(changed.access().reason()).isEqualTo("COMMUNITY_CHANGED");
 
         when(sanctionService.isRestricted(requesterId)).thenReturn(false);
-        when(membershipQuery.findActiveCommunityId(requesterId))
-            .thenReturn(Optional.of(COMMUNITY_ID));
+        when(membershipQuery.hasValidMembership(requesterId, COMMUNITY_ID)).thenReturn(true);
         Item item = itemRepository.findById(itemId).orElseThrow();
         item.changeVisibility(ItemVisibility.HIDDEN, Instant.now());
         itemRepository.save(item);

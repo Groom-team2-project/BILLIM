@@ -29,7 +29,6 @@ import com.billim.global.exception.ErrorCode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -88,8 +87,8 @@ class ChatSanctionRentalPolicyDbTest {
     void setUp() {
         owner = members.saveAndFlush(Member.register("소유자")).getId();
         borrower = members.saveAndFlush(Member.register("요청자")).getId();
-        when(memberships.findActiveCommunityId(owner)).thenReturn(Optional.of(100L));
-        when(memberships.findActiveCommunityId(borrower)).thenReturn(Optional.of(100L));
+        when(memberships.hasValidMembership(owner, 100L)).thenReturn(true);
+        when(memberships.hasValidMembership(borrower, 100L)).thenReturn(true);
         itemId = items.saveAndFlush(Item.create(owner, 100L,
             categories.findByActiveTrueOrderBySortOrderAscIdAsc().getFirst().getId(), 10L,
             "정리 대화 검증", null, LocalDate.now(), LocalDate.now().plusDays(30), now)).getId();
@@ -267,7 +266,7 @@ class ChatSanctionRentalPolicyDbTest {
         Long legacyItem = legacyItem();
         Rental approved = legacyRental(legacyItem, borrower, now.minusSeconds(120));
         Long stranger = members.saveAndFlush(Member.register("무관한 회원")).getId();
-        when(memberships.findActiveCommunityId(stranger)).thenReturn(Optional.of(100L));
+        when(memberships.hasValidMembership(stranger, 100L)).thenReturn(true);
         sanction(owner, now.minusSeconds(60), ReportActionType.BAN);
 
         assertCode(() -> view.open(legacyItem, stranger));

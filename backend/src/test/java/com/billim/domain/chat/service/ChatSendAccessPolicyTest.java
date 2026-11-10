@@ -168,8 +168,7 @@ class ChatSendAccessPolicyTest {
             Instant.parse("2026-10-14T00:00:00Z")
         );
         when(itemRepository.findById(ITEM_ID)).thenReturn(Optional.of(item));
-        when(membershipQuery.findActiveCommunityId(MEMBER_ID))
-            .thenReturn(Optional.of(COMMUNITY_ID));
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(true);
     }
 
     private ChatRoom room() {

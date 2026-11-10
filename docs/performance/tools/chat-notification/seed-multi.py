@@ -10,6 +10,7 @@ import sys
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from membership_sql import membership_slot_fields
 
 
 HERE = Path(__file__).resolve().parent
@@ -41,6 +42,8 @@ def main():
         refresh_and_save_csrf(fixtures)
         return
 
+    command = ["docker", "compose", "-f", str(COMPOSE), "exec", "-T", "mysql", "sh", "-c", 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot billim_perf']
+    slot_column, slot_value = membership_slot_fields(command)
     statements = ["START TRANSACTION;"]
     statements.append("INSERT INTO communities (id,name,display_address,center_latitude,center_longitude,verification_radius_m,status,created_at,updated_at) VALUES (910000,'Performance Test Community','Local only',35.0,127.0,1000,'ACTIVE',UTC_TIMESTAMP(6),UTC_TIMESTAMP(6));")
     statements.append("INSERT INTO community_places (id,community_id,name,latitude,longitude,active,created_at,updated_at) VALUES (910000,910000,'Performance Test Place',35.0,127.0,TRUE,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6));")
@@ -57,7 +60,7 @@ def main():
             token = secrets.token_urlsafe(32)
             csrf = secrets.token_urlsafe(32)
             statements.append(f"INSERT INTO members (id,display_name,role,status,active_community_id,version,created_at,updated_at) VALUES ({member_id},'Perf User {member_id}','USER','ACTIVE',910000,0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6));")
-            statements.append(f"INSERT INTO community_memberships (member_id,community_id,status,verified_at,verification_expires_at,created_at,updated_at) VALUES ({member_id},910000,'ACTIVE',UTC_TIMESTAMP(6),DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 30 DAY),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6));")
+            statements.append(f"INSERT INTO community_memberships (member_id,community_id,status{slot_column},verified_at,verification_expires_at,created_at,updated_at) VALUES ({member_id},910000,'ACTIVE'{slot_value},UTC_TIMESTAMP(6),DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 30 DAY),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6));")
             statements.append(f"INSERT INTO auth_sessions (member_id,token_hash,csrf_token,last_seen_at,expires_at,absolute_expires_at,created_at,updated_at) VALUES ({member_id},'{hashlib.sha256(token.encode()).hexdigest()}',{sql_string(csrf)},UTC_TIMESTAMP(6),DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 2 HOUR),DATE_ADD(UTC_TIMESTAMP(6),INTERVAL 24 HOUR),UTC_TIMESTAMP(6),UTC_TIMESTAMP(6));")
             users.append({"memberId": member_id, "token": token, "csrf": csrf})
 
@@ -77,7 +80,6 @@ def main():
         fixtures.append({"roomId": room_id, "owner": users[0], "requester": users[1], "notificationIds": ids})
 
     statements.append("COMMIT;")
-    command = ["docker", "compose", "-f", str(COMPOSE), "exec", "-T", "mysql", "sh", "-c", 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot billim_perf']
     subprocess.run(command, input="\n".join(statements), text=True, check=True)
     save_fixture(fixtures)
     refresh_and_save_csrf(fixtures)

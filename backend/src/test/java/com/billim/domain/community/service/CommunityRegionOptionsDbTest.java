@@ -109,15 +109,18 @@ class CommunityRegionOptionsDbTest {
      */
     private void addMember(long communityId, String status, int expiresInDays) {
         long memberId = memberRepository.save(Member.register("이웃" + communityId + status)).getId();
-        // 이탈한 소속은 left_at이 있어야 한다 (ck_community_memberships_left_at)
-        String leftAt = "LEFT".equals(status) ? "NOW(6)" : "NULL";
+        // 이탈한 소속은 left_at이 있어야 하고 슬롯은 비어야 한다.
+        // 저장 동네(ACTIVE)는 슬롯 1~2를 가져야 한다 (ck_community_memberships_active_slot, V23)
+        boolean left = "LEFT".equals(status);
+        String leftAt = left ? "NOW(6)" : "NULL";
+        String slot = left ? "NULL" : "1";
         jdbc.update("""
                 INSERT INTO community_memberships
-                    (member_id, community_id, status, verified_at, verification_expires_at,
-                     left_at, created_at, updated_at)
-                VALUES (?, ?, ?, DATE_SUB(NOW(6), INTERVAL 60 DAY),
+                    (member_id, community_id, status, active_slot, verified_at,
+                     verification_expires_at, left_at, created_at, updated_at)
+                VALUES (?, ?, ?, %s, DATE_SUB(NOW(6), INTERVAL 60 DAY),
                         DATE_ADD(NOW(6), INTERVAL ? DAY), %s, NOW(6), NOW(6))
-                """.formatted(leftAt), memberId, communityId, status, expiresInDays);
+                """.formatted(slot, leftAt), memberId, communityId, status, expiresInDays);
     }
 
     // ---------- 단계 옵션 ----------

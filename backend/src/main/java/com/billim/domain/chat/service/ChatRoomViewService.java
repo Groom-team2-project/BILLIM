@@ -78,6 +78,8 @@ public class ChatRoomViewService {
         var items = itemRepository.findAllById(itemIds).stream()
             .collect(Collectors.toMap(Item::getId, Function.identity()));
         Long communityId = membershipQuery.findActiveCommunityId(memberId).orElse(null);
+        Set<Long> validCommunities = items.values().stream().map(Item::getCommunityId).distinct()
+            .filter(id -> membershipQuery.hasValidMembership(memberId, id)).collect(Collectors.toSet());
         boolean restricted = sanctionService.isRestricted(memberId);
         Set<Long> restrictedOthers = sanctionService.findRestrictedAmong(
             bases.stream().map(base -> Long.valueOf(base.otherMember().id())).distinct().toList());
@@ -101,7 +103,7 @@ public class ChatRoomViewService {
         return bases.stream().map(base -> {
             Item item = items.get(Long.valueOf(base.itemId()));
             if (item == null) throw new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
-            var restriction = !Objects.equals(item.getCommunityId(), communityId)
+            var restriction = !validCommunities.contains(item.getCommunityId())
                 ? ChatRoomAccessPolicy.Restriction.COMMUNITY_CHANGED
                 : item.getVisibility() != ItemVisibility.PUBLIC ? ChatRoomAccessPolicy.Restriction.ITEM_UNAVAILABLE
                 : restricted || restrictedOthers.contains(Long.valueOf(base.otherMember().id()))
@@ -147,9 +149,7 @@ public class ChatRoomViewService {
         Item item = itemRepository.findById(room.getItemId())
             .orElseThrow(() -> new BusinessException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        Long activeCommunityId =
-            membershipQuery.findActiveCommunityId(memberId).orElse(null);
-        if (!item.getCommunityId().equals(activeCommunityId)) {
+        if (!membershipQuery.hasValidMembership(memberId, item.getCommunityId())) {
             return ChatRoomAccessPolicy.Restriction.COMMUNITY_CHANGED;
         }
 
