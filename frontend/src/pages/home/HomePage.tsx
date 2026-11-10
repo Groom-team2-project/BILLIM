@@ -8,11 +8,12 @@ import { DDay } from "@/components/ui/d-day";
 import { Meta } from "@/components/ui/meta";
 import { SectionHead } from "@/components/ui/section-head";
 import { CommunitySheet } from "@/components/custom/community/CommunitySheet";
-import { useActiveCommunity } from "@/stores/community";
 import { CategoryGrid } from "@/components/custom/items/CategoryGrid";
 import { ItemCard } from "@/components/custom/items/ItemCard";
 import { ApiError } from "@/api/client";
 import { type ApiHome, getHome } from "@/api/home";
+import { type ApiNotice, getCommunityNotices } from "@/api/notices";
+import { NoticeBar } from "@/components/custom/notices";
 import { fillPlace, toCardItem } from "@/utils/itemView";
 import { useCommunityPlaces } from "@/hooks/useCommunityPlaces";
 import { STATUS_UI } from "@/components/custom/rentals/status";
@@ -32,7 +33,6 @@ type Home =
 
 export function HomePage() {
   const navigate = useNavigate();
-  const activeName = useActiveCommunity();
   const [commOpen, setCommOpen] = useState(false);
   const [home, setHome] = useState<Home>({ state: "loading" });
   const places = useCommunityPlaces();
@@ -57,7 +57,23 @@ export function HomePage() {
   }, [retry, navigate]);
 
   const data = home.state === "ok" ? home.data : null;
-  const communityName = data?.community.name ?? activeName;
+  const communityId = data?.community.id;
+  const [notice, setNotice] = useState<ApiNotice | null>(null);
+
+  // 동네 공지 첫 줄 (E_063) — 고정 우선·최신순 1건. 실패해도 홈은 그대로라 표시만 생략
+  useEffect(() => {
+    if (!communityId) return;
+    let alive = true;
+    getCommunityNotices(communityId, 0, 1)
+      .then((page) => alive && setNotice(page.items[0] ?? null))
+      .catch(() => alive && setNotice(null));
+    return () => {
+      alive = false;
+    };
+  }, [communityId]);
+
+  // 홈 응답 전에는 이름 대신 자리 문구
+  const communityName = data?.community.name ?? "내 동네";
   const summary = toRentalSummaryCells(
     data?.myRentals ?? { borrowed: EMPTY_COUNTS, lent: EMPTY_COUNTS, nextRentals: [] },
   );
@@ -82,6 +98,7 @@ export function HomePage() {
             </span>
           ) : null}
         </div>
+        {data && notice ? <NoticeBar notice={notice} /> : null}
         <h1 className={c("t-display home-greeting")}>
           잠깐 필요한 물건,
           <br />

@@ -6,7 +6,6 @@ import { Icon } from "@/components/ui/icon";
 import { PageHeader } from "@/components/layout/header";
 import { Alert } from "@/components/ui/alert";
 import { ErrorState } from "@/components/ui/state";
-import { addCommunity } from "@/stores/community";
 import { MapView } from "@/components/custom/items/MapView";
 import { ApiError } from "@/api/client";
 import { type ApiCommunity, getCommunity, verifyLocation } from "@/api/communities";
@@ -68,7 +67,6 @@ export function VerifyPage() {
       const membership = await verifyLocation(communityId, coords);
 
       if (isAdd) {
-        addCommunity(membership.communityName, community?.displayAddress ?? "");
         toast(`${membership.communityName} 동네 인증을 마쳤어요`);
         navigate("/");
       } else {

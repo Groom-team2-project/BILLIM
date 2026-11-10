@@ -35,6 +35,7 @@ const OWN_HEADER = [
   /^\/sanctions$/,
   /^\/register$/,
   /^\/notifications$/,
+  /^\/communities\/[^/]+\/notices$/,
   /^\/neighborhoods$/,
   /^\/members\//,
   /^\/policy\//,

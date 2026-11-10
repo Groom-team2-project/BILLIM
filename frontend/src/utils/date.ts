@@ -18,3 +18,9 @@ export function rangeDays(start: number[], end: number[]) {
   const b = new Date(end[2] ?? 2026, end[0] - 1, end[1]);
   return Math.round((b.getTime() - a.getTime()) / 864e5) + 1;
 }
+
+/** 공지 날짜 표기 — 프로토타입 형식 `9/20` */
+export function noticeDate(iso: string): string {
+  const at = new Date(iso);
+  return `${at.getMonth() + 1}/${at.getDate()}`;
+}

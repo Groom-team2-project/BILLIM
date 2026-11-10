@@ -8,6 +8,7 @@ import { JoinPage } from "@/pages/onboarding";
 import { VerifyPage } from "@/pages/onboarding";
 import { JoinDonePage } from "@/pages/onboarding";
 import { HomePage } from "@/pages/home";
+import { NoticesPage } from "@/pages/notices";
 import { SearchPage } from "@/pages/search";
 import { RegisterPage } from "@/pages/register";
 import { ChatPage } from "@/pages/chat";
@@ -57,6 +58,7 @@ const router = createBrowserRouter([
       { path: "chat/:chatId?", element: <ChatPage /> },
       { path: "rentals", element: <RentalsPage /> },
       { path: "notifications", element: <NotificationsPage /> },
+      { path: "communities/:communityId/notices", element: <NoticesPage /> },
       { path: "profile", element: <ProfilePage /> },
       { path: "sanctions", element: <SanctionsPage /> },
       { path: "members/:memberId", element: <NeighborPage /> },
