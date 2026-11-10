@@ -1,7 +1,7 @@
 # API 명세서
 
-> 버전 : v0.1.26\
-> 수정일 : 2026.11.10
+> 버전 : v0.1.27\
+> 수정일 : 2026.11.11
 
 ## 0. 공통 규약
 
@@ -782,7 +782,7 @@
 ### 10.1 D_041 물건 문의 채팅방 열기
 
 - `POST /api/v1/chat/rooms` · 박선우 · P1
-- 설명: 물건 공개 조회 권한·본인 물건 아님·차단 없음. item+requester UNIQUE로 방 재사용. 동일 당사자 기존 대여 연결. 생성/재사용 모두 200. 기존 거래 당사자의 기존 방 접근은 상세 API 사용.
+- 설명: PUBLIC·미삭제 물건·본인 물건 아님·차단 없음. 요청자의 해당 물건 동네 유효 소속 검사. 현재 선택 동네와 달라도 유효한 저장 동네이면 허용하며 현재 동네 ID만으로 허용하지 않음. item+requester UNIQUE로 방 재사용. 동일 당사자 기존 대여 연결. 생성/재사용 모두 200. 기존 거래 당사자의 기존 방 접근은 상세 API 사용.
 - 요청 본문: CreateRoom
 - 성공 응답: 200 ChatRoom
 - 관련 테이블: chat_rooms, chat_participants, rentals
@@ -807,7 +807,7 @@
 ### 10.3 D_043 채팅방 정보·연결 거래
 
 - `GET /api/v1/chat/rooms/{roomId}` · 박선우 · P1
-- 설명: 참여자만. 차단 후 읽기는 가능하고 access에 전송 제한과 기존 거래 예외 반환.
+- 설명: 참여자만. 차단 후 읽기는 가능하고 access에 전송 제한과 기존 거래 예외 반환. 채팅 권한은 현재 선택 동네가 아닌 물건 동네의 유효 소속 기준. 현재 동네 전환만으로 전송 권한을 잃지 않으며, 소속 이탈·인증 만료 시 COMMUNITY_CHANGED 반환. 목록에도 같은 기준 적용. 물건·제재·차단 제한 별도 유지.
 - 요청 본문: 없음
 - 성공 응답: 200 ChatRoom
 - 관련 테이블: chat_rooms, rentals, blocks, sanctions
@@ -832,7 +832,7 @@
 ### 10.5 D_045 텍스트 메시지 전송
 
 - `POST /api/v1/chat/rooms/{roomId}/messages` · 박선우 · P1
-- 설명: 참여자·전송 가능 검사. 차단/제재 예외에는 APPROVED/ACTIVE 거래 rentalId 필수. 방 잠금으로 sequence 할당. clientMessageId 동일+같은 내용이면 기존 메시지, 다른 내용 409 MESSAGE_KEY_REUSED. 시스템 메시지를 클라이언트가 생성할 수 없음.
+- 설명: 참여자·전송 가능 검사. 물건 동네의 유효 소속 검사로 저장 동네 양쪽 전송 허용. 현재 동네 선택만으로는 허용하지 않으며 소속 이탈·인증 만료 시 COMMUNITY_VERIFICATION_REQUIRED. 차단/제재 예외에는 APPROVED/ACTIVE 거래 rentalId 필수. 방 잠금으로 sequence 할당. clientMessageId 동일+같은 내용이면 기존 메시지, 다른 내용 409 MESSAGE_KEY_REUSED. 시스템 메시지를 클라이언트가 생성할 수 없음.
 - 요청 본문: SendMessage
 - 성공 응답: 201 Message
 - 관련 테이블: messages, chat_rooms
