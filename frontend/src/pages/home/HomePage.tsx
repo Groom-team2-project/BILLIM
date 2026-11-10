@@ -8,7 +8,6 @@ import { DDay } from "@/components/ui/d-day";
 import { Meta } from "@/components/ui/meta";
 import { SectionHead } from "@/components/ui/section-head";
 import { CommunitySheet } from "@/components/custom/community/CommunitySheet";
-import { useActiveCommunity } from "@/stores/community";
 import { CategoryGrid } from "@/components/custom/items/CategoryGrid";
 import { ItemCard } from "@/components/custom/items/ItemCard";
 import { ApiError } from "@/api/client";
@@ -34,7 +33,6 @@ type Home =
 
 export function HomePage() {
   const navigate = useNavigate();
-  const activeName = useActiveCommunity();
   const [commOpen, setCommOpen] = useState(false);
   const [home, setHome] = useState<Home>({ state: "loading" });
   const places = useCommunityPlaces();
@@ -74,7 +72,8 @@ export function HomePage() {
     };
   }, [communityId]);
 
-  const communityName = data?.community.name ?? activeName;
+  // 홈 응답 전에는 이름 대신 자리 문구
+  const communityName = data?.community.name ?? "내 동네";
   const summary = toRentalSummaryCells(
     data?.myRentals ?? { borrowed: EMPTY_COUNTS, lent: EMPTY_COUNTS, nextRentals: [] },
   );

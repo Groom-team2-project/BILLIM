@@ -100,42 +100,12 @@
   cursor: pointer;
 }
 
-.comm-radio {
-  width: 18px;
-  height: 18px;
-  border-radius: var(--radius-full);
-  border: 2px solid var(--line-control);
-  flex: none;
-  position: relative;
-}
-
-.comm-row--on .comm-radio {
-  border-color: var(--action);
-}
-
-.comm-row--on .comm-radio::after {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  border-radius: var(--radius-full);
-  background: var(--action);
-}
-
 .comm-body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-.comm-del {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--size-touch);
-  color: var(--ink-muted);
-  cursor: pointer;
 }
 
 @media (min-width: 760px) {
