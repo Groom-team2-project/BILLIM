@@ -79,11 +79,14 @@ public class ChatRoomViewService {
             .collect(Collectors.toMap(Item::getId, Function.identity()));
         Long communityId = membershipQuery.findActiveCommunityId(memberId).orElse(null);
         boolean restricted = sanctionService.isRestricted(memberId);
+        Set<Long> restrictedOthers = sanctionService.findRestrictedAmong(
+            bases.stream().map(base -> Long.valueOf(base.otherMember().id())).distinct().toList());
         Set<Long> blocked = blockQuery.findBlockedAmong(memberId,
             bases.stream().map(base -> Long.valueOf(base.otherMember().id())).distinct().toList());
         var linked = linkedRentalService.getForRooms(
             bases.stream().map(base -> Long.valueOf(base.id())).toList(), memberId);
         var byRoom = linked.stream().collect(Collectors.groupingBy(Rental::getChatRoomId));
+        Set<String> allowed = Set.copyOf(linkedRentalService.allowedRentalIds(linked));
         var summaries = rentalQueryService.getRentalSummaries(linked.stream().map(Rental::getId).toList(), memberId);
         Map<Long, String> thumbnails = new HashMap<>();
         for (var thumbnail : itemImageRepository.findThumbnails(itemIds)) {
@@ -101,14 +104,15 @@ public class ChatRoomViewService {
             var restriction = !Objects.equals(item.getCommunityId(), communityId)
                 ? ChatRoomAccessPolicy.Restriction.COMMUNITY_CHANGED
                 : item.getVisibility() != ItemVisibility.PUBLIC ? ChatRoomAccessPolicy.Restriction.ITEM_UNAVAILABLE
-                : restricted ? ChatRoomAccessPolicy.Restriction.RESTRICTED
+                : restricted || restrictedOthers.contains(Long.valueOf(base.otherMember().id()))
+                    ? ChatRoomAccessPolicy.Restriction.RESTRICTED
                 : blocked.contains(Long.valueOf(base.otherMember().id())) ? ChatRoomAccessPolicy.Restriction.BLOCKED
                 : ChatRoomAccessPolicy.Restriction.NONE;
             Long roomId = Long.valueOf(base.id());
             var rentals = byRoom.getOrDefault(roomId, List.of());
             return ChatRoomResponse.from(base, rentals.stream().map(r -> summaries.get(r.getId())).toList(),
                 accessPolicy.resolve(roomId, memberId, restriction,
-                    ChatRoomLinkedRentalService.allowedRentalIds(rentals)), thumbnails.get(item.getId()));
+                    rentals.stream().map(r -> String.valueOf(r.getId())).filter(allowed::contains).toList()), thumbnails.get(item.getId()));
         }).toList();
     }
 
@@ -129,7 +133,7 @@ public class ChatRoomViewService {
             resolveRestriction(roomId, memberId);
         ChatAccessResponse access =
             accessPolicy.resolve(roomId, memberId, restriction,
-                ChatRoomLinkedRentalService.allowedRentalIds(linkedRentals));
+                linkedRentalService.allowedRentalIds(linkedRentals));
 
         return ChatRoomResponse.from(base, rentals, access, thumbnails.get(Long.valueOf(base.itemId())));
     }
@@ -153,13 +157,12 @@ public class ChatRoomViewService {
             return ChatRoomAccessPolicy.Restriction.ITEM_UNAVAILABLE;
         }
 
-        if (sanctionService.isRestricted(memberId)) {
-            return ChatRoomAccessPolicy.Restriction.RESTRICTED;
-        }
-
         Long otherMemberId = room.getOwnerId().equals(memberId)
             ? room.getRequesterId()
             : room.getOwnerId();
+        if (sanctionService.isRestricted(memberId) || sanctionService.isRestricted(otherMemberId)) {
+            return ChatRoomAccessPolicy.Restriction.RESTRICTED;
+        }
         if (blockQuery.isBlockedBetween(memberId, otherMemberId)) {
             return ChatRoomAccessPolicy.Restriction.BLOCKED;
         }

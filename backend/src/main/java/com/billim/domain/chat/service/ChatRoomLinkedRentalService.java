@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.Clock;
+import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
@@ -19,6 +21,7 @@ public class ChatRoomLinkedRentalService {
 
     private final ChatRoomRepository roomRepository;
     private final ChatRoomRentalReadRepository rentalReadRepository;
+    private final Clock clock;
 
     @Transactional(readOnly = true)
     public List<Rental> getForRooms(List<Long> roomIds, Long memberId) {
@@ -57,13 +60,18 @@ public class ChatRoomLinkedRentalService {
         return allowedRentalIds(get(roomId, memberId));
     }
 
-    public static List<String> allowedRentalIds(List<Rental> rentals) {
-        return rentals.stream()
+    @Transactional(readOnly = true)
+    public List<String> allowedRentalIds(List<Rental> rentals) {
+        List<Long> candidates = rentals.stream()
             .filter(rental ->
                 rental.getStatus() == RentalStatus.APPROVED
                     || rental.getStatus() == RentalStatus.ACTIVE
             )
-            .map(rental -> String.valueOf(rental.getId()))
+            .map(Rental::getId)
             .toList();
+        if (candidates.isEmpty()) return List.of();
+        var allowed = new java.util.HashSet<>(rentalReadRepository.findAllowedRentalIds(
+            candidates, List.of(RentalStatus.APPROVED, RentalStatus.ACTIVE), Instant.now(clock)));
+        return candidates.stream().filter(allowed::contains).map(String::valueOf).toList();
     }
 }

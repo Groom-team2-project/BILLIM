@@ -57,7 +57,8 @@ public class ChatRoomOpenService {
         if (blockQuery.isBlockedBetween(requesterId, item.getOwnerId())) {
             throw new BusinessException(ErrorCode.BLOCKED_RELATION);
         }
-        if (sanctionService.isRestricted(requesterId)) {
+        if (sanctionService.isRestricted(requesterId)
+            || sanctionService.isRestricted(item.getOwnerId())) {
             throw new BusinessException(ErrorCode.MEMBER_RESTRICTED);
         }
 

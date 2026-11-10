@@ -59,7 +59,8 @@ public class ChatSendAccessPolicy {
         Long otherMemberId = room.getOwnerId().equals(senderId)
             ? room.getRequesterId()
             : room.getOwnerId();
-        boolean restricted = sanctionService.isRestricted(senderId);
+        boolean restricted = sanctionService.isRestricted(senderId)
+            || sanctionService.isRestricted(otherMemberId);
         boolean blocked = blockQuery.isBlockedBetween(senderId, otherMemberId);
 
         if (restricted || blocked) {
