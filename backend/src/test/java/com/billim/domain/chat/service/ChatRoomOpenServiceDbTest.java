@@ -129,6 +129,18 @@ class ChatRoomOpenServiceDbTest {
     }
 
     @Test
+    @DisplayName("정상 회원도 제재된 물건 소유자에게 새 문의 방을 열 수 없다")
+    void restrictedOwnerCannotReceiveNewRoom() {
+        when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(true);
+        when(sanctionService.isRestricted(OWNER_ID)).thenReturn(true);
+        assertThatThrownBy(() -> openService.open(itemId, REQUESTER_ID))
+            .isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MEMBER_RESTRICTED));
+        assertThat(roomRepository.count()).isZero();
+        assertThat(participantRepository.count()).isZero();
+    }
+
+    @Test
     @DisplayName("문의 방이 이미 있어도 제재된 요청자는 열기 요청으로 재사용할 수 없다")
     void restrictedRequesterCannotReopenRoom() {
         when(accessPolicy.canView(any(Item.class), eq(REQUESTER_ID))).thenReturn(true);

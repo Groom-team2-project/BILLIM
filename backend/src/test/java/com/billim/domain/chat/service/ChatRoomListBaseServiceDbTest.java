@@ -46,6 +46,11 @@ class ChatRoomListBaseServiceDbTest {
     @TestConfiguration(proxyBeanMethods = false)
     static class MySql {
         @Bean
+        java.time.Clock clock() {
+            return java.time.Clock.systemUTC();
+        }
+
+        @Bean
         @ServiceConnection
         MySQLContainer mysqlContainer() {
             return new MySQLContainer(DockerImageName.parse("mysql:8.4"));

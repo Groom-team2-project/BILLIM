@@ -140,6 +140,36 @@ class ChatRoomViewServiceTest {
     }
 
     @Test
+    @DisplayName("상대방이 제재 중이면 상세 응답도 승인 전 채팅을 금지한다")
+    void restrictedRecipientCannotReceiveOrdinaryMessage() {
+        givenRoom();
+        when(membershipQuery.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.of(COMMUNITY_ID));
+        when(sanctionService.isRestricted(1L)).thenReturn(true);
+        var response = viewService.get(ROOM_ID, MEMBER_ID);
+        assertThat(response.access().canSend()).isFalse();
+        assertThat(response.access().reason()).isEqualTo("RESTRICTED");
+        assertThat(response.access().allowedRentalIds()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("상대방 제재 전 승인된 미완료 거래만 상세 응답의 정리 대화로 허용한다")
+    void restrictedRecipientAllowsOnlyEligibleRental() {
+        givenRoom();
+        when(membershipQuery.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.of(COMMUNITY_ID));
+        when(sanctionService.isRestricted(1L)).thenReturn(true);
+        Rental rental = mock(Rental.class);
+        when(rental.getId()).thenReturn(501L);
+        when(linkedRentalService.get(ROOM_ID, MEMBER_ID)).thenReturn(List.of(rental));
+        when(linkedRentalService.allowedRentalIds(List.of(rental))).thenReturn(List.of("501"));
+        when(rentalQueryService.getRentalSummary(501L, MEMBER_ID))
+            .thenReturn(mock(RentalSummaryResponse.class));
+        var response = viewService.get(ROOM_ID, MEMBER_ID);
+        assertThat(response.access().canSend()).isTrue();
+        assertThat(response.access().reason()).isEqualTo("EXISTING_RENTAL_ONLY");
+        assertThat(response.access().allowedRentalIds()).containsExactly("501");
+    }
+
+    @Test
     @DisplayName("연결 거래는 대여 서비스의 참여자 검증을 거친 요약으로 반환한다")
     void linkedRentalsUseRentalSummaryQuery() {
         givenRoom();
@@ -230,6 +260,22 @@ class ChatRoomViewServiceTest {
         assertThat(response.access().canSend()).isFalse();
         assertThat(response.access().reason()).isEqualTo("BLOCKED");
         assertThat(response.itemThumbnailUrl()).isNull();
+    }
+
+    @Test
+    @DisplayName("목록의 상대방 제재도 일반 채팅 금지로 반환한다")
+    void batchListPreservesRecipientSanction() {
+        var base = new ChatRoomBaseService.RoomBase("901", "101", "100", "전동드릴",
+            new com.billim.domain.member.dto.MemberSummaryResponse("1", "상대", Instant.EPOCH), 0, null, null);
+        when(listBaseService.getFiltered(MEMBER_ID, "ALL", 0, 20)).thenReturn(
+            new ChatRoomListBaseService.RoomBasePage(List.of(base), 0, 20, 1, false));
+        when(itemRepository.findAllById(List.of(ITEM_ID))).thenReturn(List.of(item()));
+        when(membershipQuery.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.of(COMMUNITY_ID));
+        when(sanctionService.findRestrictedAmong(List.of(1L))).thenReturn(java.util.Set.of(1L));
+        var response = viewService.list(MEMBER_ID, "ALL", 0, 20).items().getFirst();
+        assertThat(response.access().canSend()).isFalse();
+        assertThat(response.access().reason()).isEqualTo("RESTRICTED");
+        assertThat(response.access().allowedRentalIds()).isEmpty();
     }
 
     private Item item() {
