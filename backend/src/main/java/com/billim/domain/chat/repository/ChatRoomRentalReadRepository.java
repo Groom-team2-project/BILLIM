@@ -11,6 +11,18 @@ import com.billim.domain.rental.entity.RentalStatus;
 
 public interface ChatRoomRentalReadRepository extends JpaRepository<Rental, Long> {
 
+    @Query("""
+        select rental from Rental rental
+        where rental.itemId = :itemId
+          and rental.ownerId = :ownerId
+          and rental.borrowerId = :requesterId
+          and (rental.chatRoomId is null or rental.chatRoomId = :roomId)
+        """)
+    List<Rental> findForRoomOpening(@Param("itemId") Long itemId,
+                                    @Param("ownerId") Long ownerId,
+                                    @Param("requesterId") Long requesterId,
+                                    @Param("roomId") Long roomId);
+
     /** 현재 유효한 양측 제재보다 먼저 승인된 미완료 거래만 정리 대화에 허용. */
     @Query("""
         select rental.id from Rental rental

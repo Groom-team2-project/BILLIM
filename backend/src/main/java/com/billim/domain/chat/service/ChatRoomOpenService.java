@@ -9,6 +9,7 @@ import com.billim.domain.item.entity.Item;
 import com.billim.domain.item.repository.ItemRepository;
 import com.billim.domain.item.service.ItemAccessPolicy;
 import com.billim.domain.rental.repository.RentalRepository;
+import com.billim.domain.rental.entity.Rental;
 import com.billim.domain.safety.service.BlockQuery;
 import com.billim.domain.safety.service.SanctionService;
 import com.billim.global.exception.BusinessException;
@@ -32,6 +33,7 @@ public class ChatRoomOpenService {
     private final ChatRoomRepository roomRepository;
     private final ChatParticipantRepository participantRepository;
     private final RentalRepository rentalRepository;
+    private final ChatRoomLinkedRentalService linkedRentalService;
 
     @Transactional
     public ChatRoom open(Long itemId, Long requesterId) {
@@ -57,17 +59,31 @@ public class ChatRoomOpenService {
         if (blockQuery.isBlockedBetween(requesterId, item.getOwnerId())) {
             throw new BusinessException(ErrorCode.BLOCKED_RELATION);
         }
-        if (sanctionService.isRestricted(requesterId)
-            || sanctionService.isRestricted(item.getOwnerId())) {
-            throw new BusinessException(ErrorCode.MEMBER_RESTRICTED);
+        boolean restricted = sanctionService.isRestricted(requesterId)
+            || sanctionService.isRestricted(item.getOwnerId());
+        var existingRoom = roomRepository.findByItemIdAndRequesterId(itemId, requesterId);
+        List<Rental> allowedRentals = List.of();
+        if (restricted) {
+            allowedRentals = linkedRentalService.getAllowedForOpening(
+                itemId, item.getOwnerId(), requesterId,
+                existingRoom.map(ChatRoom::getId).orElse(null));
+            if (allowedRentals.isEmpty()) {
+                throw new BusinessException(ErrorCode.MEMBER_RESTRICTED);
+            }
         }
 
-        ChatRoom room = roomRepository.findByItemIdAndRequesterId(itemId, requesterId)
+        ChatRoom room = existingRoom
             .orElseGet(() -> createRoom(item, requesterId));
 
-        rentalRepository.linkChatRoom(
-            itemId, item.getOwnerId(), requesterId, room.getId()
-        );
+        if (restricted) {
+            for (Rental rental : allowedRentals) {
+                rental.linkChatRoom(room.getId());
+            }
+        } else {
+            rentalRepository.linkChatRoom(
+                itemId, item.getOwnerId(), requesterId, room.getId()
+            );
+        }
 
         return room;
     }

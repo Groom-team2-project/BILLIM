@@ -24,6 +24,13 @@ public class ChatRoomLinkedRentalService {
     private final Clock clock;
 
     @Transactional(readOnly = true)
+    public List<Rental> getAllowedForOpening(Long itemId, Long ownerId, Long requesterId, Long roomId) {
+        List<Rental> candidates = rentalReadRepository.findForRoomOpening(itemId, ownerId, requesterId, roomId);
+        var allowed = java.util.Set.copyOf(allowedRentalIds(candidates));
+        return candidates.stream().filter(rental -> allowed.contains(rental.getId().toString())).toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<Rental> getForRooms(List<Long> roomIds, Long memberId) {
         if (memberId == null || memberId < 1) {
             throw new BusinessException(ErrorCode.UNAUTHENTICATED);
