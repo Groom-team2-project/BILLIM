@@ -50,9 +50,7 @@ public class ChatSendAccessPolicy {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
 
-        Long activeCommunityId =
-            membershipQuery.findActiveCommunityId(senderId).orElse(null);
-        if (!item.getCommunityId().equals(activeCommunityId)) {
+        if (!membershipQuery.hasValidMembership(senderId, item.getCommunityId())) {
             throw new BusinessException(ErrorCode.COMMUNITY_VERIFICATION_REQUIRED);
         }
 
