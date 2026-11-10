@@ -3,14 +3,18 @@ import { Button } from "@/components/ui/button";
 import { useUi } from "@/components/overlay/UiContext";
 import { ErrorState, Loading, SkeletonItem } from "@/components/ui/state";
 import { ActionModal } from "@/components/custom/admin/ActionModal";
+import { SanctionsModal } from "@/components/custom/admin/SanctionsModal";
 import { ApiError } from "@/api/client";
 import {
   type ApiAdminReport,
+  type ApiSanction,
   type ReportActionType,
   type ReportReasonCode,
   getAdminReport,
   getAdminReports,
+  getSanctions,
   resolveReport,
+  revokeSanction,
 } from "@/api/reports";
 import adminStyles from "@/components/custom/admin/admin.module.css";
 import { classes } from "@/utils/classes";
@@ -53,6 +57,9 @@ type Target =
   | { state: "error"; row: ApiAdminReport; message: string }
   | { state: "ok"; row: ApiAdminReport };
 
+/** rows가 null이면 불러오는 중 */
+type Sanctions = { rows: ApiSanction[] | null; message?: string };
+
 function dateLabel(iso: string): string {
   const at = new Date(iso);
   return `${at.getMonth() + 1}/${at.getDate()}`;
@@ -65,6 +72,11 @@ export function AdminReportsPage() {
   const [detailRetry, setDetailRetry] = useState(0);
   const [list, setList] = useState<List>({ state: "loading" });
   const [retry, setRetry] = useState(0);
+  // 제재 이력은 회원 단위다. 제재 응답에 이름이 없어 고른 회원의 이름을 함께 들고 있는다
+  const [member, setMember] = useState<{ id: string; name: string } | null>(null);
+  const [sanctions, setSanctions] = useState<Sanctions>({ rows: null });
+  const [sanctionRetry, setSanctionRetry] = useState(0);
+  const [revoking, setRevoking] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let alive = true;
@@ -108,6 +120,46 @@ export function AdminReportsPage() {
       alive = false;
     };
   }, [targetId, detailRetry]);
+
+  /** 고른 회원의 제재 이력 (E_061). 만료·해제된 것도 함께 온다 */
+  const memberId = member?.id;
+  useEffect(() => {
+    if (!memberId) return;
+    let alive = true;
+    getSanctions(memberId)
+      .then((page) => alive && setSanctions({ rows: page.items }))
+      .catch((e: unknown) => {
+        if (!alive) return;
+        setSanctions({
+          rows: null,
+          message: e instanceof ApiError ? e.message : "제재 이력을 불러오지 못했어요.",
+        });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [memberId, sanctionRetry]);
+
+  /** 제재 해제 (E_062). 사유는 필수고 운영 기록에 남는다 */
+  const onRevoke = async (sanctionId: string, reason: string) => {
+    setRevoking(sanctionId);
+    try {
+      await revokeSanction(sanctionId, reason);
+      toast("제재를 해제했어요");
+      // 해제 결과를 목록에 반영한다. 다른 유효 제재가 남아 있을 수 있어 다시 읽는다
+      setSanctions({ rows: null });
+      setSanctionRetry((n) => n + 1);
+    } catch (e: unknown) {
+      toast(e instanceof ApiError ? e.message : "제재를 해제하지 못했어요");
+    } finally {
+      setRevoking(undefined);
+    }
+  };
+
+  const openSanctions = (id: string, name: string) => {
+    setSanctions({ rows: null });
+    setMember({ id, name });
+  };
 
   const onResolve = async (action: ReportActionType, label: string, note: string) => {
     if (target?.state !== "ok") return;
@@ -197,6 +249,13 @@ export function AdminReportsPage() {
                       {dateLabel(report.createdAt)}
                     </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => openSanctions(report.targetMember.id, report.targetMember.displayName)}
+                  >
+                    제재 이력
+                  </Button>
                   {!done ? (
                     <Button variant="secondary" size="sm" onClick={() => setTarget({ state: "loading", row })}>
                       처리
@@ -227,6 +286,21 @@ export function AdminReportsPage() {
           }}
           onClose={() => setTarget(null)}
           onConfirm={onResolve}
+        />
+      ) : null}
+
+      {member ? (
+        <SanctionsModal
+          name={member.name}
+          rows={sanctions.rows}
+          error={sanctions.message}
+          revoking={revoking}
+          onRetry={() => {
+            setSanctions({ rows: null });
+            setSanctionRetry((n) => n + 1);
+          }}
+          onRevoke={onRevoke}
+          onClose={() => setMember(null)}
         />
       ) : null}
     </div>

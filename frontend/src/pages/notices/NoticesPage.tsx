@@ -18,6 +18,9 @@ type List =
   | { state: "error"; message: string }
   | { state: "ok"; rows: ApiNotice[] };
 
+/** 응답이 어느 동네 것인지. 경로의 동네와 다르면 로딩 — 이전 동네 목록·이름 잔존 방지 */
+type Loaded<T> = { communityId: string; value: T };
+
 /**
  * 동네 공지 목록 (E_063). 관리자가 등록한 공지를 이웃이 보는 곳.
  * 고정 우선·최신순 서버 정렬 그대로, 첫 공지만 펼친 채 시작.
@@ -25,8 +28,8 @@ type List =
 export function NoticesPage() {
   const { communityId = "" } = useParams();
   const navigate = useNavigate();
-  const [list, setList] = useState<List>({ state: "loading" });
-  const [communityName, setCommunityName] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState<Loaded<List> | null>(null);
+  const [named, setNamed] = useState<Loaded<string | null> | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
 
@@ -35,7 +38,7 @@ export function NoticesPage() {
     getCommunityNotices(communityId, 0, 50)
       .then((page) => {
         if (!alive) return;
-        setList({ state: "ok", rows: page.items });
+        setLoaded({ communityId, value: { state: "ok", rows: page.items } });
         setOpen(page.items[0]?.id ?? null);
       })
       .catch((e: unknown) => {
@@ -44,7 +47,10 @@ export function NoticesPage() {
           navigate("/login");
           return;
         }
-        setList({ state: "error", message: e instanceof ApiError ? e.message : "공지를 불러오지 못했어요." });
+        setLoaded({
+          communityId,
+          value: { state: "error", message: e instanceof ApiError ? e.message : "공지를 불러오지 못했어요." },
+        });
       });
     return () => {
       alive = false;
@@ -55,12 +61,15 @@ export function NoticesPage() {
   useEffect(() => {
     let alive = true;
     getCommunity(communityId)
-      .then((community) => alive && setCommunityName(community.name))
-      .catch(() => alive && setCommunityName(null));
+      .then((community) => alive && setNamed({ communityId, value: community.name }))
+      .catch(() => alive && setNamed({ communityId, value: null }));
     return () => {
       alive = false;
     };
   }, [communityId]);
+
+  const list: List = loaded?.communityId === communityId ? loaded.value : { state: "loading" };
+  const communityName = named?.communityId === communityId ? named.value : null;
 
   return (
     <div className={c("notices page-window")}>
@@ -81,7 +90,7 @@ export function NoticesPage() {
         <ErrorState
           title="공지를 불러오지 못했어요"
           onRetry={() => {
-            setList({ state: "loading" });
+            setLoaded(null);
             setRetry((n) => n + 1);
           }}
         >

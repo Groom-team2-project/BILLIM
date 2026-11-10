@@ -383,6 +383,7 @@ export const STATUS_UI: Record<RentalStatus, { label: string; icon: string; toke
 | `@/components/custom/profile` | `OwnerCard`, `TrustLines` |
 | `@/components/custom/profile/LiveTrustLines` | `LiveTrustLines` (C_008 조회·로딩·오류·재시도) |
 | `@/components/custom/community` | `CommunitySheet` (내 동네 설정 — 현재 유효 소속 동네 A_005·추가), `CommunityFinder` (이름 검색·현재 위치 주변 동네 후보 → 인증 링크, 가입·동네 추가 공용), `RegionPicker` (시·도 → 시·군·구 → 구 → 읍·면·동 단계 선택 + 범위 내 이름 검색) |
+| `@/components/custom/admin` | `ActionModal` (신고 처리 — 조치 선택 + 메모), `SanctionsModal` (제재 이력 + 해제), `charts`(`StatTile`·`BarsWeek`·`BarsCat`) |
 | `@/components/custom/notices` | `NoticeBar` (홈 상단 공지 한 줄 → 동네 공지 목록), `NoticeTag` (공지·고정 배지) |
 | `@/components/overlay/UiContext` | `useUi()` → `confirm` · `reason` · `report` · `toast` |
 | `@/hooks/useScreenState` | `useScreenState()` → `?state=` 로 로딩·빈·오류 확인 |
