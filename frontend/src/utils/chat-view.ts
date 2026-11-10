@@ -137,7 +137,7 @@ export function chatDateRange(rental: ApiChatRental): string {
 export function chatBlockedMessage(reason: string): string {
   switch (reason) {
     case "BLOCKED": return "차단된 이웃과는 대화할 수 없어요.";
-    case "RESTRICTED": return "이용 제한 중에는 메시지를 보낼 수 없어요.";
+    case "RESTRICTED": return "본인 또는 상대방의 이용 제한으로 대화할 수 없어요. 제한 전에 승인된 진행 거래만 대화할 수 있어요.";
     case "COMMUNITY_CHANGED": return "동네가 달라져 새 메시지를 보낼 수 없어요.";
     case "ITEM_UNAVAILABLE": return "이 물건에 새 메시지를 보낼 수 없어요.";
     default: return "현재 메시지를 보낼 수 없어요.";
