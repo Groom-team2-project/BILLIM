@@ -21,6 +21,8 @@ public enum ErrorCode {
     COMMUNITY_VERIFICATION_REQUIRED(HttpStatus.FORBIDDEN, "동네 인증이 필요합니다."),
     LOCATION_OUTSIDE(HttpStatus.FORBIDDEN, "선택한 동네의 인증 범위 밖입니다."),
     LOCATION_INACCURATE(HttpStatus.UNPROCESSABLE_CONTENT, "위치 정확도가 낮아 확인할 수 없습니다. 잠시 후 다시 시도해 주세요."),
+    COMMUNITY_LIMIT_EXCEEDED(HttpStatus.CONFLICT, "동네는 2개까지 저장할 수 있습니다. 하나를 먼저 지워 주세요."),
+    COMMUNITY_LAST_MEMBERSHIP(HttpStatus.CONFLICT, "마지막 동네는 지울 수 없습니다. 다른 동네를 먼저 인증해 주세요."),
     MEMBER_RESTRICTED(HttpStatus.FORBIDDEN, "이용이 제한된 계정입니다."),
     BLOCKED_RELATION(HttpStatus.FORBIDDEN, "차단 관계로 이용할 수 없습니다."),
     RENTAL_DATE_CONFLICT(HttpStatus.CONFLICT, "선택 기간에 이미 점유된 대여가 있습니다."),

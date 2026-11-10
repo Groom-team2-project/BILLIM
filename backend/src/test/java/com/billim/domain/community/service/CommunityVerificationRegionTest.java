@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -58,15 +59,16 @@ class CommunityVerificationRegionTest {
         regionResolver = mock(RegionResolver.class);
 
         CommunityMembershipRepository membershipRepository = mock(CommunityMembershipRepository.class);
-        when(membershipRepository.findByMemberIdAndStatus(anyLong(), any(MembershipStatus.class)))
-                .thenReturn(Optional.empty());
+        when(membershipRepository.findByMemberIdAndStatusOrderByActiveSlotAsc(
+                anyLong(), any(MembershipStatus.class)))
+                .thenReturn(List.of());
         when(membershipRepository.findByMemberIdAndCommunityId(anyLong(), anyLong()))
                 .thenReturn(Optional.empty());
         when(membershipRepository.save(any(CommunityMembership.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         service = new CommunityVerificationService(
-                queryService, membershipRepository, mock(ActiveCommunityWriter.class),
+                queryService, membershipRepository, mock(CurrentCommunityStore.class),
                 regionResolver, Clock.fixed(Instant.parse("2026-10-19T00:00:00Z"), ZoneOffset.UTC),
                 MAX_ACCURACY_M, true);
     }

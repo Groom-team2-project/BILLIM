@@ -16,7 +16,7 @@ class CommunityMembershipTest {
     private static final long COMMUNITY = 100L;
 
     private CommunityMembership verified() {
-        return CommunityMembership.verified(MEMBER, COMMUNITY, NOW);
+        return CommunityMembership.verified(MEMBER, COMMUNITY, 1, NOW);
     }
 
     @Test
@@ -77,13 +77,16 @@ class CommunityMembershipTest {
     }
 
     @Test
-    @DisplayName("재인증하면 같은 소속이 다시 활성이 되고 만료가 연장되며 이탈 기록이 지워진다")
-    void reverifyReactivatesAndExtends() {
+    @DisplayName("이탈한 동네를 다시 인증하면 슬롯을 새로 받고 만료가 연장되며 이탈 기록이 지워진다")
+    void rejoinReactivatesAndExtends() {
         CommunityMembership membership = verified();
         membership.leave(NOW.plusSeconds(60));
+        assertThat(membership.getActiveSlot()).isNull();
         Instant reverifiedAt = NOW.plus(Duration.ofDays(40));
 
-        membership.reverify(reverifiedAt);
+        membership.rejoin(2, reverifiedAt);
+
+        assertThat(membership.getActiveSlot()).isEqualTo(2);
 
         assertThat(membership.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
         assertThat(membership.getVerifiedAt()).isEqualTo(reverifiedAt);

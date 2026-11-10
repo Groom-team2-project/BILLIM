@@ -3,6 +3,7 @@ package com.billim.domain.community.service;
 import com.billim.MockChatRedisListener;
 
 import com.billim.domain.community.dto.MembershipResponse;
+import com.billim.domain.community.dto.MyCommunitiesResponse;
 import com.billim.domain.community.dto.RegionScope;
 import com.billim.domain.community.dto.VerifyLocationRequest;
 import com.billim.domain.community.entity.Community;
@@ -27,6 +28,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.mysql.MySQLContainer;
@@ -77,6 +79,7 @@ class CommunityFlowDbTest {
     @Autowired CommunityQueryService queryService;
     @Autowired CommunityVerificationService verificationService;
     @Autowired CommunityPlaceService placeService;
+    @Autowired MyCommunityService myCommunityService;
     @Autowired CommunityMembershipQuery membershipQuery;
     @Autowired CommunityRepository communityRepository;
     @Autowired CommunityMembershipRepository membershipRepository;
@@ -240,53 +243,238 @@ class CommunityFlowDbTest {
     }
 
     @Test
-    @DisplayName("다른 동네를 인증하면 이전 소속은 LEFT가 되고 활성 소속은 하나만 남는다")
-    void switchingCommunityLeavesPrevious() {
+    @DisplayName("다른 동네를 인증하면 저장 동네가 둘이 되고 이전 소속은 그대로 남는다")
+    void verifyingSecondCommunityKeepsBoth() {
         verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
 
         verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
 
+        // 예전에는 이전 소속을 LEFT로 내렸다. 이제 둘 다 저장 동네다 (V23)
         CommunityMembership previous = membershipRepository
                 .findByMemberIdAndCommunityId(me, homeId).orElseThrow();
-        assertThat(previous.getStatus()).isEqualTo(MembershipStatus.LEFT);
-        assertThat(previous.getLeftAt()).isNotNull();
+        assertThat(previous.getStatus()).isEqualTo(MembershipStatus.ACTIVE);
+        assertThat(previous.getLeftAt()).isNull();
 
-        assertThat(membershipRepository.findByMemberIdAndStatus(me, MembershipStatus.ACTIVE))
-                .get().extracting(CommunityMembership::getCommunityId).isEqualTo(neighborId);
+        assertThat(membershipRepository
+                .findByMemberIdAndStatusOrderByActiveSlotAsc(me, MembershipStatus.ACTIVE))
+                .extracting(CommunityMembership::getCommunityId)
+                .containsExactly(homeId, neighborId);
+        // 현재 동네는 방금 인증한 곳이다
         assertThat(activeCommunityIdOf(me)).isEqualTo(neighborId);
     }
 
     @Test
-    @DisplayName("활성 소속을 둘 만들 수 없다. 서비스를 우회해 넣어도 DB가 막는다 (V22)")
-    void activeMembershipIsUniquePerMember() {
+    @DisplayName("저장 동네마다 슬롯을 하나씩 받는다")
+    void savedCommunitiesTakeDistinctSlots() {
         verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+        verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
 
-        // 이 제약이 없으면 행이 둘이 되고 GET /members/me가 500으로 죽는다.
-        // 만료는 인증 시각보다 뒤여야 한다(ck_community_memberships_expires) — 그 제약에 먼저
-        // 걸리면 유니크를 검증하지 못하므로 30일 뒤로 둔다
-        assertThatThrownBy(() -> jdbc.update("""
-                INSERT INTO community_memberships
-                    (member_id, community_id, status, verified_at, verification_expires_at,
-                     created_at, updated_at)
-                VALUES (?, ?, 'ACTIVE', NOW(6), DATE_ADD(NOW(6), INTERVAL 30 DAY), NOW(6), NOW(6))
-                """, me, neighborId))
-                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(membershipRepository
+                .findByMemberIdAndStatusOrderByActiveSlotAsc(me, MembershipStatus.ACTIVE))
+                .extracting(CommunityMembership::getActiveSlot)
+                .containsExactly(1, 2);
     }
 
     @Test
-    @DisplayName("이탈한 소속은 여러 개 쌓일 수 있다. 제약은 ACTIVE에만 걸린다")
-    void leftMembershipsMayRepeat() {
+    @DisplayName("저장 동네가 둘이면 셋째 인증은 거부한다. 어느 동네를 뺄지는 회원이 정한다")
+    void thirdCommunityIsRejected() {
         long third = saveCommunity("정자마을", CENTER_LAT, CENTER_LON, CommunityStatus.ACTIVE);
-
         verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
         verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
+
+        assertThatThrownBy(() -> verify(me, third, CENTER_LAT, CENTER_LON, 10))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode())
+                                .isEqualTo(ErrorCode.COMMUNITY_LIMIT_EXCEEDED));
+
+        // 거부된 인증은 흔적을 남기지 않는다
+        assertThat(membershipRepository.findByMemberIdAndCommunityId(me, third)).isEmpty();
+        assertThat(activeCommunityIdOf(me)).isEqualTo(neighborId);
+    }
+
+    @Test
+    @DisplayName("이미 저장한 동네를 다시 인증하면 슬롯을 유지하고 인증만 갱신한다")
+    void reverifyingSavedCommunityKeepsSlot() {
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+        verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
+
+        // 현재 동네가 neighbor인 상태에서 home을 다시 인증한다
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+
+        assertThat(membershipRepository
+                .findByMemberIdAndStatusOrderByActiveSlotAsc(me, MembershipStatus.ACTIVE))
+                .extracting(CommunityMembership::getCommunityId)
+                .containsExactly(homeId, neighborId);
+        // 재인증한 동네가 현재 동네가 된다
+        assertThat(activeCommunityIdOf(me)).isEqualTo(homeId);
+    }
+
+    @Test
+    @DisplayName("저장 동네는 셋이 될 수 없다. 서비스를 우회해 넣어도 DB가 막는다 (V23)")
+    void savedCommunitiesAreCappedByDb() {
+        long third = saveCommunity("정자마을", CENTER_LAT, CENTER_LON, CommunityStatus.ACTIVE);
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+        verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
+
+        // 슬롯 1·2는 이미 쓰였다. 어느 슬롯으로 넣어도 유니크에 걸린다.
+        // 만료는 인증 시각보다 뒤여야 한다(ck_community_memberships_expires) — 그 제약에 먼저
+        // 걸리면 슬롯 유니크를 검증하지 못하므로 30일 뒤로 둔다
+        for (int slot = 1; slot <= 2; slot++) {
+            int taken = slot;
+            assertThatThrownBy(() -> jdbc.update("""
+                    INSERT INTO community_memberships
+                        (member_id, community_id, status, active_slot, verified_at,
+                         verification_expires_at, created_at, updated_at)
+                    VALUES (?, ?, 'ACTIVE', ?, NOW(6), DATE_ADD(NOW(6), INTERVAL 30 DAY),
+                            NOW(6), NOW(6))
+                    """, me, third, taken))
+                    .isInstanceOf(DataIntegrityViolationException.class);
+        }
+    }
+
+    @Test
+    @DisplayName("슬롯 없는 ACTIVE와 슬롯 있는 이탈 행은 DB가 막는다 (V23 CHECK)")
+    void activeSlotMustMatchStatus() {
+        long third = saveCommunity("정자마을", CENTER_LAT, CENTER_LON, CommunityStatus.ACTIVE);
+
+        // CHECK 위반(MySQL 3819)은 Spring이 DataIntegrityViolation으로 변환하지 않는다.
+        // 유니크 위반과 달리 상위 DataAccessException으로 받는다
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO community_memberships
+                    (member_id, community_id, status, active_slot, verified_at,
+                     verification_expires_at, created_at, updated_at)
+                VALUES (?, ?, 'ACTIVE', NULL, NOW(6), DATE_ADD(NOW(6), INTERVAL 30 DAY),
+                        NOW(6), NOW(6))
+                """, me, third))
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("ck_community_memberships_active_slot");
+
+        assertThatThrownBy(() -> jdbc.update("""
+                INSERT INTO community_memberships
+                    (member_id, community_id, status, active_slot, left_at, verified_at,
+                     verification_expires_at, created_at, updated_at)
+                VALUES (?, ?, 'LEFT', 1, NOW(6), NOW(6), DATE_ADD(NOW(6), INTERVAL 30 DAY),
+                        NOW(6), NOW(6))
+                """, me, third))
+                .isInstanceOf(DataAccessException.class)
+                .hasMessageContaining("ck_community_memberships_active_slot");
+    }
+
+    @Test
+    @DisplayName("이탈한 소속은 여러 개 쌓일 수 있다. 슬롯 제약은 ACTIVE에만 걸린다")
+    void leftMembershipsMayRepeat() {
+        long third = saveCommunity("정자마을", CENTER_LAT, CENTER_LON, CommunityStatus.ACTIVE);
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+        verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
+
+        // 둘을 빼면 슬롯이 비고 셋째를 인증할 수 있다
+        myCommunityService.leave(me, homeId);
         verify(me, third, CENTER_LAT, CENTER_LON, 10);
+        myCommunityService.leave(me, neighborId);
 
         assertThat(membershipRepository.findAll())
                 .filteredOn(membership -> membership.getStatus() == MembershipStatus.LEFT)
                 .hasSize(2);
-        assertThat(membershipRepository.findByMemberIdAndStatus(me, MembershipStatus.ACTIVE))
-                .get().extracting(CommunityMembership::getCommunityId).isEqualTo(third);
+        assertThat(membershipRepository.findAll())
+                .filteredOn(membership -> membership.getStatus() == MembershipStatus.LEFT)
+                .extracting(CommunityMembership::getActiveSlot)
+                .containsOnlyNulls();
+    }
+
+    // ---------- 내 동네 조회·전환·이탈 (E_074 ~ E_076) ----------
+
+    @Test
+    @DisplayName("내 동네 목록은 저장 동네와 현재 동네를 함께 준다")
+    void myCommunitiesListsSavedAndCurrent() {
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+        verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
+
+        MyCommunitiesResponse mine = myCommunityService.findMine(me);
+
+        assertThat(mine.currentCommunityId()).isEqualTo(String.valueOf(neighborId));
+        assertThat(mine.items()).extracting("communityId")
+                .containsExactly(String.valueOf(homeId), String.valueOf(neighborId));
+        assertThat(mine.items()).extracting("isCurrent").containsExactly(false, true);
+        assertThat(mine.items()).extracting("isValid").containsOnly(true);
+    }
+
+    @Test
+    @DisplayName("현재 동네를 저장 동네 중 다른 쪽으로 바꾼다")
+    void selectSwitchesCurrentCommunity() {
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+        verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
+
+        MyCommunitiesResponse mine = myCommunityService.select(me, homeId);
+
+        assertThat(mine.currentCommunityId()).isEqualTo(String.valueOf(homeId));
+        assertThat(activeCommunityIdOf(me)).isEqualTo(homeId);
+        // 소속은 그대로다 — 전환은 피드 기준만 바꾼다
+        assertThat(membershipRepository
+                .findByMemberIdAndStatusOrderByActiveSlotAsc(me, MembershipStatus.ACTIVE))
+                .hasSize(2);
+    }
+
+    @Test
+    @DisplayName("저장 동네가 아닌 곳으로는 전환할 수 없다")
+    void selectRejectsUnsavedCommunity() {
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+
+        assertThatThrownBy(() -> myCommunityService.select(me, neighborId))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode()).isEqualTo(ErrorCode.RESOURCE_NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("저장 동네에서 빼면 슬롯이 비고 목록에서 사라진다")
+    void leaveFreesSlot() {
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+        verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
+
+        MyCommunitiesResponse mine = myCommunityService.leave(me, homeId);
+
+        assertThat(mine.items()).extracting("communityId")
+                .containsExactly(String.valueOf(neighborId));
+        CommunityMembership left = membershipRepository
+                .findByMemberIdAndCommunityId(me, homeId).orElseThrow();
+        assertThat(left.getStatus()).isEqualTo(MembershipStatus.LEFT);
+        assertThat(left.getActiveSlot()).isNull();
+        assertThat(left.getLeftAt()).isNotNull();
+    }
+
+    @Test
+    @DisplayName("현재 동네를 빼면 남은 동네가 현재 동네가 된다")
+    void leavingCurrentMovesCurrentToRemaining() {
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+        verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
+        assertThat(activeCommunityIdOf(me)).isEqualTo(neighborId);
+
+        MyCommunitiesResponse mine = myCommunityService.leave(me, neighborId);
+
+        assertThat(mine.currentCommunityId()).isEqualTo(String.valueOf(homeId));
+        assertThat(activeCommunityIdOf(me)).isEqualTo(homeId);
+    }
+
+    @Test
+    @DisplayName("마지막 동네는 뺄 수 없다. 미인증 상태로 떨어지면 아무것도 할 수 없다")
+    void lastCommunityCannotBeLeft() {
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+
+        assertThatThrownBy(() -> myCommunityService.leave(me, homeId))
+                .isInstanceOfSatisfying(BusinessException.class,
+                        e -> assertThat(e.getErrorCode())
+                                .isEqualTo(ErrorCode.COMMUNITY_LAST_MEMBERSHIP));
+    }
+
+    @Test
+    @DisplayName("저장 동네가 둘이면 양쪽 모두 유효 소속이다. 권한은 소속을 본다")
+    void bothSavedCommunitiesAreValidMemberships() {
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+        verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
+
+        assertThat(membershipQuery.hasValidMembership(me, homeId)).isTrue();
+        assertThat(membershipQuery.hasValidMembership(me, neighborId)).isTrue();
+        // 현재 동네는 하나다 — 피드·목록의 기준
+        assertThat(membershipQuery.findActiveCommunityId(me)).contains(neighborId);
     }
 
     @Test
@@ -335,11 +523,28 @@ class CommunityFlowDbTest {
     }
 
     @Test
-    @DisplayName("다른 동네로 옮긴 뒤에는 이전 동네 장소를 볼 수 없다")
+    @DisplayName("저장 동네가 둘이면 양쪽 장소를 모두 볼 수 있다. 전환해도 끊기지 않는다")
+    void bothSavedCommunityPlacesAreVisible() {
+        savePlace(homeId, "경비실 앞", true);
+        savePlace(neighborId, "주민센터 앞", true);
+        verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
+        verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
+
+        // 현재 동네는 neighbor지만 home도 저장 동네라 접근된다 — 권한은 소속을 본다
+        assertThat(placeService.findPlaces(me, homeId).items())
+                .extracting("name").containsExactly("경비실 앞");
+        assertThat(placeService.findPlaces(me, neighborId).items())
+                .extracting("name").containsExactly("주민센터 앞");
+    }
+
+    @Test
+    @DisplayName("저장 동네에서 뺀 뒤에는 그 동네 장소를 볼 수 없다")
     void leftCommunityPlacesAreHidden() {
         savePlace(homeId, "경비실 앞", true);
         verify(me, homeId, CENTER_LAT, CENTER_LON, 10);
         verify(me, neighborId, CENTER_LAT + 0.01, CENTER_LON, 10);
+
+        myCommunityService.leave(me, homeId);
 
         assertThatThrownBy(() -> placeService.findPlaces(me, homeId))
                 .isInstanceOf(BusinessException.class);

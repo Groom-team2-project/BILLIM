@@ -398,7 +398,7 @@ class BlockNoticeFlowDbTest {
     }
 
     private void joinCommunity(long memberId, long communityId) {
-        membershipRepository.save(CommunityMembership.verified(memberId, communityId, Instant.now()));
+        membershipRepository.save(CommunityMembership.verified(memberId, communityId, 1, Instant.now()));
         jdbc.update("UPDATE members SET active_community_id = ? WHERE id = ?", communityId, memberId);
     }
 }
