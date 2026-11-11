@@ -64,6 +64,37 @@ class ChatSendAccessPolicyTest {
     }
 
     @Test
+    @DisplayName("상대방이 제재 중이어도 승인 전 일반 메시지는 보낼 수 없다")
+    void cannotSendOrdinaryMessageToRestrictedRecipient() {
+        givenPublicItemAndActiveCommunity();
+        when(sanctionService.isRestricted(1L)).thenReturn(true);
+        assertThatThrownBy(() -> policy.requireCanSend(room(), MEMBER_ID, null))
+            .isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MEMBER_RESTRICTED));
+    }
+
+    @Test
+    @DisplayName("상대방 제재 전 승인된 거래는 양쪽에서 정리 메시지를 보낼 수 있다")
+    void canSendForEligibleRentalToRestrictedRecipient() {
+        givenPublicItemAndActiveCommunity();
+        when(sanctionService.isRestricted(1L)).thenReturn(true);
+        when(rentalReadRepository.existsLinked(501L, ROOM_ID, ITEM_ID, 1L, MEMBER_ID)).thenReturn(true);
+        when(linkedRentalService.getAllowedRentalIds(ROOM_ID, MEMBER_ID)).thenReturn(List.of("501"));
+        assertThatCode(() -> policy.requireCanSend(room(), MEMBER_ID, 501L)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("상대방이 제재 중이고 정지 전 승인 조건을 충족하지 않은 거래는 거부한다")
+    void cannotSendForIneligibleRentalToRestrictedRecipient() {
+        givenPublicItemAndActiveCommunity();
+        when(sanctionService.isRestricted(1L)).thenReturn(true);
+        when(rentalReadRepository.existsLinked(501L, ROOM_ID, ITEM_ID, 1L, MEMBER_ID)).thenReturn(true);
+        assertThatThrownBy(() -> policy.requireCanSend(room(), MEMBER_ID, 501L))
+            .isInstanceOfSatisfying(BusinessException.class, exception ->
+                assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.MEMBER_RESTRICTED));
+    }
+
+    @Test
     @DisplayName("제재된 참여자는 연결된 진행 거래 메시지만 보낼 수 있다")
     void restrictedMemberCanSendOnlyForActiveRental() {
         givenPublicItemAndActiveCommunity();
@@ -137,8 +168,7 @@ class ChatSendAccessPolicyTest {
             Instant.parse("2026-10-14T00:00:00Z")
         );
         when(itemRepository.findById(ITEM_ID)).thenReturn(Optional.of(item));
-        when(membershipQuery.findActiveCommunityId(MEMBER_ID))
-            .thenReturn(Optional.of(COMMUNITY_ID));
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(true);
     }
 
     private ChatRoom room() {

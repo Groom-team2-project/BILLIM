@@ -30,7 +30,6 @@ import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,6 +47,11 @@ class ChatMessageSendServiceDbTest {
 
     @TestConfiguration(proxyBeanMethods = false)
     static class MySql {
+        @Bean
+        java.time.Clock clock() {
+            return java.time.Clock.systemUTC();
+        }
+
         @Bean
         @ServiceConnection
         MySQLContainer mysqlContainer() {
@@ -103,8 +107,7 @@ class ChatMessageSendServiceDbTest {
         em.persist(ChatParticipant.join(roomId, OWNER_ID, NOW));
         em.persist(ChatParticipant.join(roomId, REQUESTER_ID, NOW));
         em.flush();
-        when(membershipQuery.findActiveCommunityId(REQUESTER_ID))
-            .thenReturn(Optional.of(100L));
+        when(membershipQuery.hasValidMembership(REQUESTER_ID, 100L)).thenReturn(true);
     }
 
     @Test
@@ -211,10 +214,9 @@ class ChatMessageSendServiceDbTest {
     }
 
     @Test
-    @DisplayName("활성 동네가 달라진 참여자의 메시지는 저장하지 않는다")
-    void rejectsMessageAfterCommunityChange() {
-        when(membershipQuery.findActiveCommunityId(REQUESTER_ID))
-            .thenReturn(Optional.of(999L));
+    @DisplayName("물건 동네의 유효 소속이 없는 참여자의 메시지는 저장하지 않는다")
+    void rejectsMessageAfterMembershipLoss() {
+        when(membershipQuery.hasValidMembership(REQUESTER_ID, 100L)).thenReturn(false);
 
         assertThatThrownBy(() -> sendService.send(
             roomId,

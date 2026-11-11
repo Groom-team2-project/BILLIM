@@ -54,10 +54,11 @@ class ChatRoomViewServiceTest {
     );
 
     @Test
-    @DisplayName("활성 동네가 바뀐 참여자는 기존 방을 조회해도 메시지를 보낼 수 없다")
-    void changedCommunityCannotSend() {
+    @DisplayName("저장 동네에서 이탈한 참여자는 기존 방을 조회해도 메시지를 보낼 수 없다")
+    void leftCommunityCannotSend() {
         givenRoom();
         when(membershipQuery.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.of(999L));
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(false);
         when(linkedRentalService.getAllowedRentalIds(ROOM_ID, MEMBER_ID)).thenReturn(List.of());
 
         var response = viewService.get(ROOM_ID, MEMBER_ID);
@@ -69,10 +70,11 @@ class ChatRoomViewServiceTest {
     }
 
     @Test
-    @DisplayName("활성 동네가 없어도 채팅 전송을 허용하지 않는다")
+    @DisplayName("유효한 저장 동네 소속이 없으면 채팅 전송을 허용하지 않는다")
     void missingCommunityCannotSend() {
         givenRoom();
         when(membershipQuery.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.empty());
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(false);
         when(linkedRentalService.getAllowedRentalIds(ROOM_ID, MEMBER_ID)).thenReturn(List.of());
 
         var response = viewService.get(ROOM_ID, MEMBER_ID);
@@ -85,8 +87,7 @@ class ChatRoomViewServiceTest {
     @DisplayName("유효한 동네 소속이고 차단이 없으면 일반 메시지를 보낼 수 있다")
     void validCommunityWithoutBlockCanSend() {
         givenRoom();
-        when(membershipQuery.findActiveCommunityId(MEMBER_ID))
-            .thenReturn(Optional.of(COMMUNITY_ID));
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(true);
 
         var response = viewService.get(ROOM_ID, MEMBER_ID);
 
@@ -98,8 +99,7 @@ class ChatRoomViewServiceTest {
     @DisplayName("양방향 중 한쪽이라도 차단하면 일반 메시지 전송을 막는다")
     void blockedMembersCannotSendOrdinaryMessage() {
         givenRoom();
-        when(membershipQuery.findActiveCommunityId(MEMBER_ID))
-            .thenReturn(Optional.of(COMMUNITY_ID));
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(true);
         when(blockQuery.isBlockedBetween(MEMBER_ID, 1L)).thenReturn(true);
 
         var response = viewService.get(ROOM_ID, MEMBER_ID);
@@ -115,8 +115,7 @@ class ChatRoomViewServiceTest {
         Item item = item();
         item.changeVisibility(ItemVisibility.HIDDEN, Instant.parse("2026-10-14T00:00:00Z"));
         when(itemRepository.findById(ITEM_ID)).thenReturn(Optional.of(item));
-        when(membershipQuery.findActiveCommunityId(MEMBER_ID))
-            .thenReturn(Optional.of(COMMUNITY_ID));
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(true);
 
         var response = viewService.get(ROOM_ID, MEMBER_ID);
 
@@ -129,8 +128,7 @@ class ChatRoomViewServiceTest {
     @DisplayName("제재된 참여자는 진행 거래가 없으면 메시지를 보낼 수 없다")
     void restrictedMemberCannotSendWithoutRental() {
         givenRoom();
-        when(membershipQuery.findActiveCommunityId(MEMBER_ID))
-            .thenReturn(Optional.of(COMMUNITY_ID));
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(true);
         when(sanctionService.isRestricted(MEMBER_ID)).thenReturn(true);
 
         var response = viewService.get(ROOM_ID, MEMBER_ID);
@@ -140,14 +138,43 @@ class ChatRoomViewServiceTest {
     }
 
     @Test
+    @DisplayName("상대방이 제재 중이면 상세 응답도 승인 전 채팅을 금지한다")
+    void restrictedRecipientCannotReceiveOrdinaryMessage() {
+        givenRoom();
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(true);
+        when(sanctionService.isRestricted(1L)).thenReturn(true);
+        var response = viewService.get(ROOM_ID, MEMBER_ID);
+        assertThat(response.access().canSend()).isFalse();
+        assertThat(response.access().reason()).isEqualTo("RESTRICTED");
+        assertThat(response.access().allowedRentalIds()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("상대방 제재 전 승인된 미완료 거래만 상세 응답의 정리 대화로 허용한다")
+    void restrictedRecipientAllowsOnlyEligibleRental() {
+        givenRoom();
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(true);
+        when(sanctionService.isRestricted(1L)).thenReturn(true);
+        Rental rental = mock(Rental.class);
+        when(rental.getId()).thenReturn(501L);
+        when(linkedRentalService.get(ROOM_ID, MEMBER_ID)).thenReturn(List.of(rental));
+        when(linkedRentalService.allowedRentalIds(List.of(rental))).thenReturn(List.of("501"));
+        when(rentalQueryService.getRentalSummary(501L, MEMBER_ID))
+            .thenReturn(mock(RentalSummaryResponse.class));
+        var response = viewService.get(ROOM_ID, MEMBER_ID);
+        assertThat(response.access().canSend()).isTrue();
+        assertThat(response.access().reason()).isEqualTo("EXISTING_RENTAL_ONLY");
+        assertThat(response.access().allowedRentalIds()).containsExactly("501");
+    }
+
+    @Test
     @DisplayName("연결 거래는 대여 서비스의 참여자 검증을 거친 요약으로 반환한다")
     void linkedRentalsUseRentalSummaryQuery() {
         givenRoom();
         Rental rental = mock(Rental.class);
         when(rental.getId()).thenReturn(501L);
         when(linkedRentalService.get(ROOM_ID, MEMBER_ID)).thenReturn(List.of(rental));
-        when(membershipQuery.findActiveCommunityId(MEMBER_ID))
-            .thenReturn(Optional.of(COMMUNITY_ID));
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(true);
         RentalSummaryResponse summary = new RentalSummaryResponse(
             "501", String.valueOf(ITEM_ID), "전동드릴", null, null,
             LocalDate.of(2026, 10, 20), LocalDate.of(2026, 10, 21),
@@ -172,7 +199,7 @@ class ChatRoomViewServiceTest {
         when(itemImageRepository.findThumbnails(List.of(ITEM_ID))).thenReturn(List.of(thumbnail));
         when(itemAccessPolicy.canView(org.mockito.ArgumentMatchers.any(Item.class),
             org.mockito.ArgumentMatchers.eq(MEMBER_ID))).thenReturn(true);
-        when(membershipQuery.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.of(COMMUNITY_ID));
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(true);
 
         var response = viewService.get(ROOM_ID, MEMBER_ID);
 
@@ -216,7 +243,7 @@ class ChatRoomViewServiceTest {
         when(listBaseService.getFiltered(MEMBER_ID, "ALL", 0, 20)).thenReturn(
             new ChatRoomListBaseService.RoomBasePage(List.of(base), 0, 20, 1, false));
         when(itemRepository.findAllById(List.of(ITEM_ID))).thenReturn(List.of(item()));
-        when(membershipQuery.findActiveCommunityId(MEMBER_ID)).thenReturn(Optional.of(COMMUNITY_ID));
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(true);
         when(blockQuery.findBlockedAmong(MEMBER_ID, List.of(1L))).thenReturn(java.util.Set.of(1L));
         when(linkedRentalService.getForRooms(List.of(ROOM_ID), MEMBER_ID)).thenReturn(List.of());
         when(rentalQueryService.getRentalSummaries(List.of(), MEMBER_ID)).thenReturn(java.util.Map.of());
@@ -230,6 +257,22 @@ class ChatRoomViewServiceTest {
         assertThat(response.access().canSend()).isFalse();
         assertThat(response.access().reason()).isEqualTo("BLOCKED");
         assertThat(response.itemThumbnailUrl()).isNull();
+    }
+
+    @Test
+    @DisplayName("목록의 상대방 제재도 일반 채팅 금지로 반환한다")
+    void batchListPreservesRecipientSanction() {
+        var base = new ChatRoomBaseService.RoomBase("901", "101", "100", "전동드릴",
+            new com.billim.domain.member.dto.MemberSummaryResponse("1", "상대", Instant.EPOCH), 0, null, null);
+        when(listBaseService.getFiltered(MEMBER_ID, "ALL", 0, 20)).thenReturn(
+            new ChatRoomListBaseService.RoomBasePage(List.of(base), 0, 20, 1, false));
+        when(itemRepository.findAllById(List.of(ITEM_ID))).thenReturn(List.of(item()));
+        when(membershipQuery.hasValidMembership(MEMBER_ID, COMMUNITY_ID)).thenReturn(true);
+        when(sanctionService.findRestrictedAmong(List.of(1L))).thenReturn(java.util.Set.of(1L));
+        var response = viewService.list(MEMBER_ID, "ALL", 0, 20).items().getFirst();
+        assertThat(response.access().canSend()).isFalse();
+        assertThat(response.access().reason()).isEqualTo("RESTRICTED");
+        assertThat(response.access().allowedRentalIds()).isEmpty();
     }
 
     private Item item() {

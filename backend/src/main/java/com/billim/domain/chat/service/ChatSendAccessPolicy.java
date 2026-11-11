@@ -50,16 +50,15 @@ public class ChatSendAccessPolicy {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
 
-        Long activeCommunityId =
-            membershipQuery.findActiveCommunityId(senderId).orElse(null);
-        if (!item.getCommunityId().equals(activeCommunityId)) {
+        if (!membershipQuery.hasValidMembership(senderId, item.getCommunityId())) {
             throw new BusinessException(ErrorCode.COMMUNITY_VERIFICATION_REQUIRED);
         }
 
         Long otherMemberId = room.getOwnerId().equals(senderId)
             ? room.getRequesterId()
             : room.getOwnerId();
-        boolean restricted = sanctionService.isRestricted(senderId);
+        boolean restricted = sanctionService.isRestricted(senderId)
+            || sanctionService.isRestricted(otherMemberId);
         boolean blocked = blockQuery.isBlockedBetween(senderId, otherMemberId);
 
         if (restricted || blocked) {

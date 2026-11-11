@@ -1,7 +1,13 @@
 # 채팅·알림 성능 테스트
 
-> 버전: v0.4.0
-> 수정일: 2026.11.04
+> 버전: v0.4.1
+> 수정일: 2026.11.11
+
+## 동네 소속 스키마 호환
+
+`seed.py`·`seed-multi.py`는 격리 성능 DB의 `active_slot` 컬럼을 확인한 뒤 시드 생성. V23 이상은 저장 동네 슬롯 1을 명시하고, 이전 버전은 기존 INSERT 유지. 현재 동네는 기존과 같이 `members.active_community_id=910000` 사용. 메타데이터 조회 실패 시 과거 스키마로 추측하지 않고 중단. 기존 측정값 재산출·고부하 시험 미포함.
+
+호환 판정 테스트: `python -m unittest discover -s docs/performance/tools/chat-notification/tests -v`
 
 ## 배포 서버의 짧은 조회 점검
 
