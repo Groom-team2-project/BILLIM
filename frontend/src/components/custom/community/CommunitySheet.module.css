@@ -108,6 +108,13 @@
   gap: 2px;
 }
 
+.comm-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding-inline-end: var(--space-2);
+}
+
 @media (min-width: 760px) {
   .comm-overlay {
     justify-content: center;

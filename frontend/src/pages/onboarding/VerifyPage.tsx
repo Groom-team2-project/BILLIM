@@ -10,6 +10,7 @@ import { MapView } from "@/components/custom/items/MapView";
 import { ApiError } from "@/api/client";
 import { type ApiCommunity, getCommunity, verifyLocation } from "@/api/communities";
 import { GeoError, getCurrentCoords } from "@/utils/geolocation";
+import { clearCommunityPlaces } from "@/hooks/useCommunityPlaces";
 import styles from "@/pages/onboarding/VerifyPage.module.css";
 import { classes } from "@/utils/classes";
 
@@ -65,6 +66,7 @@ export function VerifyPage() {
     try {
       const coords = await getCurrentCoords();
       const membership = await verifyLocation(communityId, coords);
+      clearCommunityPlaces();
 
       if (isAdd) {
         toast(`${membership.communityName} 동네 인증을 마쳤어요`);
