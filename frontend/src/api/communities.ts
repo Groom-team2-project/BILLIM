@@ -42,6 +42,31 @@ export type ApiMembership = {
   isValid: boolean;
 };
 
+export type ApiSavedCommunity = {
+  communityId: string;
+  communityName: string;
+  displayAddress: string;
+  isCurrent: boolean;
+  isValid: boolean;
+  verifiedAt: string;
+  verificationExpiresAt: string;
+};
+
+export type ApiMyCommunities = {
+  items: ApiSavedCommunity[];
+  currentCommunityId: string | null;
+};
+
+const MY_COMMUNITIES = "/members/me/communities";
+
+export const getMyCommunities = () => api<ApiMyCommunities>(MY_COMMUNITIES);
+
+export const selectMyCommunity = (id: string) =>
+  api<ApiMyCommunities>(`${MY_COMMUNITIES}/${encodeURIComponent(id)}/select`, { method: "POST" });
+
+export const removeMyCommunity = (id: string) =>
+  api<ApiMyCommunities>(`${MY_COMMUNITIES}/${encodeURIComponent(id)}`, { method: "DELETE" });
+
 /** 위치 인증·주변 찾기 요청 본문. 좌표는 이 요청에서만 쓰이고 서버에 저장되지 않는다 */
 export type VerifyLocationBody = {
   latitude: number;

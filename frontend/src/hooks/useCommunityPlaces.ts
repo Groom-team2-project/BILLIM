@@ -9,23 +9,30 @@ import { type ApiPlace, getMyCommunityPlaces } from "@/api/items";
 let cache: ReadonlyMap<string, ApiPlace> | null = null;
 let pending: Promise<ReadonlyMap<string, ApiPlace>> | null = null;
 
-function load(): Promise<ReadonlyMap<string, ApiPlace>> {
-  if (cache) return Promise.resolve(cache);
-  pending ??= getMyCommunityPlaces()
-    .then((list) => {
-      cache = new Map(list.map((p) => [p.id, p]));
-      return cache;
-    })
-    .finally(() => {
-      pending = null;
-    });
-  return pending;
+export function clearCommunityPlaces() {
+  cache = null;
+  pending = null;
 }
 
-export function useCommunityPlaces(): ReadonlyMap<string, ApiPlace> | null {
+function load(): Promise<ReadonlyMap<string, ApiPlace>> {
+  if (cache) return Promise.resolve(cache);
+  if (pending) return pending;
+  const request = getMyCommunityPlaces()
+    .then((list) => {
+      const places = new Map(list.map((p) => [p.id, p]));
+      if (pending === request) cache = places;
+      return places;
+    })
+    .finally(() => {
+      if (pending === request) pending = null;
+    });
+  pending = request;
+  return request;
+}
+
+export function useCommunityPlaces(revision = 0): ReadonlyMap<string, ApiPlace> | null {
   const [places, setPlaces] = useState<ReadonlyMap<string, ApiPlace> | null>(cache);
   useEffect(() => {
-    if (cache) return;
     let alive = true;
     load()
       .then((m) => alive && setPlaces(m))
@@ -33,6 +40,6 @@ export function useCommunityPlaces(): ReadonlyMap<string, ApiPlace> | null {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [revision]);
   return places;
 }

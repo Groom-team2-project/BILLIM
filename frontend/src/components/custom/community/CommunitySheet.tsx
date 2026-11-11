@@ -3,38 +3,45 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
 import { ApiError } from "@/api/client";
-import { type ApiMembership, getMyProfile } from "@/api/members";
+import { type ApiMyCommunities, type ApiSavedCommunity, getMyCommunities, removeMyCommunity, selectMyCommunity } from "@/api/communities";
+import { useUi } from "@/components/overlay/UiContext";
+import { ErrorState } from "@/components/ui/state";
 import styles from "@/components/custom/community/CommunitySheet.module.css";
 import { classes } from "@/utils/classes";
 
 const c = classes(styles);
 
-/** 내 동네 최대 개수. 2개 지원(목록·전환·삭제 API) 전까지 서버는 활성 동네 1개 */
 const MAX_COMMUNITIES = 2;
 
 type Mine =
   | { state: "loading" }
   | { state: "error"; message: string }
-  | { state: "ok"; membership: ApiMembership | null };
+  | { state: "ok"; data: ApiMyCommunities };
 
 type CommunitySheetProps = {
   onClose: () => void;
+  onCurrentChange: () => void;
 };
 
+const expiryFormatter = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: "Asia/Seoul", month: "numeric", day: "numeric",
+});
+
 function untilLabel(iso: string): string {
-  const at = new Date(iso);
-  return `${at.getMonth() + 1}/${at.getDate()}까지`;
+  return `${expiryFormatter.format(new Date(iso))}까지`;
 }
 
-/** 내 동네 설정 바텀시트 — 현재 유효 소속 동네(A_005 activeMembership) · 추가 */
-export function CommunitySheet({ onClose }: CommunitySheetProps) {
+export function CommunitySheet({ onClose, onCurrentChange }: CommunitySheetProps) {
   const navigate = useNavigate();
+  const { confirm, toast } = useUi();
   const [mine, setMine] = useState<Mine>({ state: "loading" });
+  const [retry, setRetry] = useState(0);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    getMyProfile()
-      .then((profile) => alive && setMine({ state: "ok", membership: profile.activeMembership ?? null }))
+    getMyCommunities()
+      .then((data) => alive && setMine({ state: "ok", data }))
       .catch((e: unknown) => {
         if (!alive) return;
         setMine({ state: "error", message: e instanceof ApiError ? e.message : "내 동네를 불러오지 못했어요." });
@@ -42,22 +49,44 @@ export function CommunitySheet({ onClose }: CommunitySheetProps) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [retry]);
 
   const go = (to: string) => {
     onClose();
     navigate(to);
   };
-  const membership = mine.state === "ok" ? mine.membership : null;
+  const saved = mine.state === "ok" ? mine.data : null;
+  const full = saved !== null && saved.items.length >= MAX_COMMUNITIES;
+
+  const reload = () => {
+    setMine({ state: "loading" });
+    setRetry((n) => n + 1);
+  };
+
+  const update = async (community: ApiSavedCommunity, action: "select" | "remove") => {
+    if (!saved || busy) return;
+    setBusy(true);
+    try {
+      const data = await (action === "select" ? selectMyCommunity : removeMyCommunity)(community.communityId);
+      setMine({ state: "ok", data });
+      if (data.currentCommunityId !== saved.currentCommunityId) onCurrentChange();
+      toast(action === "select" ? "현재 동네를 변경했어요." : "저장 동네에서 삭제했어요.");
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : "동네 설정을 변경하지 못했어요.");
+      if (e instanceof ApiError && (e.status === 404 || e.status === 409)) reload();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className={c("comm-overlay")}>
-      <div className={c("comm-scrim")} aria-hidden="true" onClick={onClose} />
-      <div className={c("comm-sheet")} role="dialog" aria-label="내 동네 설정">
+      <div className={c("comm-scrim")} aria-hidden="true" onClick={busy ? undefined : onClose} />
+      <div className={c("comm-sheet")} role="dialog" aria-label="내 동네 설정" aria-busy={busy || mine.state === "loading"}>
         <div className={c("comm-grab")} aria-hidden="true" />
         <div className={c("comm-head")}>
           <h2 className={c("t-title")}>내 동네 설정</h2>
-          <button type="button" className={c("comm-close")} aria-label="닫기" onClick={onClose}>
+          <button type="button" className={c("comm-close")} aria-label="닫기" disabled={busy} onClick={onClose}>
             <Icon name="x" size={18} />
           </button>
         </div>
@@ -66,29 +95,50 @@ export function CommunitySheet({ onClose }: CommunitySheetProps) {
         </p>
 
         {mine.state === "loading" ? (
-          <p className={c("t-caption comm-muted")}>내 동네를 불러오는 중…</p>
+          <p className={c("t-caption comm-muted")} role="status">내 동네를 불러오는 중…</p>
         ) : mine.state === "error" ? (
-          <p className={c("t-caption comm-muted")}>{mine.message}</p>
-        ) : membership ? (
+          <ErrorState title="내 동네를 불러오지 못했어요" onRetry={reload}>{mine.message}</ErrorState>
+        ) : mine.data.items.length ? (
           <div className={c("comm-list")}>
-            <div className={c("comm-row comm-row--on")}>
-              <button type="button" className={c("comm-pick")} onClick={onClose}>
-                <Icon name="pin" size={18} />
-                <span className={c("comm-body")}>
-                  {membership.communityName}
-                  <span className={c("t-caption comm-muted")}>
-                    동네 인증됨 · {untilLabel(membership.verificationExpiresAt)}
+            {mine.data.items.map((community) => (
+              <div key={community.communityId} className={c(`comm-row${community.isCurrent ? " comm-row--on" : ""}`)}>
+                <button type="button" className={c("comm-pick")} aria-pressed={community.isCurrent}
+                  disabled={busy || community.isCurrent} onClick={() => void update(community, "select")}>
+                  <Icon name="pin" size={18} />
+                  <span className={c("comm-body")}>
+                    {community.communityName}
+                    <span className={c("t-caption comm-muted")}>
+                      {community.isCurrent ? "현재 동네 · " : ""}
+                      {community.isValid ? `동네 인증됨 · ${untilLabel(community.verificationExpiresAt)}` : "인증 만료"}
+                    </span>
                   </span>
-                </span>
-              </button>
-            </div>
+                </button>
+                <div className={c("comm-actions")}>
+                  {!community.isValid && (
+                    <Button variant="secondary" size="sm" disabled={busy}
+                      onClick={() => go(`/verify?communityId=${encodeURIComponent(community.communityId)}&flow=add`)}>
+                      재인증
+                    </Button>
+                  )}
+                  {mine.data.items.length > 1 && (
+                    <Button variant="ghost" size="sm" disabled={busy} onClick={() => confirm({
+                      title: `${community.communityName} 동네를 삭제할까요?`,
+                      body: "다시 추가하려면 위치 인증이 필요해요.",
+                      confirm: "삭제",
+                      danger: true,
+                      onConfirm: () => void update(community, "remove"),
+                    })}>삭제</Button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
-          // 인증 만료도 여기 — activeMembership은 유효 소속일 때만 온다
           <p className={c("t-caption comm-muted")}>인증된 동네가 없어요. 동네를 찾아 위치 인증을 해 주세요.</p>
         )}
 
-        <Button variant="secondary" block icon="plus" onClick={() => go("/neighborhoods")}>
+        {full && <p className={c("t-caption comm-muted comm-note")}>다른 동네를 추가하려면 저장한 동네 하나를 먼저 삭제해 주세요.</p>}
+        <Button variant="secondary" block icon="plus" disabled={busy || !saved || full} onClick={() => go("/neighborhoods")}>
           동네 추가
         </Button>
       </div>

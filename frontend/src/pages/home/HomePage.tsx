@@ -15,7 +15,7 @@ import { type ApiHome, getHome } from "@/api/home";
 import { type ApiNotice, getCommunityNotices } from "@/api/notices";
 import { NoticeBar } from "@/components/custom/notices";
 import { fillPlace, toCardItem } from "@/utils/itemView";
-import { useCommunityPlaces } from "@/hooks/useCommunityPlaces";
+import { clearCommunityPlaces, useCommunityPlaces } from "@/hooks/useCommunityPlaces";
 import { STATUS_UI } from "@/components/custom/rentals/status";
 import { toRentalSummaryCells, toUpcomingRental } from "@/utils/homeView";
 import styles from "@/pages/home/HomePage.module.css";
@@ -35,8 +35,8 @@ export function HomePage() {
   const navigate = useNavigate();
   const [commOpen, setCommOpen] = useState(false);
   const [home, setHome] = useState<Home>({ state: "loading" });
-  const places = useCommunityPlaces();
   const [retry, setRetry] = useState(0);
+  const places = useCommunityPlaces(retry);
 
   // 홈 화면 조립 (B_027) — 동네·최신 물건·물건 수·내 대여 요약을 한 번에
   useEffect(() => {
@@ -58,14 +58,14 @@ export function HomePage() {
 
   const data = home.state === "ok" ? home.data : null;
   const communityId = data?.community.id;
-  const [notice, setNotice] = useState<ApiNotice | null>(null);
+  const [notice, setNotice] = useState<{ communityId: string; item: ApiNotice } | null>(null);
 
   // 동네 공지 첫 줄 (E_063) — 고정 우선·최신순 1건. 실패해도 홈은 그대로라 표시만 생략
   useEffect(() => {
     if (!communityId) return;
     let alive = true;
     getCommunityNotices(communityId, 0, 1)
-      .then((page) => alive && setNotice(page.items[0] ?? null))
+      .then((page) => alive && setNotice(page.items[0] ? { communityId, item: page.items[0] } : null))
       .catch(() => alive && setNotice(null));
     return () => {
       alive = false;
@@ -98,7 +98,7 @@ export function HomePage() {
             </span>
           ) : null}
         </div>
-        {data && notice ? <NoticeBar notice={notice} /> : null}
+        {notice && notice.communityId === communityId ? <NoticeBar notice={notice.item} /> : null}
         <h1 className={c("t-display home-greeting")}>
           잠깐 필요한 물건,
           <br />
@@ -183,7 +183,11 @@ export function HomePage() {
         </div>
       </div>
 
-      {commOpen ? <CommunitySheet onClose={() => setCommOpen(false)} /> : null}
+      {commOpen ? <CommunitySheet onClose={() => setCommOpen(false)} onCurrentChange={() => {
+        clearCommunityPlaces();
+        setHome({ state: "loading" });
+        setRetry((n) => n + 1);
+      }} /> : null}
     </div>
   );
 }
