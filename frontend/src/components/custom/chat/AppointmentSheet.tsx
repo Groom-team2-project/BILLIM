@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import { Chip } from "@/components/ui/chip";
 import { Icon } from "@/components/ui/icon";
 import { Segmented } from "@/components/ui/segmented";
 import type { ApiCommunityPlace } from "@/api/communities";
-import { appointmentDateLabel, appointmentInstant, preferredAppointmentPlaceIndex } from "@/utils/appointment-view";
+import { appointmentDateLabel, appointmentInstant, isFutureAppointmentTime, preferredAppointmentPlaceIndex } from "@/utils/appointment-view";
 import styles from "@/components/custom/chat/AppointmentSheet.module.css";
 import { classes } from "@/utils/classes";
 
@@ -52,15 +53,19 @@ export function AppointmentSheet({ onClose, initialKind = "give", onSubmit, live
   const [submitting, setSubmitting] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 30000);
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
   const placeOptions = live?.places ?? PLACES;
   const date = live ? live.dates[kind] : undefined;
   const label = date ? appointmentDateLabel(date) : KIND_DATE[kind];
-  const timeValue = customTime || clockTime[time];
-  const scheduledAt = live && date && timeValue ? appointmentInstant(date, timeValue) : undefined;
-  const canSend = !live || (Boolean(placeOptions.length) && Boolean(scheduledAt) && new Date(scheduledAt!).getTime() > now);
+  const availableTimes = date ? TIMES.filter((option) => isFutureAppointmentTime(date, clockTime[option], now)) : TIMES;
+  const selectedPreset = availableTimes.includes(time) ? time : undefined;
+  const timeValue = customTime || (selectedPreset ? clockTime[selectedPreset] : "");
+  const scheduledAt = date && timeValue ? appointmentInstant(date, timeValue) : undefined;
+  const dateUnavailable = Boolean(date && !isFutureAppointmentTime(date, "23:59", now));
+  const customTimePassed = Boolean(date && customTime && !isFutureAppointmentTime(date, customTime, now));
+  const canSend = !live || (placeOptions.length > 0 && Boolean(scheduledAt) && !customTimePassed);
 
   const submit = async () => {
     if (!live) {
@@ -70,6 +75,11 @@ export function AppointmentSheet({ onClose, initialKind = "give", onSubmit, live
     }
     const selected = live.places[place];
     if (!selected || !scheduledAt || !canSend || submitting) return;
+    const submittedAt = Date.now();
+    if (Date.parse(scheduledAt) <= submittedAt) {
+      setNow(submittedAt);
+      return;
+    }
     setSubmitting(true);
     try {
       if (await live.onSubmit(kind, scheduledAt, selected.id)) onClose();
@@ -105,13 +115,29 @@ export function AppointmentSheet({ onClose, initialKind = "give", onSubmit, live
         <div className={c("appt-sheet-group")}>
           <span className={c("t-label")}>시간</span>
           <div className={c("appt-sheet-times")}>
-            {TIMES.map((t) => (
+            {availableTimes.map((t) => (
               <Chip key={t} selected={!customTime && t === time} onClick={() => { setTime(t); setCustomTime(""); }}>{t}</Chip>
             ))}
             {live ? <label className={c("appt-sheet-custom t-caption")}>
-              직접 입력 <input type="time" aria-label="약속 시간 직접 입력" value={customTime} onChange={(event) => setCustomTime(event.target.value)} />
+              직접 입력 <input type="time" aria-label="약속 시간 직접 입력" aria-invalid={customTimePassed || undefined} disabled={dateUnavailable} value={customTime} onChange={(event) => {
+                setNow(Date.now());
+                setCustomTime(event.target.value);
+              }} />
             </label> : <Chip icon="clock">직접 입력</Chip>}
           </div>
+          {dateUnavailable ? (
+            <Alert tone="warning" title="이 날짜에 남은 시간이 없어요">
+              약속 날짜는 대여 기간에 따라 정해져 이 날짜로는 약속을 보낼 수 없어요.
+            </Alert>
+          ) : customTimePassed ? (
+            <Alert tone="warning" title="이미 지난 시간이에요">
+              현재 시간 이후로 다시 선택해 주세요.
+            </Alert>
+          ) : availableTimes.length === 0 ? (
+            <Alert>선택할 수 있는 기본 시간이 없어요. 현재 시간 이후로 직접 입력해 주세요.</Alert>
+          ) : !selectedPreset && !customTime ? (
+            <Alert>현재 시간 이후의 약속 시간을 선택해 주세요.</Alert>
+          ) : null}
         </div>
 
         <div className={c("appt-sheet-group")}>
@@ -150,7 +176,7 @@ export function AppointmentSheet({ onClose, initialKind = "give", onSubmit, live
           disabled={!canSend || submitting}
           onClick={() => void submit()}
         >
-          {submitting ? "보내는 중" : `${label} ${customTime || time} 약속 보내기`}
+          {submitting ? "보내는 중" : timeValue ? `${label} ${customTime || selectedPreset} 약속 보내기` : "약속 보내기"}
         </Button>
       </div>
     </div>
