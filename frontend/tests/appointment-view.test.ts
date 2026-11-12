@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { appointmentDateLabel, appointmentInstant, appointmentView, preferredAppointmentPlaceIndex } from "../src/utils/appointment-view.ts";
+import { appointmentDateLabel, appointmentInstant, appointmentView, isFutureAppointmentTime, preferredAppointmentPlaceIndex } from "../src/utils/appointment-view.ts";
 
 test("약속 장소는 대여 장소를 우선하고 목록에 없으면 첫 공용 장소를 고른다", () => {
   const places = [{ name: "서초119안전센터" }, { name: "서초2동주민센터" }];
@@ -12,6 +12,13 @@ test("약속 장소는 대여 장소를 우선하고 목록에 없으면 첫 공
 test("약속 제안 시 서울 시간과 대여 날짜를 UTC 시각으로 보낸다", () => {
   assert.equal(appointmentInstant("2026-10-18", "09:30"), "2026-10-18T00:30:00.000Z");
   assert.equal(appointmentInstant("2026-10-18", "00:30"), "2026-10-17T15:30:00.000Z");
+});
+
+test("현재 분과 지난 날짜는 약속 후보에서 제외하고 다음 날 서울 자정은 허용한다", () => {
+  const now = Date.parse("2026-11-12T14:59:00Z");
+  assert.equal(isFutureAppointmentTime("2026-11-12", "23:58", now), false);
+  assert.equal(isFutureAppointmentTime("2026-11-12", "23:59", now), false);
+  assert.equal(isFutureAppointmentTime("2026-11-13", "00:00", now), true);
 });
 
 test("서버의 UTC 시각을 서울 날짜와 시간으로 표시한다", () => {

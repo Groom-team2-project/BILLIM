@@ -14,6 +14,10 @@ export function appointmentInstant(date: string, time: string): string {
   return new Date(`${date}T${time}:00+09:00`).toISOString();
 }
 
+export function isFutureAppointmentTime(date: string, time: string, now: number): boolean {
+  return Date.parse(appointmentInstant(date, time)) > now;
+}
+
 export function appointmentView(proposal: ApiAppointmentProposal): Appointment {
   const date = new Date(proposal.scheduledAt);
   const localDate = new Intl.DateTimeFormat("en-CA", {
