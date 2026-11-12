@@ -39,6 +39,7 @@ http://localhost:5173 — `/api`·`/ws`는 백엔드 프록시로 동일 출처.
 
 ## 문서
 
+- [시스템 구조](docs/deploy/시스템%20구조.md) · [배포 전략](docs/deploy/배포%20전략.md)
 - [도메인 및 DB 설계](docs/erd/도메인%20및%20DB%20설계.md)
 - [API 명세서](docs/api/API%20명세서.md) · [에러 코드](docs/api/에러%20코드.md)
 - [정책 및 상태](docs/policy/정책%20및%20상태.md) · [도메인 가이드](docs/policy/도메인%20가이드.md)
