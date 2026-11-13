@@ -76,6 +76,7 @@ test("상세 응답의 사유·채팅방·확정 전달 약속 표시", () => {
   });
   assert.equal(view.reason, "사유");
   assert.equal(view.chatRoomId, "99");
+  assert.equal(view.place, "정문");
   assert.match(view.appt!, /정문/);
   assert.match(view.appt!, /10:00/);
 });
@@ -89,6 +90,22 @@ test("재조회한 상세의 최신 상태·허용 행동·반납 약속을 목�
   assert.equal(view.status, "overdue");
   assert.deepEqual(view.allowedActions, ["RETURN"]);
   assert.equal(view.chatRoomId, "99");
+  assert.equal(view.place, "반납 장소");
   assert.match(view.appt!, /반납 장소/);
   assert.match(view.appt!, /11:00/);
+});
+
+test("전달·반납 약속이 모두 있으면 현재 단계의 확정 장소 사용, 미확정 시 기존 장소 유지", () => {
+  const appointments = [
+    { kind: "PICKUP", confirmedProposal: { scheduledAt: "2027-12-31T01:00:00Z", place: { name: "전달 장소" } } },
+    { kind: "RETURN", confirmedProposal: { scheduledAt: "2028-01-02T02:00:00Z", place: { name: "반납 장소" } } },
+  ];
+  for (const status of ["APPROVED", "ACTIVE"] as const) {
+    const current = { ...rental, status, overdue: false };
+    assert.equal(toRental(current, { rental: current, appointments }).place, status === "APPROVED" ? "전달 장소" : "반납 장소");
+    const pending = appointments.map(({ kind }) => ({ kind }));
+    const view = toRental(current, { rental: current, appointments: pending });
+    assert.equal(view.place, rental.placeName);
+    assert.equal(view.appt, undefined);
+  }
 });

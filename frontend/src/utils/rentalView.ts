@@ -38,7 +38,7 @@ export function toRental(r: ApiRental, detail?: ApiRentalDetail): Rental {
     id: r.id, itemId: r.itemId, title: r.itemTitle, cat: "etc",
     owner: r.owner.displayName, borrower: r.borrower.displayName,
     status, start: date(r.startDate), end: date(r.endDate),
-    startDate: r.startDate, endDate: r.endDate, dday, place: r.placeName,
+    startDate: r.startDate, endDate: r.endDate, dday, place: appointment?.place.name ?? r.placeName,
     allowedActions: r.allowedActions, reason: detail?.reason, chatRoomId: detail?.chatRoomId,
     appt: appointment ? `${new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(appointment.scheduledAt))} · ${appointment.place.name}` : undefined,
   };
