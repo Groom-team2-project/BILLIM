@@ -85,7 +85,7 @@
 | [C_008](#34-c_008-회원-거래-신뢰-지표) | 박소빈 | P1 | GET | /api/v1/members/{memberId}/trust | 회원 거래 신뢰 지표 |
 | [E_009](#41-e_009-동네-검색) | 노현섭 | P0 | GET | /api/v1/communities | 동네 검색 |
 | [E_010](#42-e_010-동네-정보-조회) | 노현섭 | P0 | GET | /api/v1/communities/{communityId} | 동네 정보 조회 |
-| [E_011](#43-e_011-위치-인증-및-활성-동네-선택) | 노현섭 | P0 | POST | /api/v1/communities/{communityId}/verifications | 위치 인증 및 활성 동네 선택 |
+| [E_011](#43-e_011-위치-인증-및-동네-추가) | 노현섭 | P0 | POST | /api/v1/communities/{communityId}/verifications | 위치 인증 및 동네 추가 |
 | [E_012](#44-e_012-공용-거래-장소-목록) | 노현섭 | P0 | GET | /api/v1/communities/{communityId}/places | 공용 거래 장소 목록 |
 | [B_013](#51-b_013-공통-카테고리-목록) | 주정현 | P0 | GET | /api/v1/categories | 공통 카테고리 목록 |
 | [B_014](#52-b_014-사진-업로드) | 주정현 | P0 | POST | /api/v1/media | 사진 업로드 |
@@ -330,7 +330,10 @@
   - 예전에는 이전 소속을 LEFT로 내려 하나만 남겼다. 이제 쌓인다.
   - 이미 저장한 동네를 다시 인증하면 새 행을 만들지 않고 인증 시각·만료만 갱신한다. 슬롯은 유지된다.
   - 이미 2개면 **409 `COMMUNITY_LIMIT_EXCEEDED`**. 어느 동네를 뺄지는 회원이 정한다(E_076). 자동으로 밀어내면 모르는 사이에 그 동네 거래 권한을 잃는다.
-- 용어: **저장 동네**(ACTIVE 소속, 최대 2) / **현재 동네**(`members.active_community_id`, 하나). 거래·채팅 권한은 저장 동네 전체를, 홈 피드·물건 목록은 현재 동네를 기준으로 한다. (도메인 가이드 결정 '저장 동네와 현재 동네')
+- 용어: **저장 동네**(ACTIVE 소속, 최대 2) / **현재 동네**(`members.active_community_id`, 하나).
+  - **저장 동네 전체**를 보는 곳: 대여 요청·승인(단건 판정), 공지 조회, 물건 수정·공개 복원 권한.
+  - **현재 동네 하나**를 보는 곳: 홈 피드, 물건 목록·검색·상세·사진, 채팅, 물건 등록, 프로필의 대표 동네.
+  - 소속 판정 창구가 단건을 돌려주는 계약이라 대부분의 화면은 현재 동네를 본다. 그래서 전환하면 이전 동네의 상세·대화가 잠기는 틈이 남아 있다 — 다시 전환하면 풀린다. (도메인 가이드 결정 '저장 동네와 현재 동네' 한계)
 - 요청 본문: VerifyLocationRequest
 - 성공 응답: 200 Membership
 - 관련 테이블: members, communities, community_memberships
@@ -394,7 +397,8 @@
 - 설명: 본인만. 현재 동네를 **저장 동네 중 다른 쪽으로** 바꾼다. 홈 피드·물건 목록의 기준이 바뀐다.
 - 저장 동네가 아니면 **404** — 없는 동네와 남의 소속을 구분해 알려 주지 않는다.
 - 인증이 만료된 저장 동네로도 전환된다. 전환은 피드 기준을 바꾸는 일이고, 거래는 각 명령 API가 유효 소속을 다시 검사한다.
-- **소속은 바뀌지 않는다.** 전환해도 양쪽 동네의 거래·채팅 권한은 그대로다.
+- **소속은 바뀌지 않는다.** 저장 동네 양쪽의 대여 요청·승인 권한은 그대로다.
+- 다만 물건 상세·사진과 채팅은 현재 동네를 보기 때문에, **전환하면 이전 동네 물건의 상세는 404가 되고 그 채팅방은 `COMMUNITY_CHANGED`로 잠긴다.** 거래 자체는 계속 승인·진행된다. 되돌려 전환하면 풀린다. (후속 과제)
 - 요청 본문: 없음
 - 성공 응답: 200 MyCommunities (바뀐 전체 상태)
 - 관련 테이블: members, community_memberships
@@ -1582,7 +1586,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | --- | --- | --- | --- |
 | canSend | boolean | Y | — |
 | allowedRentalIds | string[] | Y | — |
-| reason | string | Y | 값: NORMAL, BLOCKED, RESTRICTED, COMMUNITY_CHANGED, ITEM_UNAVAILABLE, EXISTING_RENTAL_ONLY |
+| reason | string | Y | 값: NORMAL, BLOCKED, RESTRICTED, COMMUNITY_CHANGED, ITEM_UNAVAILABLE, EXISTING_RENTAL_ONLY. `COMMUNITY_CHANGED`는 물건의 동네가 **현재 동네**가 아닐 때다 — 이탈·인증 만료뿐 아니라 현재 동네 전환(E_075)으로도 뜬다 |
 ### ChatRoom
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
