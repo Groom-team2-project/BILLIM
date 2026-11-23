@@ -1,0 +1,40 @@
+name: billim-monitoring   # 모니터링 전용 EC2에서 실행. 앱 서버에는 올리지 않음
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d   # 운영 종료(11.23)까지 전체 보관
+      # 종료·재로드 API(--web.enable-lifecycle) 미사용 — 포트 포워딩 사용자도 수집을 멈출 수 없게. prometheus.yml 변경은 컨테이너 재시작
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/targets:/etc/prometheus/targets:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:9091:9090"   # 외부 미개방. 확인은 Session Manager 포트 포워딩
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    env_file: .env   # 관리자 비밀번호·디스코드 웹후크. 저장소 미포함
+    environment:
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      # 접근은 포트 포워딩(AWS 권한) 단계에서 통제 — 로그인 없이 조회만 허용. 설정 변경은 관리자 로그인 필요
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "127.0.0.1:3000:3000"   # 외부 미개방. 접속은 Session Manager 포트 포워딩
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:

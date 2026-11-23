@@ -1,0 +1,941 @@
+{
+  "elapsedSeconds": 180.57735776901245,
+  "sqlBefore": {
+    "select": 7251,
+    "update": 2,
+    "insert": 20,
+    "delete": 2
+  },
+  "sqlAfter": {
+    "select": 48999,
+    "update": 2,
+    "insert": 20,
+    "delete": 2
+  },
+  "sqlDelta": {
+    "select": 41748,
+    "update": 0,
+    "delete": 0,
+    "insert": 0
+  },
+  "sqlTotal": 41748,
+  "requests": 1730,
+  "sqlPerRequest": 24.13179190751445,
+  "actuatorSamples": 57,
+  "actuatorErrors": [],
+  "serverSamples": [
+    {
+      "time": 1793187833.6981592,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 10.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.0735312E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 1978656.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 8.5407248E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.3937408E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.466816E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8400528E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.37473984E8",
+        "process_cpu_usage 0.0238290879211175",
+        "system_cpu_usage 0.0919224949442771"
+      ]
+    },
+    {
+      "time": 1793187836.859582,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 5578192.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 2236928.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 8.5407248E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.4156416E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.5293312E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8401848E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.37572336E8",
+        "process_cpu_usage 0.06238326484871125",
+        "system_cpu_usage 0.10162071317900004"
+      ]
+    },
+    {
+      "time": 1793187840.2595148,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 100568.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 1951880.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 8.5407248E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.4390912E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.5760512E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.840236E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.3765532E8",
+        "process_cpu_usage 0.05009784735812133",
+        "system_cpu_usage 0.10056109163957584"
+      ]
+    },
+    {
+      "time": 1793187843.475444,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3.3183496E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 1951880.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 8.5407248E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.4579712E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.6632064E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8403384E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.37866584E8",
+        "process_cpu_usage 0.045148514851485154",
+        "system_cpu_usage 0.07466097173648376"
+      ]
+    },
+    {
+      "time": 1793187846.6429088,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.7834256E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 2360760.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 8.5407248E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.474752E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.6943616E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8403888E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.37954288E8",
+        "process_cpu_usage 0.037445802128498226",
+        "system_cpu_usage 0.07235147714362518"
+      ]
+    },
+    {
+      "time": 1793187849.847308,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.2344304E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 2087616.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 8.5407248E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.4877568E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.7348736E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8403888E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.38069752E8",
+        "process_cpu_usage 0.03373872106708513",
+        "system_cpu_usage 0.06775163307517035"
+      ]
+    },
+    {
+      "time": 1793187853.047688,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.6896232E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 2339848.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 8.5407248E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.4972928E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.7658112E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8403888E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.38139176E8",
+        "process_cpu_usage 0.04072924747866563",
+        "system_cpu_usage 0.06832914034278487"
+      ]
+    },
+    {
+      "time": 1793187856.3050659,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.1627464E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 1951568.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 8.5407248E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.5066112E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.821568E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8404896E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.38538744E8",
+        "process_cpu_usage 0.04144074360960495",
+        "system_cpu_usage 0.0890081335775668"
+      ]
+    },
+    {
+      "time": 1793187859.558004,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1057592.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.4835968E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.817984E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8405448E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.38881104E8",
+        "process_cpu_usage 0.04156769596199525",
+        "system_cpu_usage 0.05809876736062707"
+      ]
+    },
+    {
+      "time": 1793187862.725636,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3.4093416E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.4929664E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.859584E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8405448E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.38891016E8",
+        "process_cpu_usage 0.03064066852367688",
+        "system_cpu_usage 0.07281891644457221"
+      ]
+    },
+    {
+      "time": 1793187865.8910022,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.0913176E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 244296.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.500416E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.9040256E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8405448E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.38906112E8",
+        "process_cpu_usage 0.03010420686993439",
+        "system_cpu_usage 0.06789674866507618"
+      ]
+    },
+    {
+      "time": 1793187869.148952,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 8137136.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 421920.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.5101952E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 3.9609984E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8405448E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.38919896E8",
+        "process_cpu_usage 0.035169988276670575",
+        "system_cpu_usage 0.058209219828024406"
+      ]
+    },
+    {
+      "time": 1793187872.367363,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 4.0958984E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 421920.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.5169024E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.034816E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8406168E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.38995464E8",
+        "process_cpu_usage 0.023800234100663283",
+        "system_cpu_usage 0.06748866627684155"
+      ]
+    },
+    {
+      "time": 1793187875.580287,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.7902792E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 309256.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.5232128E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.0460672E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8406168E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39020464E8",
+        "process_cpu_usage 0.01931415057154119",
+        "system_cpu_usage 0.037445141927540684"
+      ]
+    },
+    {
+      "time": 1793187878.763765,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.4664808E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 395600.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.52608E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.0809728E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8406168E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39054208E8",
+        "process_cpu_usage 0.01537248718959401",
+        "system_cpu_usage 0.05114131092319952"
+      ]
+    },
+    {
+      "time": 1793187881.959409,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.2028312E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 172344.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.5331584E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.1119488E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8406168E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39091624E8",
+        "process_cpu_usage 0.020206022187004756",
+        "system_cpu_usage 0.05815802789361361"
+      ]
+    },
+    {
+      "time": 1793187885.109504,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 4.4623064E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 172344.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.5388416E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.159168E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8406168E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39143864E8",
+        "process_cpu_usage 0.022943037974683545",
+        "system_cpu_usage 0.042285962460078944"
+      ]
+    },
+    {
+      "time": 1793187888.303497,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3.1758696E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 232816.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.5467648E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.164224E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8406168E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39153208E8",
+        "process_cpu_usage 0.03197563760944042",
+        "system_cpu_usage 0.06970804261011145"
+      ]
+    },
+    {
+      "time": 1793187891.6483042,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.8657928E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 448360.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.554432E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.1699456E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8406168E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39161928E8",
+        "process_cpu_usage 0.02404414662987781",
+        "system_cpu_usage 0.04225142548168453"
+      ]
+    },
+    {
+      "time": 1793187894.828255,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 5633800.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 381368.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.5604224E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.202112E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8407208E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39203552E8",
+        "process_cpu_usage 0.02149277061352091",
+        "system_cpu_usage 0.06320489536299315"
+      ]
+    },
+    {
+      "time": 1793187898.0486941,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3.8064952E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 381368.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.5627776E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.2373504E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8407208E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39240288E8",
+        "process_cpu_usage 0.01619913077834848",
+        "system_cpu_usage 0.06330665064360859"
+      ]
+    },
+    {
+      "time": 1793187901.2280629,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.4993072E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 446856.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.5665792E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.2495232E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8407208E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39259216E8",
+        "process_cpu_usage 0.01929893658920835",
+        "system_cpu_usage 0.037350315576367525"
+      ]
+    },
+    {
+      "time": 1793187904.419743,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.1828536E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 154672.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.581184E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.2500352E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8407208E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39260376E8",
+        "process_cpu_usage 0.02185792349726776",
+        "system_cpu_usage 0.05963924595218923"
+      ]
+    },
+    {
+      "time": 1793187907.644254,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 2.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 9261432.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 379504.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.587392E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.253376E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8407208E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39264456E8",
+        "process_cpu_usage 0.0273972602739726",
+        "system_cpu_usage 0.06008928912308344"
+      ]
+    },
+    {
+      "time": 1793187910.9494882,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 4.1702784E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 379504.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.5926016E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.2767616E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8407776E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39285088E8",
+        "process_cpu_usage 0.022585669781931463",
+        "system_cpu_usage 0.05177491236782679"
+      ]
+    },
+    {
+      "time": 1793187914.1795049,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.8550944E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 670128.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.595456E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.2829184E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8407776E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39292872E8",
+        "process_cpu_usage 0.032041139240506326",
+        "system_cpu_usage 0.07513113538132671"
+      ]
+    },
+    {
+      "time": 1793187917.386545,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.5418136E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 434240.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6044672E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.2834432E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8407776E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39294224E8",
+        "process_cpu_usage 0.028560095200317333",
+        "system_cpu_usage 0.05269596784455544"
+      ]
+    },
+    {
+      "time": 1793187920.5533109,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2057584.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 284072.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6082944E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.2834432E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8407776E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39294224E8",
+        "process_cpu_usage 0.0176678445229682",
+        "system_cpu_usage 0.05096931792327994"
+      ]
+    },
+    {
+      "time": 1793187923.756002,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3.4630432E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 284072.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6097664E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.287616E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8407776E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39298752E8",
+        "process_cpu_usage 0.01795472287275566",
+        "system_cpu_usage 0.0464741251141345"
+      ]
+    },
+    {
+      "time": 1793187926.99423,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.1413152E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 173736.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8716656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6121856E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.2949248E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8407776E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39301224E8",
+        "process_cpu_usage 0.024180967238689545",
+        "system_cpu_usage 0.06002801016104447"
+      ]
+    },
+    {
+      "time": 1793187930.216126,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 7906056.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 384768.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8731024E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.616576E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.2964608E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8407776E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39303912E8",
+        "process_cpu_usage 0.02391219129753038",
+        "system_cpu_usage 0.06332440022372636"
+      ]
+    },
+    {
+      "time": 1793187933.4302552,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 4.0242096E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 384768.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8731024E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6193792E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.29792E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8408296E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.3930936E8",
+        "process_cpu_usage 0.023987416437278808",
+        "system_cpu_usage 0.053811008681685604"
+      ]
+    },
+    {
+      "time": 1793187936.633857,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.7111448E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 465480.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8737264E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6253056E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.2996736E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8408296E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39312696E8",
+        "process_cpu_usage 0.021999228097259745",
+        "system_cpu_usage 0.059432010901121275"
+      ]
+    },
+    {
+      "time": 1793187939.897311,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.4029592E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 530912.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.874172E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.63104E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3030656E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8408824E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.3931688E8",
+        "process_cpu_usage 0.01946282600233554",
+        "system_cpu_usage 0.042395394995154066"
+      ]
+    },
+    {
+      "time": 1793187943.144663,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.1042144E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 352496.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8743272E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6336896E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.307328E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8408824E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.3932564E8",
+        "process_cpu_usage 0.03686457120682964",
+        "system_cpu_usage 0.09679880909694469"
+      ]
+    },
+    {
+      "time": 1793187946.3855,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 4.34576E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 352496.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8743272E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6372992E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.311552E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8408824E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39333656E8",
+        "process_cpu_usage 0.027440219521756175",
+        "system_cpu_usage 0.06279774829588519"
+      ]
+    },
+    {
+      "time": 1793187949.59252,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3.0283176E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 729504.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8746032E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6438528E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3137024E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8408824E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39339112E8",
+        "process_cpu_usage 0.02459341531138437",
+        "system_cpu_usage 0.04478169516534038"
+      ]
+    },
+    {
+      "time": 1793187952.769773,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.7155304E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 593832.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8754688E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6464768E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3169024E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8408824E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39348216E8",
+        "process_cpu_usage 0.02564102564102564",
+        "system_cpu_usage 0.0643067670454467"
+      ]
+    },
+    {
+      "time": 1793187955.9561841,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3476280.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 554344.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8759464E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6504192E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3172864E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8408824E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39349192E8",
+        "process_cpu_usage 0.02273618188945512",
+        "system_cpu_usage 0.05481824203186322"
+      ]
+    },
+    {
+      "time": 1793187959.166142,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3.597212E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 554344.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8759464E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6519936E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3195776E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39358952E8",
+        "process_cpu_usage 0.01950078003120125",
+        "system_cpu_usage 0.05605555610767849"
+      ]
+    },
+    {
+      "time": 1793187962.40428,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.2402176E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 376152.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8763512E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6582272E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.322496E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39365104E8",
+        "process_cpu_usage 0.016173570019723867",
+        "system_cpu_usage 0.05721856588949915"
+      ]
+    },
+    {
+      "time": 1793187965.592437,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 8981752.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 520720.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8764912E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6607104E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.322496E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39365104E8",
+        "process_cpu_usage 0.02069504099960953",
+        "system_cpu_usage 0.04283623071356438"
+      ]
+    },
+    {
+      "time": 1793187968.813899,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 4.1204448E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 520720.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8764912E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.662016E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3227136E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39365104E8",
+        "process_cpu_usage 0.016425498631208447",
+        "system_cpu_usage 0.05420807529016282"
+      ]
+    },
+    {
+      "time": 1793187972.037921,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.8273064E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 567640.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8766984E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6711936E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3251328E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39370576E8",
+        "process_cpu_usage 0.02048857368006304",
+        "system_cpu_usage 0.0468355713439342"
+      ]
+    },
+    {
+      "time": 1793187975.213662,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 8.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.4093912E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 584192.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8768328E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6809344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3263104E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39373192E8",
+        "process_cpu_usage 0.023228803716608595",
+        "system_cpu_usage 0.06500453984843356"
+      ]
+    },
+    {
+      "time": 1793187978.471972,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.185508E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 324208.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.87704E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.6873984E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3311872E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39374216E8",
+        "process_cpu_usage 0.019398258115597783",
+        "system_cpu_usage 0.052242450766050025"
+      ]
+    },
+    {
+      "time": 1793187981.644812,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 4.4385144E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 324208.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.87704E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.7014784E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.333248E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39382336E8",
+        "process_cpu_usage 0.03169014084507042",
+        "system_cpu_usage 0.05474410382252867"
+      ]
+    },
+    {
+      "time": 1793187985.0844421,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3.110892E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 416336.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8771424E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.706112E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3357312E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39387016E8",
+        "process_cpu_usage 0.018268176835951774",
+        "system_cpu_usage 0.06925716879985763"
+      ]
+    },
+    {
+      "time": 1793187988.325214,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.791244E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 778632.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8774096E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.70816E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3364096E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39388048E8",
+        "process_cpu_usage 0.02459016393442623",
+        "system_cpu_usage 0.04721957961392843"
+      ]
+    },
+    {
+      "time": 1793187991.540842,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 4681320.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 483320.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8777152E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.7104384E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3367936E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39389312E8",
+        "process_cpu_usage 0.014063093880653745",
+        "system_cpu_usage 0.04970866373181435"
+      ]
+    },
+    {
+      "time": 1793187994.8649678,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3.7876152E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 483320.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8777152E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.7177856E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3373952E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409344E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39398312E8",
+        "process_cpu_usage 0.01763322884012539",
+        "system_cpu_usage 0.06020192551502782"
+      ]
+    },
+    {
+      "time": 1793187998.07667,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3.4467632E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 534824.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.877804E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.7258752E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3428352E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409864E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39410336E8",
+        "process_cpu_usage 0.023137254901960783",
+        "system_cpu_usage 0.042357836894094385"
+      ]
+    },
+    {
+      "time": 1793188001.255123,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.1276792E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 398152.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8778976E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.7305984E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3469824E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409864E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39419208E8",
+        "process_cpu_usage 0.0169826224328594",
+        "system_cpu_usage 0.05086906211271908"
+      ]
+    },
+    {
+      "time": 1793188004.4416761,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 7973592.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 381488.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8962128E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.7313536E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.351488E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409864E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39425104E8",
+        "process_cpu_usage 0.021534847298355524",
+        "system_cpu_usage 0.05282694747103904"
+      ]
+    },
+    {
+      "time": 1793188007.664799,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 4.0255944E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 381488.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8962128E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.7332608E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3515648E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409864E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39425448E8",
+        "process_cpu_usage 0.05111197815060476",
+        "system_cpu_usage 0.08742570039208153"
+      ]
+    },
+    {
+      "time": 1793188010.893417,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.6706496E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 449144.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8964712E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.7338368E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3540992E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409864E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.39437896E8",
+        "process_cpu_usage 0.020155038759689922",
+        "system_cpu_usage 0.06057685334463759"
+      ]
+    },
+    {
+      "time": 1793188014.13344,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3211680.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 357072.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.8966144E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680256.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.7344384E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.3545216E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8409864E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.3943968E8",
+        "process_cpu_usage 0.013790386130811664",
+        "system_cpu_usage 0.042105995207613586"
+      ]
+    }
+  ],
+  "k6ExitCode": 0
+}

@@ -1,0 +1,49 @@
+.profile-pill {
+  flex: none;
+  cursor: pointer;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--status-active-bg);
+  color: var(--status-active-fg);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.profile-pill--off {
+  background: var(--surface-sunken);
+  color: var(--ink-muted);
+}
+
+.profile-row-delete {
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line-control);
+  color: var(--status-overdue-fg);
+  cursor: pointer;
+}
+
+.profile-pill:hover {
+  filter: brightness(0.96);
+}
+
+
+/* 더보기 — 카드 안 마지막 행 */
+.profile-more {
+  width: 100%;
+  padding: var(--space-3);
+  background: none;
+  border-top: 1px solid var(--line);
+  color: var(--action);
+  cursor: pointer;
+}
+
+.profile-more:disabled {
+  color: var(--ink-muted);
+  cursor: default;
+}

@@ -1,0 +1,22 @@
+{
+  "commit": "0738980a9b4cb69e99db23edf9eddd2befb45a25",
+  "jarSha256": "79806f1554d3256b9632739e6eaf6fbcfea05244dada06ceb400156ef936bca0",
+  "sourceSha256": {
+    "backend/src/main/java/com/billim/domain/community/repository/CommunityMembershipRepository.java": "2d35ee6cebb44f74d0a3762597d748152990c50106b11448fb996498ccd180bd",
+    "backend/src/main/java/com/billim/domain/community/service/CommunityMembershipQuery.java": "285b5d68bef0fd23c15e19c4fae0305c804113bdac14f44c65d0481955dc7f52",
+    "backend/src/main/java/com/billim/domain/community/service/CommunityMembershipService.java": "20c8be962d47a9261fb900e379d3379c2095d0878f591788c1dc41b771dc3fd5",
+    "backend/src/main/java/com/billim/domain/rental/service/RentalQueryService.java": "c3c69ebff520be972721ed1f20ca3b1dd63f442c9a26013ca43738e7386c0295",
+    "backend/src/main/java/com/billim/domain/rental/service/RentalRequestPolicy.java": "b5f1c559d920f9e136deaacc189138905c72e471b9edc89350aa8dc4e821dafb",
+    "backend/src/main/java/com/billim/domain/safety/repository/SanctionRepository.java": "3d44201634d1e9a170cc3e3aea69267f701ce5c7f17a572348cc572d43df9a97",
+    "backend/src/main/java/com/billim/domain/safety/service/SanctionService.java": "6d3ca6954b793e7abbf4dcc6a8c817d5b6eb552c7cd929e072538e207282570d"
+  },
+  "workingTreeChanges": false,
+  "duration": "30s",
+  "warmup": "10s",
+  "vus": 10,
+  "sleepSeconds": 0.2,
+  "cases": [
+    "owner-requested"
+  ],
+  "sourceOrigin": "수정 전 JAR은 HEAD 빌드. 계측 중 작업 트리 구현 편집, 소스 지문은 git show HEAD로 보정"
+}

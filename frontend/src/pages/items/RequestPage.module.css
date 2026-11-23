@@ -1,0 +1,37 @@
+.request {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.request-muted {
+  color: var(--ink-muted);
+}
+
+.request-heading {
+  margin: 0;
+}
+
+.request-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.request-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.request-actionbar {
+  position: sticky;
+  bottom: 0;
+  padding: var(--space-3) 0 var(--space-4);
+  background: var(--bg);
+}

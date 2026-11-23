@@ -1,7 +1,7 @@
 # 도메인 및 DB 설계
 
-> 버전 : v0.1.0\
-> 수정일 : 2026.09.29
+> 버전 : v0.1.15\
+> 수정일 : 2026.11.10
 
 ## 1. 공통 규칙
 
@@ -87,6 +87,7 @@ erDiagram
 | [sanctions](#sanctions--회원-이용-제한과-해제-이력--p1-e-결정--a-적용) | E 결정 / A 적용 | P1 | 회원 이용 제한과 해제 이력 |
 | [notices](#notices--커뮤니티-공지--p2) | E 노현섭 | P2 | 커뮤니티 공지 |
 | [idempotency_records](#idempotency_records--post-명령의-안전한-재전송--p0-공통--a-기반) | 공통 / A 기반 | P0 | POST 명령의 안전한 재전송 |
+| [shedlock](#shedlock--다중-인스턴스-배치-잠금-a-이지은) | A 기반 | P0 | 다중 인스턴스 배치 잠금 |
 
 ## 4. 테이블 상세
 
@@ -100,7 +101,7 @@ erDiagram
 | display_name | varchar(30) | N | 2~30자 표시 이름 | — |
 | role | varchar(10) | N | USER / ADMIN. 기본 USER | — |
 | status | varchar(20) | N | ACTIVE / WITHDRAWN. 일시·영구 제한은 sanctions에서 판정 | — |
-| active_community_id | bigint | Y | 선택된 커뮤니티. 유효 소속과의 일치는 서비스 검사 | communities.id |
+| active_community_id | bigint | Y | **현재 동네**. 저장 동네(최대 2) 중 지금 피드 기준이 되는 하나. 유효 소속과의 일치는 서비스 검사 | communities.id |
 | withdrawn_at | datetime(6) | Y | 탈퇴 정책 확정 후 사용 | — |
 | version | bigint | N | 낙관적 잠금. 기본 0 | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
@@ -117,7 +118,7 @@ erDiagram
 | --- | --- | --- | --- | --- |
 | id | bigint | N | PK · AUTO_INCREMENT | — |
 | member_id | bigint | N | 회원 | members.id |
-| provider | varchar(20) | N | KAKAO. NAVER는 후순위 | — |
+| provider | varchar(20) | N | KAKAO / NAVER / LOCAL(관리자 전용 로그인 계정 식별) | — |
 | provider_subject | varchar(100) | N | 제공자의 불변 식별자. 대소문자 구분 비교 | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
@@ -141,7 +142,9 @@ erDiagram
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
-인덱스: UNIQUE (token_hash) · INDEX (member_id, revoked_at) · INDEX (expires_at)
+인덱스: UNIQUE (token_hash) · INDEX (member_id, revoked_at) · INDEX (expires_at) · INDEX (absolute_expires_at)
+
+- `absolute_expires_at` 색인은 만료 정리 배치의 삭제 조건. 없으면 테이블 전체 스캔 (성능 측정 `이지은-인증회원.md` 5절)
 
 - Spring Session JDBC를 채택하면 이 논리 저장소를 프레임워크 표준 테이블로 대체한다. 중복 운영하지 않는다.
 
@@ -152,15 +155,18 @@ erDiagram
 | id | bigint | N | PK · AUTO_INCREMENT | — |
 | session_id | bigint | N | 로그인 전 세션 | auth_sessions.id |
 | state_hash | char(64) | N | 무작위 state 해시 | — |
-| provider | varchar(20) | N | KAKAO | — |
+| provider | varchar(20) | N | KAKAO / NAVER | — |
 | expires_at | datetime(6) | N | 발급 후 10분 제안 | — |
 | consumed_at | datetime(6) | Y | 콜백에서 원자적으로 한 번 소비 | — |
+| code_verifier | varchar(128) | Y | PKCE 검증값. 난수라 재계산 불가. 미사용 제공자는 NULL | — |
+| redirect_uri | varchar(500) | N | 인가 요청에 실어 보낸 값. 콜백에서 동일해야 토큰 교환 성립 | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
 인덱스: UNIQUE (state_hash) · INDEX (expires_at)
 
 - callback은 state와 세션 쿠키를 함께 확인한다. return URL은 서버 고정 허용 경로만 사용한다.
+- 인가 요청을 HTTP 세션에 두지 않는다. 다중 인스턴스에서 로그인 시작과 콜백이 다른 서버로 가도 토큰 교환이 성립해야 한다.
 
 ### 4.2 커뮤니티 (E 노현섭)
 
@@ -171,16 +177,19 @@ erDiagram
 | id | bigint | N | PK · AUTO_INCREMENT | — |
 | name | varchar(100) | N | 동네/단지 이름 | — |
 | display_address | varchar(255) | N | 공개 커뮤니티 주소. 개인 집 주소 아님 | — |
+| region_code | char(10) | Y | 행정동 코드. 위치 인증 1차 판정 기준. NULL이면 반경만 판정 | — |
 | center_latitude | decimal(10,7) | N | -90~90 | — |
 | center_longitude | decimal(10,7) | N | -180~180 | — |
 | verification_radius_m | int | N | 양수 인증 반경 | — |
 | status | varchar(10) | N | ACTIVE / INACTIVE | — |
+| place_supply_attempted_at | datetime(6) | Y | 공용 장소 자동 보충을 마지막으로 시도한 시각. 재시도 간격 판단용 | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
-인덱스: INDEX (status, name, id)
+인덱스: INDEX (status, name, id) · UNIQUE (region_code)
 
-- 운영 seed로 등록한다. 커뮤니티 생성·경계 편집 관리자 UI는 범위 밖.
+- 행정동 단위 동네는 주변 동네 조회·동네 검색에서 자동 등록된다. 좌표·주소·코드는 역지오코딩 응답 값이고, 유니크 키가 행 수를 전국 행정동 수로 묶는다. (결정 '행정동 위치 인증')
+- 행정동과 경계가 다른 동네(아파트 단지 등)는 운영 seed로 등록하고 region_code를 비운다. 이 경우 반경 판정만 쓴다. 커뮤니티 생성·경계 편집 관리자 UI는 범위 밖.
 
 #### community_memberships — 회원별 소속·인증 결과 · P0
 
@@ -193,12 +202,26 @@ erDiagram
 | verified_at | datetime(6) | N | 마지막 성공 인증 시각 | — |
 | verification_expires_at | datetime(6) | N | verified_at + 30일 제안 | — |
 | left_at | datetime(6) | Y | 이전 소속에서 이탈한 시각 | — |
+| active_slot | int | Y | 저장 동네 슬롯 1~2. ACTIVE가 아니면 NULL. 회원당 개수를 묶는 수단 (V23) | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
-인덱스: UNIQUE (member_id, community_id) · INDEX (community_id, status, verification_expires_at)
+인덱스: UNIQUE (member_id, community_id) · UNIQUE (member_id, active_slot) — 저장 동네 최대 2 (V23) · INDEX (community_id, status, verification_expires_at)
 
-- 활성 소속은 회원당 하나. members 잠금 아래 검사한다.
+제약: CHECK `ck_community_memberships_active_slot` — ACTIVE면 슬롯 1~2, 아니면 NULL (V23)
+
+- **저장 동네는 회원당 둘까지.** members 잠금 아래 검사하고 **DB도 보장한다**(V23).
+  "최대 2개"는 유니크 인덱스로 표현할 수 없어 슬롯을 쓴다 — ACTIVE 소속마다 1 또는 2를 주고
+  `(member_id, active_slot)`에 UNIQUE를 건다. 유니크 인덱스는 NULL을 여러 개 허용하므로
+  이탈 행은 제한 없이 쌓인다. 슬롯은 계산할 수 없어 생성 컬럼이 아니라 실제 컬럼이고,
+  빈 슬롯을 고르는 책임은 서비스에 있다.
+- CHECK는 NULL 비교를 **먼저 걸러낸다.** `active_slot IN (1,2)`만 쓰면 슬롯 없는 ACTIVE에서
+  결과가 NULL이 되고, MySQL은 CHECK가 NULL이면 통과시킨다.
+- **어느 쪽이 현재 동네인지는 이 테이블이 아니라 `members.active_community_id`가 가진다.**
+  거래·채팅 권한은 저장 동네 전체를, 홈 피드·물건 목록은 현재 동네를 기준으로 한다.
+  (도메인 가이드 결정 '저장 동네와 현재 동네')
+- V22는 하나를 강제했고 V23이 이를 걷어냈다. 그래서 동네를 바꿀 때 이전 소속을 먼저
+  flush하던 순서 맞춤도 필요 없어졌다 — 이제 더하기만 하고 이탈은 별도 요청이다(E_076).
 - 개인 위치·정확도·이동 기록은 저장하지 않는다. 인증 재시도는 같은 행을 갱신한다.
 
 #### community_places — 물건과 약속이 공유하는 공용 장소 · P0
@@ -215,7 +238,7 @@ erDiagram
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
-인덱스: INDEX (community_id, active, id)
+인덱스: INDEX (community_id, active, id) · UNIQUE (community_id, name)
 
 - 물건/약속의 community_id와 일치하는지 서비스 검사. 사용된 장소는 물리 삭제하지 않는다.
 
@@ -301,6 +324,11 @@ erDiagram
 
 ### 4.4 대여·약속 (C 박소빈)
 
+- V6에서 대여·상태 이력·약속 슬롯·약속 제안 테이블 생성. 엔티티의 P1 선등록에 맞춰 약속 테이블도 함께 생성.
+- 물건·회원·채팅방 및 대여·약속 내부 FK 적용. 슬롯의 확정 제안 FK는 제안 테이블 생성 후 추가.
+- `rentals.community_id`, `rentals.place_id`, `appointment_proposals.place_id`의 FK는 동네·공용 장소 테이블 생성 후 추가 필요.
+- 날짜·거래 당사자·상태값·약속 종류·제안자와 수락자 구분 CHECK 적용. 동일 슬롯의 확정 제안 여부·기간 중복·슬롯별 제안 개수는 서비스 트랜잭션에서 보장.
+
 #### rentals — 대여 요청과 거래 원장 · P0
 
 | 컬럼 | 타입 | NULL | 규칙·의미 | 참조 |
@@ -329,7 +357,7 @@ erDiagram
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
-인덱스: INDEX (item_id, status, start_date, end_date) · INDEX (borrower_id, status, created_at, id) · INDEX (owner_id, status, created_at, id) · INDEX (status, request_expires_at) · INDEX (chat_room_id, id)
+인덱스: INDEX (item_id, status, start_date, end_date) · INDEX (borrower_id, status, created_at, id) · INDEX (owner_id, status, created_at, id) · INDEX (status, request_expires_at) · INDEX (chat_room_id, id) · INDEX (community_id, created_at, status, item_id) — 동네 운영 통계 (V20)
 
 - CHECK start_date <= end_date, owner_id <> borrower_id. item의 owner/community와 일치하는지는 서비스 검사.
 - 기간 중복은 트랜잭션으로 검사한다. RETURNED도 종료일까지 점유를 유지한다.
@@ -392,6 +420,9 @@ erDiagram
 
 ### 4.5 채팅 (D 박선우)
 
+- V4 적용 FK: `chat_rooms.item_id → items.id`, `chat_participants.room_id → chat_rooms.id`, `messages.room_id → chat_rooms.id`.
+- 회원·대여·약속·사건 참조 FK는 관련 테이블과 정책 구현 후 새 마이그레이션에서 추가한다.
+
 #### chat_rooms — 물건별 두 회원의 대화방 · P1
 
 | 컬럼 | 타입 | NULL | 규칙·의미 | 참조 |
@@ -448,6 +479,8 @@ erDiagram
 - sequence 배정과 insert를 같은 방 잠금 트랜잭션으로 처리한다.
 
 ### 4.6 사건·알림 (D 박선우)
+
+`outbox_events`, `event_deliveries`, `notifications` 테이블은 V7 마이그레이션으로 생성한다.
 
 #### outbox_events — 커밋된 도메인 사건 · P0 (사건 생산은 공통)
 
@@ -605,6 +638,8 @@ erDiagram
 
 #### idempotency_records — POST 명령의 안전한 재전송 · P0 (공통 / A 기반)
 
+- V9 마이그레이션 적용. 대여 요청·승인·거절·취소·전달·반납 및 약속 제안·수락·철회에 성공 응답 저장 연결. 만료 기록은 동일 키 재사용 시 제거 후 신규 처리.
+
 | 컬럼 | 타입 | NULL | 규칙·의미 | 참조 |
 | --- | --- | --- | --- | --- |
 | id | bigint | N | PK · AUTO_INCREMENT | — |
@@ -614,7 +649,7 @@ erDiagram
 | request_hash | char(64) | N | 검증된 canonical 요청의 SHA-256 | — |
 | http_status | int | N | 완료한 성공 응답 코드 | — |
 | response_body | json | N | 성공 응답 스냅샷. 세션 비밀값/좌표 제외 | — |
-| expires_at | datetime(6) | N | 생성 후 24시간 제안 | — |
+| expires_at | datetime(6) | N | 생성 후 24시간 | — |
 | created_at | datetime(6) | N | UTC 생성 시각 | — |
 | updated_at | datetime(6) | N | UTC 최종 수정 시각 | — |
 
@@ -623,6 +658,18 @@ erDiagram
 - 회원 행 잠금 후 조회하고, 부수효과와 결과 기록을 하나의 트랜잭션에서 커밋한다. 중간 IN_PROGRESS 행은 외부에 노출하지 않는다.
 - 멱등 재응답도 인증·리소스 조회 권한을 재검사한다. 명령 상태/version 검사는 최초 실행에만 적용한다.
 - multipart 이미지는 재인코딩 전 입력 바이트 해시를 포함한다. 24시간 이후 재요청은 신규 처리될 수 있으므로 거래 자체의 중복 제약도 필요하다.
+
+#### shedlock — 다중 인스턴스 배치 잠금 (A 이지은)
+
+- V21 마이그레이션 적용. ShedLock 라이브러리 표준 스키마. 같은 이름의 `@SchedulerLock` 작업은 한 인스턴스만 실행, 나머지는 건너뜀.
+- 잠금 시각은 DB 시계 기준. 적용 작업: 만료 세션·OAuth 시도 정리(`auth-expired-cleanup`).
+
+| 컬럼 | 타입 | NULL | 규칙·의미 | 참조 |
+| --- | --- | --- | --- | --- |
+| name | varchar(64) | N | PK · 작업 이름 | — |
+| lock_until | timestamp(3) | N | 잠금 유지 시각. 지나면 다른 인스턴스 획득 가능 | — |
+| locked_at | timestamp(3) | N | 잠금 획득 시각 | — |
+| locked_by | varchar(255) | N | 획득 인스턴스 호스트명 | — |
 
 ## 5. 마이그레이션과 구현 순서
 
@@ -649,3 +696,9 @@ erDiagram
 
 인덱스는 시작 후보이며 효과를 보장하는 결론이 아니다. \
 회원 1천 명·물건 1천 개·대여 요청 2만 건의 고정 seed로 실행 계획·잠금 대기·응답 시간을 측정한다.
+
+### 약속 슬롯 보충 (V13)
+
+- 기존 APPROVED/ACTIVE/RETURNED 거래에서 누락된 PICKUP/RETURN 슬롯만 추가.
+- 기존 슬롯·제안·확정 참조 유지. 테이블 구조 변경 없음.
+- 신규 APPROVED 전환은 대여 승인 트랜잭션에서 두 슬롯 생성.

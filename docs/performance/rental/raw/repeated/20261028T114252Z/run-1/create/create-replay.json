@@ -1,0 +1,172 @@
+{
+  "metrics": {
+    "iteration_duration": {
+      "avg": 309.251541,
+      "min": 309.251541,
+      "med": 309.251541,
+      "max": 309.251541,
+      "p(90)": 309.251541,
+      "p(95)": 309.251541,
+      "p(99)": 309.251541
+    },
+    "http_req_duration{expected_response:true}": {
+      "avg": 7.675300000000002,
+      "min": 2.001,
+      "med": 5.714,
+      "max": 47.014,
+      "p(90)": 10.9097,
+      "p(95)": 13.90079999999997,
+      "p(99)": 40.39135999999999
+    },
+    "iterations": {
+      "count": 1,
+      "rate": 3.231090848581389
+    },
+    "http_req_duration": {
+      "med": 12.2425,
+      "max": 77.122,
+      "p(90)": 27.913500000000003,
+      "p(95)": 69.84169999999999,
+      "p(99)": 75.50946,
+      "avg": 16.80928333333333,
+      "min": 1.661
+    },
+    "http_req_blocked": {
+      "p(99)": 2.04972,
+      "avg": 0.1657083333333336,
+      "min": 0.001,
+      "med": 0.002,
+      "max": 2.136,
+      "p(90)": 0.04160000000000002,
+      "p(95)": 1.8921499999999998
+    },
+    "http_req_connecting": {
+      "med": 0,
+      "max": 0.375,
+      "p(90)": 0,
+      "p(95)": 0.28629999999999994,
+      "p(99)": 0.35124,
+      "avg": 0.02533333333333333,
+      "min": 0
+    },
+    "http_req_failed": {
+      "passes": 100,
+      "fails": 20,
+      "value": 0.8333333333333334
+    },
+    "create_replay_not_found": {
+      "count": 90,
+      "rate": 290.79817637232503
+    },
+    "checks": {
+      "passes": 20,
+      "fails": 10,
+      "thresholds": {
+        "rate==1": true
+      },
+      "value": 0.6666666666666666
+    },
+    "create_replay_successes": {
+      "count": 20,
+      "rate": 64.6218169716278
+    },
+    "unexpected_responses": {
+      "passes": 90,
+      "fails": 30,
+      "thresholds": {
+        "rate==0": true
+      },
+      "value": 0.75
+    },
+    "http_reqs": {
+      "count": 120,
+      "rate": 387.7309018297667
+    },
+    "http_req_tls_handshaking": {
+      "avg": 0,
+      "min": 0,
+      "med": 0,
+      "max": 0,
+      "p(90)": 0,
+      "p(95)": 0,
+      "p(99)": 0
+    },
+    "http_req_sending": {
+      "avg": 0.01998333333333332,
+      "min": 0.002,
+      "med": 0.009,
+      "max": 0.509,
+      "p(90)": 0.02560000000000002,
+      "p(95)": 0.05904999999999999,
+      "p(99)": 0.32585999999999965
+    },
+    "create_replay_duration": {
+      "p(90)": 2.9468000000000005,
+      "p(95)": 3.8143999999999996,
+      "p(99)": 4.5084800000000005,
+      "avg": 2.5407,
+      "min": 2.001,
+      "med": 2.245,
+      "max": 4.682
+    },
+    "data_received": {
+      "count": 68890,
+      "rate": 222589.84855877192
+    },
+    "http_req_receiving": {
+      "avg": 0.11963333333333336,
+      "min": 0.013,
+      "med": 0.032,
+      "max": 2.87,
+      "p(90)": 0.1476,
+      "p(95)": 0.22629999999999986,
+      "p(99)": 2.5738899999999987
+    },
+    "create_changed_body_conflicts": {
+      "count": 10,
+      "rate": 32.3109084858139
+    },
+    "data_sent": {
+      "count": 55320,
+      "rate": 178743.94574352246
+    },
+    "http_req_waiting": {
+      "med": 12.174,
+      "max": 76.969,
+      "p(90)": 27.8883,
+      "p(95)": 69.23334999999997,
+      "p(99)": 75.47017,
+      "avg": 16.669666666666664,
+      "min": 1.616
+    }
+  },
+  "root_group": {
+    "name": "",
+    "path": "",
+    "id": "d41d8cd98f00b204e9800998ecf8427e",
+    "groups": {},
+    "checks": {
+      "\uc0dd\uc131 \ub3d9\uc2dc \uc7ac\uc804\uc1a1 10\uac74 \ub3d9\uc77c \uc751\ub2f5": {
+        "path": "::\uc0dd\uc131 \ub3d9\uc2dc \uc7ac\uc804\uc1a1 10\uac74 \ub3d9\uc77c \uc751\ub2f5",
+        "id": "5e6a2aebd3694b17cf8808bdaa15cf6c",
+        "passes": 0,
+        "fails": 10,
+        "name": "\uc0dd\uc131 \ub3d9\uc2dc \uc7ac\uc804\uc1a1 10\uac74 \ub3d9\uc77c \uc751\ub2f5"
+      },
+      "\uc0dd\uc131 \uc644\ub8cc \ud6c4 \uc7ac\uc804\uc1a1 \uc751\ub2f5 \uc77c\uce58": {
+        "fails": 0,
+        "name": "\uc0dd\uc131 \uc644\ub8cc \ud6c4 \uc7ac\uc804\uc1a1 \uc751\ub2f5 \uc77c\uce58",
+        "path": "::\uc0dd\uc131 \uc644\ub8cc \ud6c4 \uc7ac\uc804\uc1a1 \uc751\ub2f5 \uc77c\uce58",
+        "id": "d202f05471ba6a61375ded22a1c01b09",
+        "passes": 10
+      },
+      "\uc0dd\uc131 \ud0a4 \ub2e4\ub978 \ubcf8\ubb38 \uc7ac\uc0ac\uc6a9 \uac70\ubd80": {
+        "name": "\uc0dd\uc131 \ud0a4 \ub2e4\ub978 \ubcf8\ubb38 \uc7ac\uc0ac\uc6a9 \uac70\ubd80",
+        "path": "::\uc0dd\uc131 \ud0a4 \ub2e4\ub978 \ubcf8\ubb38 \uc7ac\uc0ac\uc6a9 \uac70\ubd80",
+        "id": "c87e6844992fc1ea78d9c9ee524f93ca",
+        "passes": 10,
+        "fails": 0
+      }
+    }
+  }
+}

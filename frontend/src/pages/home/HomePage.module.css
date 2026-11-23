@@ -1,0 +1,148 @@
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.home-muted {
+  color: var(--ink-muted);
+}
+
+.home-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.home-community-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.home-community {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px 0 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line-control);
+  background: var(--surface);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.home-greeting {
+  margin: 0;
+}
+
+.home-two {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* 모바일에서는 내 대여 현황이 최신 물건보다 위 (프로토타입 first-mobile) */
+.home-aside {
+  order: -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.home-latest {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-3);
+}
+
+.home-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+
+.home-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+/* 상태색으로 셀 전체를 칠함 — 프로토타입 nb-summary__cell */
+.home-summary-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--ink);
+  text-align: left;
+}
+
+.home-summary-cell--requested { background: var(--status-requested-bg); color: var(--status-requested-fg); }
+.home-summary-cell--approved { background: var(--status-approved-bg); color: var(--status-approved-fg); }
+.home-summary-cell--active { background: var(--status-active-bg); color: var(--status-active-fg); }
+
+.home-summary-cell .home-muted {
+  color: inherit;
+  font-weight: 500;
+}
+
+.home-summary-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.home-summary-count {
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 700;
+}
+
+.home-urgent {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.home-urgent-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+@media (min-width: 760px) {
+  .home-two {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    align-items: start;
+  }
+
+  .home-aside {
+    order: 0;
+    position: sticky;
+    top: calc(68px + var(--space-6));
+  }
+
+  .home-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

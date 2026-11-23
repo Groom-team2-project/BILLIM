@@ -1,0 +1,34 @@
+{
+  "accountSqlDelta": {
+    "insert": 0,
+    "update": 0,
+    "delete": 0,
+    "select": 5
+  },
+  "statements": [
+    {
+      "sql": "SELECT @@`version_comment` LIMIT ?",
+      "calls": 3
+    },
+    {
+      "sql": "SELECT `as1_0` . `id` , `as1_0` . `absolute_expires_at` , `as1_0` . `created_at` , `as1_0` . `csrf_token` , `as1_0` . `expires_at` , `as1_0` . `last_seen_at` , `m1_0` . `id` , `m1_0` . `active_community_id` , `m1_0` . `created_at` , `m1_0` . `display_name` , `m1_0` . `role` , `m1_0` . `status` , `m1_0` . `updated_at` , `m1_0` . `version` , `m1_0` . `withdrawn_at` , `as1_0` . `revoked_at` , `as1_0` . `token_hash` , `as1_0` . `updated_at` FROM `auth_sessions` `as1_0` LEFT JOIN `members` `m1_0` ON `m1_0` . `id` = `as1_0` . `member_id` WHERE `as1_0` . `token_hash` = ?",
+      "calls": 1
+    },
+    {
+      "sql": "SELECT `m1_0` . `id` , `m1_0` . `active_community_id` , `m1_0` . `created_at` , `m1_0` . `display_name` , `m1_0` . `role` , `m1_0` . `status` , `m1_0` . `updated_at` , `m1_0` . `version` , `m1_0` . `withdrawn_at` FROM `members` `m1_0` WHERE `m1_0` . `id` = ?",
+      "calls": 1
+    },
+    {
+      "sql": "SELECT `r1_0` . `id` , `r1_0` . `approved_at` , `r1_0` . `borrower_id` , `r1_0` . `chat_room_id` , `r1_0` . `community_id` , `r1_0` . `created_at` , `r1_0` . `due_at` , `r1_0` . `end_date` , `r1_0` . `handed_over_at` , `r1_0` . `item_id` , `r1_0` . `item_title_snapshot` , `r1_0` . `owner_id` , `r1_0` . `place_id` , `r1_0` . `place_name_snapshot` , `r1_0` . `reason` , `r1_0` . `request_expires_at` , `r1_0` . `return_promise_at` , `r1_0` . `return_promise_kept` , `r1_0` . `returned_at` , `r1_0` . `start_date` , `r1_0` . `status` , `r1_0` . `updated_at` , `r1_0` . `version` FROM `rentals` `r1_0` WHERE `r1_0` . `borrower_id` = ? ORDER BY `r1_0` . `created_at` DESC , `r1_0` . `id` DESC LIMIT ?, ...",
+      "calls": 1
+    },
+    {
+      "sql": "SELECT COUNT ( `r1_0` . `id` ) FROM `rentals` `r1_0` WHERE `r1_0` . `borrower_id` = ?",
+      "calls": 1
+    },
+    {
+      "sql": "SELECT `m1_0` . `id` , `m1_0` . `active_community_id` , `m1_0` . `created_at` , `m1_0` . `display_name` , `m1_0` . `role` , `m1_0` . `status` , `m1_0` . `updated_at` , `m1_0` . `version` , `m1_0` . `withdrawn_at` FROM `members` `m1_0` WHERE `m1_0` . `id` IN (...)",
+      "calls": 1
+    }
+  ]
+}

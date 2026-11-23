@@ -1,0 +1,76 @@
+.map-view {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+}
+
+.map-view svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.map-block {
+  fill: var(--line);
+  opacity: 0.45;
+}
+
+.map-park {
+  fill: var(--status-active-mark);
+  opacity: 0.3;
+}
+
+.map-road {
+  stroke: var(--bg);
+  stroke-width: 10;
+  fill: none;
+}
+
+.map-note {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--ink-muted);
+}
+
+.map-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px var(--space-2) 4px 4px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line-control);
+  background: var(--surface);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.map-pin-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--action);
+  color: var(--on-action);
+}
+
+.map-pin[aria-pressed="true"] {
+  background: var(--action);
+  border-color: var(--action);
+  color: var(--on-action);
+}
+
+.map-pin[aria-pressed="true"] .map-pin-count {
+  background: var(--on-action);
+  color: var(--action);
+}

@@ -1,0 +1,12 @@
+ Container billim-perf-mysql-1 Running 
+ Container billim-perf-backend-1 Running 
+ Container billim-perf-mysql-1 Waiting 
+ Container billim-perf-mysql-1 Healthy 
+ Container billim-perf-k6-run-9de3c1e0be72 Creating 
+ Container billim-perf-k6-run-9de3c1e0be72 Created 
+CASE search-deep-page · VU 10 · 10s
+  처리량 35.17 req/s (총 360건)
+  응답 p50 76.1ms · p95 137.6ms · p99 164.2ms · 최대 165.6ms
+  실패율 0% · 4xx 0건 · 5xx 0건
+  판정 통과 (p95 < 500ms · 오류율 < 1%)
+BILLIM_RESULT {"case":"search-deep-page","vus":10,"duration":"10s","reqPerSec":35.17,"requests":360,"avg":78.6,"p50":76.1,"p95":137.6,"p99":164.2,"max":165.6,"failRate":0,"client4xx":0,"server5xx":0,"p95Pass":true}

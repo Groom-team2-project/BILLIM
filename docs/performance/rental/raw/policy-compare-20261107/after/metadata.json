@@ -1,0 +1,21 @@
+{
+  "commit": "0738980a9b4cb69e99db23edf9eddd2befb45a25",
+  "jarSha256": "f495e68e684ccff2c0503fe419822c5f16d90b3d5c809c092886577bd247616f",
+  "sourceSha256": {
+    "backend/src/main/java/com/billim/domain/community/repository/CommunityMembershipRepository.java": "5d7a6140e28ebdd5e8ea37528509bfe00950450e436ad28ce8a0023b7b00a455",
+    "backend/src/main/java/com/billim/domain/community/service/CommunityMembershipQuery.java": "c541f0d6224627b8cc1c95452e496b742db5f31fc3cec834c0980d45899ad4dd",
+    "backend/src/main/java/com/billim/domain/community/service/CommunityMembershipService.java": "079b6e02e62e9c4f48c809cca4f907cf915ade41b7f60fed6cc1e0afa722a6ba",
+    "backend/src/main/java/com/billim/domain/rental/service/RentalQueryService.java": "e1c8c993a5afd79cabcaab671d3386ada6d6aa62f38c6c9ff9a07b99b507bb34",
+    "backend/src/main/java/com/billim/domain/rental/service/RentalRequestPolicy.java": "aa320de39d6c7c003ed055aca0c0046742ba918e6558abc7431e9e147b44a54a",
+    "backend/src/main/java/com/billim/domain/safety/repository/SanctionRepository.java": "5000f7c7afd6bc63183eeb3e2eb851303b93a27d6395ff77e3a2a6a88428a96b",
+    "backend/src/main/java/com/billim/domain/safety/service/SanctionService.java": "cf2806532f643a3f4633e7777c5d6227ebf20cbc069f9a203903c44f7a3dee13"
+  },
+  "workingTreeChanges": true,
+  "duration": "30s",
+  "warmup": "10s",
+  "vus": 10,
+  "sleepSeconds": 0.2,
+  "cases": [
+    "owner-requested"
+  ]
+}

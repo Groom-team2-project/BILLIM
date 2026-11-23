@@ -1,0 +1,61 @@
+{
+  "elapsedSeconds": 6.0357489585876465,
+  "sqlBefore": {
+    "select": 363,
+    "update": 2,
+    "insert": 20,
+    "delete": 2
+  },
+  "sqlAfter": {
+    "select": 491,
+    "update": 2,
+    "insert": 20,
+    "delete": 2
+  },
+  "sqlDelta": {
+    "delete": 0,
+    "select": 128,
+    "insert": 0,
+    "update": 0
+  },
+  "sqlTotal": 128,
+  "requests": 5,
+  "sqlPerRequest": 25.6,
+  "actuatorSamples": 2,
+  "actuatorErrors": [],
+  "serverSamples": [
+    {
+      "time": 1793188272.8546739,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.4253208E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 3395696.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 8.1939224E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1680512.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 9437952.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 2.5294336E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8324936E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.33519408E8",
+        "process_cpu_usage 0.0",
+        "system_cpu_usage 0.5166666666666666"
+      ]
+    },
+    {
+      "time": 1793188276.3421671,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.1047112E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 3395696.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 8.1939224E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1682048.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 9821440.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 2.619712E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8346144E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.3392032E8",
+        "process_cpu_usage 0.040680473372781065",
+        "system_cpu_usage 0.08531061462522689"
+      ]
+    }
+  ],
+  "k6ExitCode": 0
+}

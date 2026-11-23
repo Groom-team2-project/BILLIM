@@ -1,0 +1,1055 @@
+[
+  {
+    "variant": "after",
+    "count": 10,
+    "delay": 100,
+    "firstCardMs": 116.40000000596046,
+    "readyMs": 229.80000001192093,
+    "requests": 7,
+    "completed": 7,
+    "errors": 0,
+    "maxActive": 5,
+    "cards": 5,
+    "paths": [
+      {
+        "path": "/api/v1/rentals/summary",
+        "startedMs": 5.200000017881393,
+        "endedMs": 106.60000002384186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals?role=BORROWER&page=0&size=20",
+        "startedMs": 5.4000000059604645,
+        "endedMs": 106.7000000178814,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10000",
+        "startedMs": 106.90000000596046,
+        "endedMs": 208.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10002",
+        "startedMs": 106.90000000596046,
+        "endedMs": 208.60000002384186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10004",
+        "startedMs": 106.90000000596046,
+        "endedMs": 208.7000000178814,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10006",
+        "startedMs": 106.90000000596046,
+        "endedMs": 208.7000000178814,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10008",
+        "startedMs": 106.90000000596046,
+        "endedMs": 208.7000000178814,
+        "status": 200
+      }
+    ],
+    "run": 1
+  },
+  {
+    "variant": "after",
+    "count": 10,
+    "delay": 100,
+    "firstCardMs": 116,
+    "readyMs": 236.7000000178814,
+    "requests": 7,
+    "completed": 7,
+    "errors": 0,
+    "maxActive": 5,
+    "cards": 5,
+    "paths": [
+      {
+        "path": "/api/v1/rentals/summary",
+        "startedMs": 5,
+        "endedMs": 106.40000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals?role=BORROWER&page=0&size=20",
+        "startedMs": 5.100000023841858,
+        "endedMs": 106.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10000",
+        "startedMs": 106.80000001192093,
+        "endedMs": 207.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10002",
+        "startedMs": 106.80000001192093,
+        "endedMs": 207.60000002384186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10004",
+        "startedMs": 106.80000001192093,
+        "endedMs": 207.60000002384186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10006",
+        "startedMs": 106.80000001192093,
+        "endedMs": 207.60000002384186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10008",
+        "startedMs": 106.80000001192093,
+        "endedMs": 207.7000000178814,
+        "status": 200
+      }
+    ],
+    "run": 2
+  },
+  {
+    "variant": "after",
+    "count": 10,
+    "delay": 100,
+    "firstCardMs": 116.2999999821186,
+    "readyMs": 236.69999998807907,
+    "requests": 7,
+    "completed": 7,
+    "errors": 0,
+    "maxActive": 5,
+    "cards": 5,
+    "paths": [
+      {
+        "path": "/api/v1/rentals/summary",
+        "startedMs": 5.299999982118607,
+        "endedMs": 106.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals?role=BORROWER&page=0&size=20",
+        "startedMs": 5.299999982118607,
+        "endedMs": 106.69999998807907,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10000",
+        "startedMs": 107,
+        "endedMs": 207.7999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10002",
+        "startedMs": 107,
+        "endedMs": 207.90000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10004",
+        "startedMs": 107,
+        "endedMs": 208,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10006",
+        "startedMs": 107,
+        "endedMs": 208,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10008",
+        "startedMs": 107,
+        "endedMs": 208,
+        "status": 200
+      }
+    ],
+    "run": 3
+  },
+  {
+    "variant": "after",
+    "count": 100,
+    "delay": 100,
+    "firstCardMs": 135.7999999821186,
+    "readyMs": 616.0999999940395,
+    "requests": 22,
+    "completed": 22,
+    "errors": 0,
+    "maxActive": 6,
+    "cards": 20,
+    "paths": [
+      {
+        "path": "/api/v1/rentals/summary",
+        "startedMs": 5.5999999940395355,
+        "endedMs": 107.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals?role=BORROWER&page=0&size=20",
+        "startedMs": 5.699999988079071,
+        "endedMs": 107.69999998807907,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10000",
+        "startedMs": 107.90000000596046,
+        "endedMs": 208.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10002",
+        "startedMs": 108,
+        "endedMs": 208.69999998807907,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10004",
+        "startedMs": 108,
+        "endedMs": 208.69999998807907,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10006",
+        "startedMs": 108,
+        "endedMs": 208.7999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10008",
+        "startedMs": 108,
+        "endedMs": 208.7999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10010",
+        "startedMs": 108,
+        "endedMs": 208.90000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10012",
+        "startedMs": 230.7999999821186,
+        "endedMs": 332.19999998807907,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10014",
+        "startedMs": 230.7999999821186,
+        "endedMs": 332.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10016",
+        "startedMs": 230.90000000596046,
+        "endedMs": 332.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10018",
+        "startedMs": 230.90000000596046,
+        "endedMs": 332.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10020",
+        "startedMs": 230.90000000596046,
+        "endedMs": 332.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10022",
+        "startedMs": 230.90000000596046,
+        "endedMs": 332.40000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10024",
+        "startedMs": 351.69999998807907,
+        "endedMs": 453.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10026",
+        "startedMs": 351.69999998807907,
+        "endedMs": 453.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10028",
+        "startedMs": 351.69999998807907,
+        "endedMs": 453.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10030",
+        "startedMs": 351.69999998807907,
+        "endedMs": 453.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10032",
+        "startedMs": 351.69999998807907,
+        "endedMs": 453.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10034",
+        "startedMs": 351.69999998807907,
+        "endedMs": 453.69999998807907,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10036",
+        "startedMs": 475.09999999403954,
+        "endedMs": 576.9000000059605,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10038",
+        "startedMs": 475.09999999403954,
+        "endedMs": 577,
+        "status": 200
+      }
+    ],
+    "run": 1
+  },
+  {
+    "variant": "after",
+    "count": 100,
+    "delay": 100,
+    "firstCardMs": 133.2000000178814,
+    "readyMs": 616.4000000059605,
+    "requests": 22,
+    "completed": 22,
+    "errors": 0,
+    "maxActive": 6,
+    "cards": 20,
+    "paths": [
+      {
+        "path": "/api/v1/rentals/summary",
+        "startedMs": 4.200000017881393,
+        "endedMs": 105.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals?role=BORROWER&page=0&size=20",
+        "startedMs": 4.300000011920929,
+        "endedMs": 105.7000000178814,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10000",
+        "startedMs": 106,
+        "endedMs": 207.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10002",
+        "startedMs": 106,
+        "endedMs": 207.80000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10004",
+        "startedMs": 106,
+        "endedMs": 207.80000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10006",
+        "startedMs": 106,
+        "endedMs": 207.80000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10008",
+        "startedMs": 106,
+        "endedMs": 207.90000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10010",
+        "startedMs": 106,
+        "endedMs": 207.90000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10012",
+        "startedMs": 229,
+        "endedMs": 330.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10014",
+        "startedMs": 229,
+        "endedMs": 330.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10016",
+        "startedMs": 229,
+        "endedMs": 330.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10018",
+        "startedMs": 229.09999999403954,
+        "endedMs": 330.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10020",
+        "startedMs": 229.09999999403954,
+        "endedMs": 330.7000000178814,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10022",
+        "startedMs": 229.09999999403954,
+        "endedMs": 330.7000000178814,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10024",
+        "startedMs": 352.09999999403954,
+        "endedMs": 453.30000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10026",
+        "startedMs": 352.09999999403954,
+        "endedMs": 453.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10028",
+        "startedMs": 352.09999999403954,
+        "endedMs": 453.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10030",
+        "startedMs": 352.09999999403954,
+        "endedMs": 453.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10032",
+        "startedMs": 352.09999999403954,
+        "endedMs": 453.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10034",
+        "startedMs": 352.09999999403954,
+        "endedMs": 453.7000000178814,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10036",
+        "startedMs": 475.90000000596046,
+        "endedMs": 577.3000000119209,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10038",
+        "startedMs": 475.90000000596046,
+        "endedMs": 577.4000000059605,
+        "status": 200
+      }
+    ],
+    "run": 2
+  },
+  {
+    "variant": "after",
+    "count": 100,
+    "delay": 100,
+    "firstCardMs": 128.30000001192093,
+    "readyMs": 603.6000000238419,
+    "requests": 22,
+    "completed": 22,
+    "errors": 0,
+    "maxActive": 6,
+    "cards": 20,
+    "paths": [
+      {
+        "path": "/api/v1/rentals/summary",
+        "startedMs": 3.9000000059604645,
+        "endedMs": 105,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals?role=BORROWER&page=0&size=20",
+        "startedMs": 4,
+        "endedMs": 105.10000002384186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10000",
+        "startedMs": 105.40000000596046,
+        "endedMs": 206,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10002",
+        "startedMs": 105.40000000596046,
+        "endedMs": 206.10000002384186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10004",
+        "startedMs": 105.40000000596046,
+        "endedMs": 206.2000000178814,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10006",
+        "startedMs": 105.5,
+        "endedMs": 206.2000000178814,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10008",
+        "startedMs": 105.5,
+        "endedMs": 206.30000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10010",
+        "startedMs": 105.5,
+        "endedMs": 206.40000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10012",
+        "startedMs": 227.10000002384186,
+        "endedMs": 328.10000002384186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10014",
+        "startedMs": 227.10000002384186,
+        "endedMs": 328.30000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10016",
+        "startedMs": 227.10000002384186,
+        "endedMs": 328.30000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10018",
+        "startedMs": 227.10000002384186,
+        "endedMs": 328.30000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10020",
+        "startedMs": 227.10000002384186,
+        "endedMs": 328.40000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10022",
+        "startedMs": 227.10000002384186,
+        "endedMs": 328.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10024",
+        "startedMs": 345.2000000178814,
+        "endedMs": 446.60000002384186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10026",
+        "startedMs": 345.2000000178814,
+        "endedMs": 446.80000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10028",
+        "startedMs": 345.2000000178814,
+        "endedMs": 446.90000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10030",
+        "startedMs": 345.2000000178814,
+        "endedMs": 446.90000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10032",
+        "startedMs": 345.2000000178814,
+        "endedMs": 447,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10034",
+        "startedMs": 345.2000000178814,
+        "endedMs": 447,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10036",
+        "startedMs": 464.10000002384186,
+        "endedMs": 565.6000000238419,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10038",
+        "startedMs": 464.10000002384186,
+        "endedMs": 567.4000000059605,
+        "status": 200
+      }
+    ],
+    "run": 3
+  },
+  {
+    "variant": "after",
+    "count": 1000,
+    "delay": 100,
+    "firstCardMs": 133.59999999403954,
+    "readyMs": 625.2999999821186,
+    "requests": 22,
+    "completed": 22,
+    "errors": 0,
+    "maxActive": 6,
+    "cards": 20,
+    "paths": [
+      {
+        "path": "/api/v1/rentals/summary",
+        "startedMs": 4.799999982118607,
+        "endedMs": 107.09999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals?role=BORROWER&page=0&size=20",
+        "startedMs": 6.0999999940395355,
+        "endedMs": 107.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10000",
+        "startedMs": 109.09999999403954,
+        "endedMs": 209.7999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10002",
+        "startedMs": 109.09999999403954,
+        "endedMs": 210,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10004",
+        "startedMs": 109.19999998807907,
+        "endedMs": 210,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10006",
+        "startedMs": 109.19999998807907,
+        "endedMs": 210,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10008",
+        "startedMs": 109.19999998807907,
+        "endedMs": 210.09999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10010",
+        "startedMs": 109.19999998807907,
+        "endedMs": 210.09999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10012",
+        "startedMs": 231.09999999403954,
+        "endedMs": 332.09999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10014",
+        "startedMs": 231.09999999403954,
+        "endedMs": 332.19999998807907,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10016",
+        "startedMs": 231.09999999403954,
+        "endedMs": 332.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10018",
+        "startedMs": 231.09999999403954,
+        "endedMs": 332.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10020",
+        "startedMs": 231.09999999403954,
+        "endedMs": 332.40000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10022",
+        "startedMs": 231.09999999403954,
+        "endedMs": 332.40000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10024",
+        "startedMs": 354.09999999403954,
+        "endedMs": 454.7999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10026",
+        "startedMs": 354.09999999403954,
+        "endedMs": 454.90000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10028",
+        "startedMs": 354.09999999403954,
+        "endedMs": 455,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10030",
+        "startedMs": 354.09999999403954,
+        "endedMs": 455,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10032",
+        "startedMs": 354.09999999403954,
+        "endedMs": 455,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10034",
+        "startedMs": 354.09999999403954,
+        "endedMs": 455,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10036",
+        "startedMs": 476.09999999403954,
+        "endedMs": 577.5999999940395,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10038",
+        "startedMs": 476.19999998807907,
+        "endedMs": 577.5999999940395,
+        "status": 200
+      }
+    ],
+    "run": 1
+  },
+  {
+    "variant": "after",
+    "count": 1000,
+    "delay": 100,
+    "firstCardMs": 133.09999999403954,
+    "readyMs": 616.4000000059605,
+    "requests": 22,
+    "completed": 22,
+    "errors": 0,
+    "maxActive": 6,
+    "cards": 20,
+    "paths": [
+      {
+        "path": "/api/v1/rentals/summary",
+        "startedMs": 4.5999999940395355,
+        "endedMs": 106.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals?role=BORROWER&page=0&size=20",
+        "startedMs": 4.700000017881393,
+        "endedMs": 106.7000000178814,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10000",
+        "startedMs": 106.90000000596046,
+        "endedMs": 208.90000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10002",
+        "startedMs": 106.90000000596046,
+        "endedMs": 209,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10004",
+        "startedMs": 107,
+        "endedMs": 209,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10006",
+        "startedMs": 107,
+        "endedMs": 209.09999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10008",
+        "startedMs": 107,
+        "endedMs": 209.09999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10010",
+        "startedMs": 107,
+        "endedMs": 209.2000000178814,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10012",
+        "startedMs": 227.09999999403954,
+        "endedMs": 328.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10014",
+        "startedMs": 227.09999999403954,
+        "endedMs": 328.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10016",
+        "startedMs": 227.09999999403954,
+        "endedMs": 328.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10018",
+        "startedMs": 227.09999999403954,
+        "endedMs": 328.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10020",
+        "startedMs": 227.09999999403954,
+        "endedMs": 328.80000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10022",
+        "startedMs": 227.09999999403954,
+        "endedMs": 328.80000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10024",
+        "startedMs": 348.90000000596046,
+        "endedMs": 449.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10026",
+        "startedMs": 348.90000000596046,
+        "endedMs": 449.7000000178814,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10028",
+        "startedMs": 348.90000000596046,
+        "endedMs": 449.80000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10030",
+        "startedMs": 348.90000000596046,
+        "endedMs": 449.80000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10032",
+        "startedMs": 348.90000000596046,
+        "endedMs": 449.80000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10034",
+        "startedMs": 348.90000000596046,
+        "endedMs": 449.80000001192093,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10036",
+        "startedMs": 472.7000000178814,
+        "endedMs": 574.5999999940395,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10038",
+        "startedMs": 472.7000000178814,
+        "endedMs": 574.8000000119209,
+        "status": 200
+      }
+    ],
+    "run": 2
+  },
+  {
+    "variant": "after",
+    "count": 1000,
+    "delay": 100,
+    "firstCardMs": 131.90000000596046,
+    "readyMs": 607.5999999940395,
+    "requests": 22,
+    "completed": 22,
+    "errors": 0,
+    "maxActive": 6,
+    "cards": 20,
+    "paths": [
+      {
+        "path": "/api/v1/rentals/summary",
+        "startedMs": 4.299999982118607,
+        "endedMs": 107,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals?role=BORROWER&page=0&size=20",
+        "startedMs": 4.299999982118607,
+        "endedMs": 107.19999998807907,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10000",
+        "startedMs": 107.40000000596046,
+        "endedMs": 208.40000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10002",
+        "startedMs": 107.40000000596046,
+        "endedMs": 208.5,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10004",
+        "startedMs": 107.40000000596046,
+        "endedMs": 208.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10006",
+        "startedMs": 107.40000000596046,
+        "endedMs": 208.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10008",
+        "startedMs": 107.40000000596046,
+        "endedMs": 208.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10010",
+        "startedMs": 107.40000000596046,
+        "endedMs": 208.59999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10012",
+        "startedMs": 208.69999998807907,
+        "endedMs": 309.19999998807907,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10014",
+        "startedMs": 208.69999998807907,
+        "endedMs": 309.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10016",
+        "startedMs": 208.69999998807907,
+        "endedMs": 309.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10018",
+        "startedMs": 208.7999999821186,
+        "endedMs": 309.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10020",
+        "startedMs": 208.7999999821186,
+        "endedMs": 309.40000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10022",
+        "startedMs": 208.7999999821186,
+        "endedMs": 309.40000000596046,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10024",
+        "startedMs": 329.90000000596046,
+        "endedMs": 431,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10026",
+        "startedMs": 329.90000000596046,
+        "endedMs": 431.09999999403954,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10028",
+        "startedMs": 329.90000000596046,
+        "endedMs": 431.19999998807907,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10030",
+        "startedMs": 329.90000000596046,
+        "endedMs": 431.19999998807907,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10032",
+        "startedMs": 329.90000000596046,
+        "endedMs": 431.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10034",
+        "startedMs": 329.90000000596046,
+        "endedMs": 431.2999999821186,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10036",
+        "startedMs": 454.5,
+        "endedMs": 555.9000000059605,
+        "status": 200
+      },
+      {
+        "path": "/api/v1/rentals/10038",
+        "startedMs": 454.5,
+        "endedMs": 555.9000000059605,
+        "status": 200
+      }
+    ],
+    "run": 3
+  }
+]

@@ -1,0 +1,51 @@
+# Netlify 배포 설정 — 모노레포의 frontend만 빌드
+
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  # CI(.github/workflows/ci.yml)와 동일하게 고정
+  NODE_VERSION = "22"
+
+# API 프록시 — CloudFront(billim-api, E76578PCJ6C22) 경유 백엔드 전달
+# HTTPS → VPC 오리진(사설망) → EC2 8080. EC2 공인 IP 직접 호출(평문 HTTP) 대체
+[[redirects]]
+  from = "/api/*"
+  to = "https://de69ozplh2sjv.cloudfront.net/api/:splat"
+  status = 200
+  force = true
+  # 요청마다 x-nf-sign(HS256 JWS) 부착 — 백엔드가 직접 호출과 구분해 IP 헤더 위조 차단.
+  # 값은 사이트 환경 변수 PROXY_SIGNATURE_SECRET(스코프에 Runtime 포함)
+  signed = "PROXY_SIGNATURE_SECRET"
+
+# SPA 라우팅 — /profile 같은 주소로 직접 들어와도 index.html 반환
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# 보안 헤더 — 전 경로. 경로별 [[headers]]와 함께 적용
+# 프레임 삽입 차단(클릭재킹) · MIME 추측 차단 · 외부로 보내는 주소 축소 · 위치 외 기기 권한 차단
+# 출처 제한 CSP — 자기 출처·카카오 지도·채팅 WSS만 허용. Report-Only 관찰에서 위반 없음 확인 후 강제
+# 카카오 지도 SDK 4.5.x는 본체 스크립트(t1)·타일(mts 등)을 kakaocdn.net에서 로드 — daumcdn.net만으로는 지도 중단
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self'; script-src 'self' https://dapi.kakao.com https://t1.kakaocdn.net https://t1.daumcdn.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.kakaocdn.net https://*.daumcdn.net https://*.kakao.com; font-src 'self'; connect-src 'self' wss://d24eooh4xf18t4.cloudfront.net; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(self), camera=(), microphone=(), payment=(), usb=()"
+
+# 해시가 붙은 정적 파일은 길게 캐시
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

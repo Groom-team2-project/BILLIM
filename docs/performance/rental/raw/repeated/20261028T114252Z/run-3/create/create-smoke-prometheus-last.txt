@@ -1,0 +1,571 @@
+HTTP/1.1 200 
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 0
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Content-Type: text/plain;version=0.0.4;charset=utf-8
+Content-Length: 56297
+Date: Wed, 28 Oct 2026 12:03:12 GMT
+Connection: close
+
+# HELP application_ready_time_seconds Time taken for the application to be ready to service requests
+# TYPE application_ready_time_seconds gauge
+application_ready_time_seconds{main_application_class="com.billim.BillimApplication"} 7.68
+# HELP application_started_time_seconds Time taken to start the application
+# TYPE application_started_time_seconds gauge
+application_started_time_seconds{main_application_class="com.billim.BillimApplication"} 7.613
+# HELP billim_outbox_events 상태별 도메인 사건 수
+# TYPE billim_outbox_events gauge
+billim_outbox_events{status="DONE"} 0.0
+billim_outbox_events{status="FAILED"} 0.0
+billim_outbox_events{status="PENDING"} 120.0
+billim_outbox_events{status="PROCESSING"} 0.0
+# HELP disk_free_bytes Usable space for path
+# TYPE disk_free_bytes gauge
+disk_free_bytes{path="/app/."} 2.16479584256E11
+# HELP disk_total_bytes Total space for path
+# TYPE disk_total_bytes gauge
+disk_total_bytes{path="/app/."} 2.40120725504E11
+# HELP executor_active_threads The approximate number of threads that are actively executing tasks
+# TYPE executor_active_threads gauge
+executor_active_threads{name="chatDeliveryExecutor"} 0.0
+executor_active_threads{name="taskScheduler"} 0.0
+# HELP executor_completed_tasks_total The approximate total number of tasks that have completed execution
+# TYPE executor_completed_tasks_total counter
+executor_completed_tasks_total{name="chatDeliveryExecutor"} 0.0
+executor_completed_tasks_total{name="taskScheduler"} 136.0
+# HELP executor_pool_core_threads The core number of threads for the pool
+# TYPE executor_pool_core_threads gauge
+executor_pool_core_threads{name="chatDeliveryExecutor"} 4.0
+executor_pool_core_threads{name="taskScheduler"} 3.0
+# HELP executor_pool_max_threads The maximum allowed number of threads in the pool
+# TYPE executor_pool_max_threads gauge
+executor_pool_max_threads{name="chatDeliveryExecutor"} 8.0
+executor_pool_max_threads{name="taskScheduler"} 2.147483647E9
+# HELP executor_pool_size_threads The current number of threads in the pool
+# TYPE executor_pool_size_threads gauge
+executor_pool_size_threads{name="chatDeliveryExecutor"} 0.0
+executor_pool_size_threads{name="taskScheduler"} 3.0
+# HELP executor_queue_remaining_tasks The number of additional elements that this queue can ideally accept without blocking
+# TYPE executor_queue_remaining_tasks gauge
+executor_queue_remaining_tasks{name="chatDeliveryExecutor"} 1024.0
+executor_queue_remaining_tasks{name="taskScheduler"} 2.147483647E9
+# HELP executor_queued_tasks The approximate number of tasks that are queued for execution
+# TYPE executor_queued_tasks gauge
+executor_queued_tasks{name="chatDeliveryExecutor"} 0.0
+executor_queued_tasks{name="taskScheduler"} 3.0
+# HELP hikaricp_connections Total connections
+# TYPE hikaricp_connections gauge
+hikaricp_connections{pool="HikariPool-1"} 30.0
+# HELP hikaricp_connections_acquire_seconds Connection acquire time
+# TYPE hikaricp_connections_acquire_seconds summary
+hikaricp_connections_acquire_seconds_count{pool="HikariPool-1"} 6299
+hikaricp_connections_acquire_seconds_sum{pool="HikariPool-1"} 3.744685019
+# HELP hikaricp_connections_acquire_seconds_max Connection acquire time
+# TYPE hikaricp_connections_acquire_seconds_max gauge
+hikaricp_connections_acquire_seconds_max{pool="HikariPool-1"} 0.040427251
+# HELP hikaricp_connections_active Active connections
+# TYPE hikaricp_connections_active gauge
+hikaricp_connections_active{pool="HikariPool-1"} 10.0
+# HELP hikaricp_connections_creation_seconds Connection creation time
+# TYPE hikaricp_connections_creation_seconds summary
+hikaricp_connections_creation_seconds_count{pool="HikariPool-1"} 0
+hikaricp_connections_creation_seconds_sum{pool="HikariPool-1"} 0.0
+# HELP hikaricp_connections_creation_seconds_max Connection creation time
+# TYPE hikaricp_connections_creation_seconds_max gauge
+hikaricp_connections_creation_seconds_max{pool="HikariPool-1"} 0.0
+# HELP hikaricp_connections_idle Idle connections
+# TYPE hikaricp_connections_idle gauge
+hikaricp_connections_idle{pool="HikariPool-1"} 20.0
+# HELP hikaricp_connections_max Max connections
+# TYPE hikaricp_connections_max gauge
+hikaricp_connections_max{pool="HikariPool-1"} 30.0
+# HELP hikaricp_connections_min Min connections
+# TYPE hikaricp_connections_min gauge
+hikaricp_connections_min{pool="HikariPool-1"} 30.0
+# HELP hikaricp_connections_pending Pending threads
+# TYPE hikaricp_connections_pending gauge
+hikaricp_connections_pending{pool="HikariPool-1"} 0.0
+# HELP hikaricp_connections_timeout_total Connection timeout total count
+# TYPE hikaricp_connections_timeout_total counter
+hikaricp_connections_timeout_total{pool="HikariPool-1"} 0.0
+# HELP hikaricp_connections_usage_seconds Connection usage time
+# TYPE hikaricp_connections_usage_seconds summary
+hikaricp_connections_usage_seconds_count{pool="HikariPool-1"} 6293
+hikaricp_connections_usage_seconds_sum{pool="HikariPool-1"} 95.044
+# HELP hikaricp_connections_usage_seconds_max Connection usage time
+# TYPE hikaricp_connections_usage_seconds_max gauge
+hikaricp_connections_usage_seconds_max{pool="HikariPool-1"} 0.375
+# HELP http_server_requests_active_seconds  
+# TYPE http_server_requests_active_seconds summary
+http_server_requests_active_seconds_count{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN"} 0
+http_server_requests_active_seconds_sum{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN"} 0.0
+http_server_requests_active_seconds_count{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN"} 10
+http_server_requests_active_seconds_sum{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN"} 0.987885671
+# HELP http_server_requests_active_seconds_max  
+# TYPE http_server_requests_active_seconds_max gauge
+http_server_requests_active_seconds_max{exception="none",method="GET",outcome="SUCCESS",status="200",uri="UNKNOWN"} 0.0
+http_server_requests_active_seconds_max{exception="none",method="POST",outcome="SUCCESS",status="200",uri="UNKNOWN"} 0.100101708
+# HELP http_server_requests_seconds  
+# TYPE http_server_requests_seconds summary
+http_server_requests_seconds_count{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/v1/auth/csrf"} 26
+http_server_requests_seconds_sum{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/v1/auth/csrf"} 0.496921791
+http_server_requests_seconds_count{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/v1/rentals"} 2016
+http_server_requests_seconds_sum{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/v1/rentals"} 81.780880691
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/v1/appointments/{proposalId}/accept"} 19
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/v1/appointments/{proposalId}/accept"} 0.471919166
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/v1/appointments/{proposalId}/withdraw"} 21
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/v1/appointments/{proposalId}/withdraw"} 0.370889579
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/v1/rentals/{rentalId}/approve"} 400
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/v1/rentals/{rentalId}/approve"} 22.757762203
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/v1/appointments/{proposalId}/accept"} 21
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/v1/appointments/{proposalId}/accept"} 0.300491416
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/v1/appointments/{proposalId}/withdraw"} 19
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/v1/appointments/{proposalId}/withdraw"} 0.421439041
+http_server_requests_seconds_count{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/v1/rentals/{rentalId}/approve"} 480
+http_server_requests_seconds_sum{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/v1/rentals/{rentalId}/approve"} 11.749899674
+# HELP http_server_requests_seconds_max  
+# TYPE http_server_requests_seconds_max gauge
+http_server_requests_seconds_max{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/v1/auth/csrf"} 0.058270792
+http_server_requests_seconds_max{error="none",exception="none",method="GET",outcome="SUCCESS",status="200",uri="/api/v1/rentals"} 0.07900725
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/v1/appointments/{proposalId}/accept"} 0.160091542
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/v1/appointments/{proposalId}/withdraw"} 0.064530916
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="CLIENT_ERROR",status="409",uri="/api/v1/rentals/{rentalId}/approve"} 0.55459125
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/v1/appointments/{proposalId}/accept"} 0.057924959
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/v1/appointments/{proposalId}/withdraw"} 0.159909
+http_server_requests_seconds_max{error="none",exception="none",method="POST",outcome="SUCCESS",status="200",uri="/api/v1/rentals/{rentalId}/approve"} 0.390413167
+# HELP jdbc_connections_active Current number of active connections that have been allocated from the data source.
+# TYPE jdbc_connections_active gauge
+jdbc_connections_active{name="dataSource"} 10.0
+# HELP jdbc_connections_idle Number of established but idle connections.
+# TYPE jdbc_connections_idle gauge
+jdbc_connections_idle{name="dataSource"} 20.0
+# HELP jdbc_connections_max Maximum number of active connections that can be allocated at the same time.
+# TYPE jdbc_connections_max gauge
+jdbc_connections_max{name="dataSource"} 30.0
+# HELP jdbc_connections_min Minimum number of idle connections in the pool.
+# TYPE jdbc_connections_min gauge
+jdbc_connections_min{name="dataSource"} 30.0
+# HELP jvm_info JVM version info
+# TYPE jvm_info gauge
+jvm_info{runtime="OpenJDK Runtime Environment",vendor="Eclipse Adoptium",version="21.0.12.1+1-LTS"} 1
+# HELP jvm_buffer_count_buffers An estimate of the number of buffers in the pool
+# TYPE jvm_buffer_count_buffers gauge
+jvm_buffer_count_buffers{id="direct"} 23.0
+jvm_buffer_count_buffers{id="mapped"} 0.0
+jvm_buffer_count_buffers{id="mapped - 'non-volatile memory'"} 0.0
+# HELP jvm_buffer_memory_used_bytes An estimate of the memory that the Java virtual machine is using for this buffer pool
+# TYPE jvm_buffer_memory_used_bytes gauge
+jvm_buffer_memory_used_bytes{id="direct"} 174338.0
+jvm_buffer_memory_used_bytes{id="mapped"} 0.0
+jvm_buffer_memory_used_bytes{id="mapped - 'non-volatile memory'"} 0.0
+# HELP jvm_buffer_total_capacity_bytes An estimate of the total capacity of the buffers in this pool
+# TYPE jvm_buffer_total_capacity_bytes gauge
+jvm_buffer_total_capacity_bytes{id="direct"} 174338.0
+jvm_buffer_total_capacity_bytes{id="mapped"} 0.0
+jvm_buffer_total_capacity_bytes{id="mapped - 'non-volatile memory'"} 0.0
+# HELP jvm_classes_loaded_classes The number of classes that are currently loaded in the Java virtual machine
+# TYPE jvm_classes_loaded_classes gauge
+jvm_classes_loaded_classes 26484.0
+# HELP jvm_classes_loaded_count_classes_total The number of classes loaded in the Java virtual machine
+# TYPE jvm_classes_loaded_count_classes_total counter
+jvm_classes_loaded_count_classes_total 26484.0
+# HELP jvm_classes_unloaded_classes_total The number of classes unloaded in the Java virtual machine
+# TYPE jvm_classes_unloaded_classes_total counter
+jvm_classes_unloaded_classes_total 0.0
+# HELP jvm_compilation_time_ms_total The approximate accumulated elapsed time spent in compilation
+# TYPE jvm_compilation_time_ms_total counter
+jvm_compilation_time_ms_total{compiler="HotSpot 64-Bit Tiered Compilers"} 45831.0
+# HELP jvm_gc_live_data_size_bytes Size of long-lived heap memory pool after reclamation
+# TYPE jvm_gc_live_data_size_bytes gauge
+jvm_gc_live_data_size_bytes 6.911548E7
+# HELP jvm_gc_max_data_size_bytes Max size of long-lived heap memory pool
+# TYPE jvm_gc_max_data_size_bytes gauge
+jvm_gc_max_data_size_bytes 1.78978816E8
+# HELP jvm_gc_memory_allocated_bytes_total Incremented for an increase in the size of the (young) heap memory pool after one GC to before the next
+# TYPE jvm_gc_memory_allocated_bytes_total counter
+jvm_gc_memory_allocated_bytes_total 2.83213604E9
+# HELP jvm_gc_memory_promoted_bytes_total Count of positive increases in the size of the old generation memory pool before GC to after GC
+# TYPE jvm_gc_memory_promoted_bytes_total counter
+jvm_gc_memory_promoted_bytes_total 9949296.0
+# HELP jvm_gc_overhead An approximation of the percent of CPU time used by GC activities over the last lookback period or since monitoring began, whichever is shorter, in the range [0..1]
+# TYPE jvm_gc_overhead gauge
+jvm_gc_overhead 0.00491285716432742
+# HELP jvm_gc_pause_seconds Time spent in GC pause
+# TYPE jvm_gc_pause_seconds summary
+jvm_gc_pause_seconds_count{action="end of major GC",cause="CodeCache GC Threshold",gc="MarkSweepCompact"} 1
+jvm_gc_pause_seconds_sum{action="end of major GC",cause="CodeCache GC Threshold",gc="MarkSweepCompact"} 0.262
+jvm_gc_pause_seconds_count{action="end of minor GC",cause="Allocation Failure",gc="Copy"} 64
+jvm_gc_pause_seconds_sum{action="end of minor GC",cause="Allocation Failure",gc="Copy"} 0.947
+# HELP jvm_gc_pause_seconds_max Time spent in GC pause
+# TYPE jvm_gc_pause_seconds_max gauge
+jvm_gc_pause_seconds_max{action="end of major GC",cause="CodeCache GC Threshold",gc="MarkSweepCompact"} 0.0
+jvm_gc_pause_seconds_max{action="end of minor GC",cause="Allocation Failure",gc="Copy"} 0.039
+# HELP jvm_memory_committed_bytes The amount of memory in bytes that is committed for the Java virtual machine to use
+# TYPE jvm_memory_committed_bytes gauge
+jvm_memory_committed_bytes{area="heap",id="Eden Space"} 4.6137344E7
+jvm_memory_committed_bytes{area="heap",id="Survivor Space"} 5767168.0
+jvm_memory_committed_bytes{area="heap",id="Tenured Gen"} 1.15195904E8
+jvm_memory_committed_bytes{area="nonheap",id="CodeHeap 'non-nmethods'"} 2555904.0
+jvm_memory_committed_bytes{area="nonheap",id="CodeHeap 'non-profiled nmethods'"} 2.2216704E7
+jvm_memory_committed_bytes{area="nonheap",id="CodeHeap 'profiled nmethods'"} 5.2232192E7
+jvm_memory_committed_bytes{area="nonheap",id="Compressed Class Space"} 1.9791872E7
+jvm_memory_committed_bytes{area="nonheap",id="Metaspace"} 1.45686528E8
+# HELP jvm_memory_max_bytes The maximum amount of memory in bytes that can be used for memory management
+# TYPE jvm_memory_max_bytes gauge
+jvm_memory_max_bytes{area="heap",id="Eden Space"} 7.1630848E7
+jvm_memory_max_bytes{area="heap",id="Survivor Space"} 8912896.0
+jvm_memory_max_bytes{area="heap",id="Tenured Gen"} 1.78978816E8
+jvm_memory_max_bytes{area="nonheap",id="CodeHeap 'non-nmethods'"} 5840896.0
+jvm_memory_max_bytes{area="nonheap",id="CodeHeap 'non-profiled nmethods'"} 1.22908672E8
+jvm_memory_max_bytes{area="nonheap",id="CodeHeap 'profiled nmethods'"} 1.22908672E8
+jvm_memory_max_bytes{area="nonheap",id="Compressed Class Space"} 1.073741824E9
+jvm_memory_max_bytes{area="nonheap",id="Metaspace"} -1.0
+# HELP jvm_memory_usage_after_gc The percentage of long-lived heap pool used after the last GC event, in the range [0..1]
+# TYPE jvm_memory_usage_after_gc gauge
+jvm_memory_usage_after_gc{area="heap",pool="long-lived"} 0.3881313417561104
+# HELP jvm_memory_used_bytes The amount of used memory
+# TYPE jvm_memory_used_bytes gauge
+jvm_memory_used_bytes{area="heap",id="Eden Space"} 3.7702872E7
+jvm_memory_used_bytes{area="heap",id="Survivor Space"} 1901752.0
+jvm_memory_used_bytes{area="heap",id="Tenured Gen"} 6.9467288E7
+jvm_memory_used_bytes{area="nonheap",id="CodeHeap 'non-nmethods'"} 1703168.0
+jvm_memory_used_bytes{area="nonheap",id="CodeHeap 'non-profiled nmethods'"} 2.2212352E7
+jvm_memory_used_bytes{area="nonheap",id="CodeHeap 'profiled nmethods'"} 5.219392E7
+jvm_memory_used_bytes{area="nonheap",id="Compressed Class Space"} 1.8854184E7
+jvm_memory_used_bytes{area="nonheap",id="Metaspace"} 1.43769392E8
+# HELP jvm_threads_daemon_threads The current number of live daemon threads
+# TYPE jvm_threads_daemon_threads gauge
+jvm_threads_daemon_threads 38.0
+# HELP jvm_threads_live_threads The current number of live threads including both daemon and non-daemon threads
+# TYPE jvm_threads_live_threads gauge
+jvm_threads_live_threads 48.0
+# HELP jvm_threads_peak_threads The peak live thread count since the Java virtual machine started or peak was reset
+# TYPE jvm_threads_peak_threads gauge
+jvm_threads_peak_threads 49.0
+# HELP jvm_threads_started_threads_total The total number of application threads started in the JVM
+# TYPE jvm_threads_started_threads_total counter
+jvm_threads_started_threads_total 53.0
+# HELP jvm_threads_states_threads The current number of threads
+# TYPE jvm_threads_states_threads gauge
+jvm_threads_states_threads{state="blocked"} 0.0
+jvm_threads_states_threads{state="new"} 0.0
+jvm_threads_states_threads{state="runnable"} 16.0
+jvm_threads_states_threads{state="terminated"} 0.0
+jvm_threads_states_threads{state="timed-waiting"} 11.0
+jvm_threads_states_threads{state="waiting"} 19.0
+# HELP logback_events_total Number of log events that were enabled by the effective log level
+# TYPE logback_events_total counter
+logback_events_total{level="debug"} 0.0
+logback_events_total{level="error"} 0.0
+logback_events_total{level="info"} 134.0
+logback_events_total{level="trace"} 0.0
+logback_events_total{level="warn"} 442.0
+# HELP process_cpu_time_ns_total The "cpu time" used by the Java Virtual Machine process
+# TYPE process_cpu_time_ns_total counter
+process_cpu_time_ns_total 1.0324E11
+# HELP process_cpu_usage The "recent cpu usage" for the Java Virtual Machine process
+# TYPE process_cpu_usage gauge
+process_cpu_usage 0.04690189328743546
+# HELP process_files_max_files The maximum file descriptor count
+# TYPE process_files_max_files gauge
+process_files_max_files 1048576.0
+# HELP process_files_open_files The open file descriptor count
+# TYPE process_files_open_files gauge
+process_files_open_files 66.0
+# HELP process_start_time_seconds Start time of the process since unix epoch.
+# TYPE process_start_time_seconds gauge
+process_start_time_seconds 1.793188738808E9
+# HELP process_uptime_seconds The uptime of the Java virtual machine
+# TYPE process_uptime_seconds gauge
+process_uptime_seconds 253.815
+# HELP spring_data_repository_invocations_seconds Duration of repository invocations
+# TYPE spring_data_repository_invocations_seconds summary
+spring_data_repository_invocations_seconds_count{exception="None",method="countByStatus",repository="OutboxEventRepository",state="SUCCESS"} 304
+spring_data_repository_invocations_seconds_sum{exception="None",method="countByStatus",repository="OutboxEventRepository",state="SUCCESS"} 0.452994006
+spring_data_repository_invocations_seconds_count{exception="None",method="existsBetween",repository="BlockRepository",state="SUCCESS"} 440
+spring_data_repository_invocations_seconds_sum{exception="None",method="existsBetween",repository="BlockRepository",state="SUCCESS"} 0.162441955
+spring_data_repository_invocations_seconds_count{exception="None",method="existsByEventKey",repository="OutboxEventRepository",state="SUCCESS"} 120
+spring_data_repository_invocations_seconds_sum{exception="None",method="existsByEventKey",repository="OutboxEventRepository",state="SUCCESS"} 0.034049788
+spring_data_repository_invocations_seconds_count{exception="None",method="existsEffective",repository="SanctionRepository",state="SUCCESS"} 880
+spring_data_repository_invocations_seconds_sum{exception="None",method="existsEffective",repository="SanctionRepository",state="SUCCESS"} 0.255550446
+spring_data_repository_invocations_seconds_count{exception="None",method="findAll",repository="RentalRepository",state="SUCCESS"} 2016
+spring_data_repository_invocations_seconds_sum{exception="None",method="findAll",repository="RentalRepository",state="SUCCESS"} 23.447646031
+spring_data_repository_invocations_seconds_count{exception="None",method="findById",repository="AppointmentProposalRepository",state="SUCCESS"} 21
+spring_data_repository_invocations_seconds_sum{exception="None",method="findById",repository="AppointmentProposalRepository",state="SUCCESS"} 2.98793E-4
+spring_data_repository_invocations_seconds_count{exception="None",method="findById",repository="MemberRepository",state="SUCCESS"} 83936
+spring_data_repository_invocations_seconds_sum{exception="None",method="findById",repository="MemberRepository",state="SUCCESS"} 19.775379384
+spring_data_repository_invocations_seconds_count{exception="None",method="findById",repository="RentalRepository",state="SUCCESS"} 520
+spring_data_repository_invocations_seconds_sum{exception="None",method="findById",repository="RentalRepository",state="SUCCESS"} 0.092602435
+spring_data_repository_invocations_seconds_count{exception="None",method="findByIdAndCommunityId",repository="CommunityPlaceRepository",state="SUCCESS"} 482
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByIdAndCommunityId",repository="CommunityPlaceRepository",state="SUCCESS"} 0.146022582
+spring_data_repository_invocations_seconds_count{exception="None",method="findByIdForUpdate",repository="AppointmentProposalRepository",state="SUCCESS"} 80
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByIdForUpdate",repository="AppointmentProposalRepository",state="SUCCESS"} 0.020126418
+spring_data_repository_invocations_seconds_count{exception="None",method="findByIdForUpdate",repository="AppointmentSlotRepository",state="SUCCESS"} 80
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByIdForUpdate",repository="AppointmentSlotRepository",state="SUCCESS"} 0.020898416
+spring_data_repository_invocations_seconds_count{exception="None",method="findByIdForUpdate",repository="ItemRepository",state="SUCCESS"} 520
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByIdForUpdate",repository="ItemRepository",state="SUCCESS"} 0.254266494
+spring_data_repository_invocations_seconds_count{exception="None",method="findByIdForUpdate",repository="MemberRepository",state="SUCCESS"} 1920
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByIdForUpdate",repository="MemberRepository",state="SUCCESS"} 24.807292201
+spring_data_repository_invocations_seconds_count{exception="None",method="findByIdForUpdate",repository="RentalRepository",state="SUCCESS"} 520
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByIdForUpdate",repository="RentalRepository",state="SUCCESS"} 0.227251595
+spring_data_repository_invocations_seconds_count{exception="None",method="findByItemIdAndStatusOrderById",repository="RentalRepository",state="SUCCESS"} 440
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByItemIdAndStatusOrderById",repository="RentalRepository",state="SUCCESS"} 0.156382747
+spring_data_repository_invocations_seconds_count{exception="None",method="findByMemberIdAndCommunityId",repository="CommunityMembershipRepository",state="SUCCESS"} 880
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByMemberIdAndCommunityId",repository="CommunityMembershipRepository",state="SUCCESS"} 0.272745925
+spring_data_repository_invocations_seconds_count{exception="None",method="findByMemberIdAndOperationKeyAndRequestKey",repository="IdempotencyRecordRepository",state="SUCCESS"} 960
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByMemberIdAndOperationKeyAndRequestKey",repository="IdempotencyRecordRepository",state="SUCCESS"} 0.33360145
+spring_data_repository_invocations_seconds_count{exception="None",method="findByRentalId",repository="AppointmentSlotRepository",state="SUCCESS"} 120
+spring_data_repository_invocations_seconds_sum{exception="None",method="findByRentalId",repository="AppointmentSlotRepository",state="SUCCESS"} 0.033759877
+spring_data_repository_invocations_seconds_count{exception="None",method="findBySlotIdAndStatus",repository="AppointmentProposalRepository",state="SUCCESS"} 240
+spring_data_repository_invocations_seconds_sum{exception="None",method="findBySlotIdAndStatus",repository="AppointmentProposalRepository",state="SUCCESS"} 0.061345613
+spring_data_repository_invocations_seconds_count{exception="None",method="findCurrentHistory",repository="RentalStatusHistoryRepository",state="SUCCESS"} 80
+spring_data_repository_invocations_seconds_sum{exception="None",method="findCurrentHistory",repository="RentalStatusHistoryRepository",state="SUCCESS"} 0.030469121
+spring_data_repository_invocations_seconds_count{exception="None",method="findExpiredRequestIds",repository="RentalRepository",state="SUCCESS"} 1
+spring_data_repository_invocations_seconds_sum{exception="None",method="findExpiredRequestIds",repository="RentalRepository",state="SUCCESS"} 0.090224125
+spring_data_repository_invocations_seconds_count{exception="None",method="findOccupiedForUpdate",repository="RentalRepository",state="SUCCESS"} 440
+spring_data_repository_invocations_seconds_sum{exception="None",method="findOccupiedForUpdate",repository="RentalRepository",state="SUCCESS"} 0.403821154
+spring_data_repository_invocations_seconds_count{exception="None",method="findOwnerId",repository="ItemRepository",state="SUCCESS"} 9
+spring_data_repository_invocations_seconds_sum{exception="None",method="findOwnerId",repository="ItemRepository",state="SUCCESS"} 0.115881624
+spring_data_repository_invocations_seconds_count{exception="None",method="findParticipants",repository="RentalRepository",state="SUCCESS"} 960
+spring_data_repository_invocations_seconds_sum{exception="None",method="findParticipants",repository="RentalRepository",state="SUCCESS"} 0.69656513
+spring_data_repository_invocations_seconds_count{exception="None",method="findRentalId",repository="AppointmentSlotRepository",state="SUCCESS"} 80
+spring_data_repository_invocations_seconds_sum{exception="None",method="findRentalId",repository="AppointmentSlotRepository",state="SUCCESS"} 0.019178629
+spring_data_repository_invocations_seconds_count{exception="None",method="findSlotId",repository="AppointmentProposalRepository",state="SUCCESS"} 80
+spring_data_repository_invocations_seconds_sum{exception="None",method="findSlotId",repository="AppointmentProposalRepository",state="SUCCESS"} 0.045971214
+spring_data_repository_invocations_seconds_count{exception="None",method="findWithMember",repository="AuthSessionRepository",state="SUCCESS"} 3004
+spring_data_repository_invocations_seconds_sum{exception="None",method="findWithMember",repository="AuthSessionRepository",state="SUCCESS"} 9.68178767
+spring_data_repository_invocations_seconds_count{exception="None",method="flush",repository="AppointmentSlotRepository",state="SUCCESS"} 40
+spring_data_repository_invocations_seconds_sum{exception="None",method="flush",repository="AppointmentSlotRepository",state="SUCCESS"} 0.077256248
+spring_data_repository_invocations_seconds_count{exception="None",method="flush",repository="RentalRepository",state="SUCCESS"} 80
+spring_data_repository_invocations_seconds_sum{exception="None",method="flush",repository="RentalRepository",state="SUCCESS"} 0.141469041
+spring_data_repository_invocations_seconds_count{exception="None",method="save",repository="AuthSessionRepository",state="SUCCESS"} 8
+spring_data_repository_invocations_seconds_sum{exception="None",method="save",repository="AuthSessionRepository",state="SUCCESS"} 0.124839958
+spring_data_repository_invocations_seconds_count{exception="None",method="save",repository="OutboxEventRepository",state="SUCCESS"} 120
+spring_data_repository_invocations_seconds_sum{exception="None",method="save",repository="OutboxEventRepository",state="SUCCESS"} 0.097597291
+spring_data_repository_invocations_seconds_count{exception="None",method="saveAll",repository="AppointmentSlotRepository",state="SUCCESS"} 80
+spring_data_repository_invocations_seconds_sum{exception="None",method="saveAll",repository="AppointmentSlotRepository",state="SUCCESS"} 0.300317631
+spring_data_repository_invocations_seconds_count{exception="None",method="saveAndFlush",repository="IdempotencyRecordRepository",state="SUCCESS"} 120
+spring_data_repository_invocations_seconds_sum{exception="None",method="saveAndFlush",repository="IdempotencyRecordRepository",state="SUCCESS"} 0.109510508
+spring_data_repository_invocations_seconds_count{exception="None",method="saveAndFlush",repository="RentalStatusHistoryRepository",state="SUCCESS"} 80
+spring_data_repository_invocations_seconds_sum{exception="None",method="saveAndFlush",repository="RentalStatusHistoryRepository",state="SUCCESS"} 0.057599791
+# HELP spring_data_repository_invocations_seconds_max Duration of repository invocations
+# TYPE spring_data_repository_invocations_seconds_max gauge
+spring_data_repository_invocations_seconds_max{exception="None",method="countByStatus",repository="OutboxEventRepository",state="SUCCESS"} 0.013479542
+spring_data_repository_invocations_seconds_max{exception="None",method="existsBetween",repository="BlockRepository",state="SUCCESS"} 0.024682208
+spring_data_repository_invocations_seconds_max{exception="None",method="existsByEventKey",repository="OutboxEventRepository",state="SUCCESS"} 0.003030167
+spring_data_repository_invocations_seconds_max{exception="None",method="existsEffective",repository="SanctionRepository",state="SUCCESS"} 0.005853458
+spring_data_repository_invocations_seconds_max{exception="None",method="findAll",repository="RentalRepository",state="SUCCESS"} 0.048846125
+spring_data_repository_invocations_seconds_max{exception="None",method="findById",repository="AppointmentProposalRepository",state="SUCCESS"} 1.36583E-4
+spring_data_repository_invocations_seconds_max{exception="None",method="findById",repository="MemberRepository",state="SUCCESS"} 0.267081875
+spring_data_repository_invocations_seconds_max{exception="None",method="findById",repository="RentalRepository",state="SUCCESS"} 0.002349125
+spring_data_repository_invocations_seconds_max{exception="None",method="findByIdAndCommunityId",repository="CommunityPlaceRepository",state="SUCCESS"} 0.013123542
+spring_data_repository_invocations_seconds_max{exception="None",method="findByIdForUpdate",repository="AppointmentProposalRepository",state="SUCCESS"} 0.0024185
+spring_data_repository_invocations_seconds_max{exception="None",method="findByIdForUpdate",repository="AppointmentSlotRepository",state="SUCCESS"} 0.003003166
+spring_data_repository_invocations_seconds_max{exception="None",method="findByIdForUpdate",repository="ItemRepository",state="SUCCESS"} 0.018081833
+spring_data_repository_invocations_seconds_max{exception="None",method="findByIdForUpdate",repository="MemberRepository",state="SUCCESS"} 0.339437959
+spring_data_repository_invocations_seconds_max{exception="None",method="findByIdForUpdate",repository="RentalRepository",state="SUCCESS"} 0.016755209
+spring_data_repository_invocations_seconds_max{exception="None",method="findByItemIdAndStatusOrderById",repository="RentalRepository",state="SUCCESS"} 0.015308292
+spring_data_repository_invocations_seconds_max{exception="None",method="findByMemberIdAndCommunityId",repository="CommunityMembershipRepository",state="SUCCESS"} 0.015227792
+spring_data_repository_invocations_seconds_max{exception="None",method="findByMemberIdAndOperationKeyAndRequestKey",repository="IdempotencyRecordRepository",state="SUCCESS"} 0.016073542
+spring_data_repository_invocations_seconds_max{exception="None",method="findByRentalId",repository="AppointmentSlotRepository",state="SUCCESS"} 0.001954833
+spring_data_repository_invocations_seconds_max{exception="None",method="findBySlotIdAndStatus",repository="AppointmentProposalRepository",state="SUCCESS"} 0.004332959
+spring_data_repository_invocations_seconds_max{exception="None",method="findCurrentHistory",repository="RentalStatusHistoryRepository",state="SUCCESS"} 0.003336959
+spring_data_repository_invocations_seconds_max{exception="None",method="findExpiredRequestIds",repository="RentalRepository",state="SUCCESS"} 0.0
+spring_data_repository_invocations_seconds_max{exception="None",method="findOccupiedForUpdate",repository="RentalRepository",state="SUCCESS"} 0.013348875
+spring_data_repository_invocations_seconds_max{exception="None",method="findOwnerId",repository="ItemRepository",state="SUCCESS"} 0.014818
+spring_data_repository_invocations_seconds_max{exception="None",method="findParticipants",repository="RentalRepository",state="SUCCESS"} 0.029561166
+spring_data_repository_invocations_seconds_max{exception="None",method="findRentalId",repository="AppointmentSlotRepository",state="SUCCESS"} 0.001586041
+spring_data_repository_invocations_seconds_max{exception="None",method="findSlotId",repository="AppointmentProposalRepository",state="SUCCESS"} 0.0144315
+spring_data_repository_invocations_seconds_max{exception="None",method="findWithMember",repository="AuthSessionRepository",state="SUCCESS"} 0.073616208
+spring_data_repository_invocations_seconds_max{exception="None",method="flush",repository="AppointmentSlotRepository",state="SUCCESS"} 0.015984
+spring_data_repository_invocations_seconds_max{exception="None",method="flush",repository="RentalRepository",state="SUCCESS"} 0.038573958
+spring_data_repository_invocations_seconds_max{exception="None",method="save",repository="AuthSessionRepository",state="SUCCESS"} 0.018258291
+spring_data_repository_invocations_seconds_max{exception="None",method="save",repository="OutboxEventRepository",state="SUCCESS"} 0.004822416
+spring_data_repository_invocations_seconds_max{exception="None",method="saveAll",repository="AppointmentSlotRepository",state="SUCCESS"} 0.149444292
+spring_data_repository_invocations_seconds_max{exception="None",method="saveAndFlush",repository="IdempotencyRecordRepository",state="SUCCESS"} 0.00623775
+spring_data_repository_invocations_seconds_max{exception="None",method="saveAndFlush",repository="RentalStatusHistoryRepository",state="SUCCESS"} 0.007478667
+# HELP spring_security_authorizations_active_seconds  
+# TYPE spring_security_authorizations_active_seconds summary
+spring_security_authorizations_active_seconds_count{spring_security_authentication_type="n/a",spring_security_authorization_decision="unknown",spring_security_object="request"} 0
+spring_security_authorizations_active_seconds_sum{spring_security_authentication_type="n/a",spring_security_authorization_decision="unknown",spring_security_object="request"} 0.0
+# HELP spring_security_authorizations_active_seconds_max  
+# TYPE spring_security_authorizations_active_seconds_max gauge
+spring_security_authorizations_active_seconds_max{spring_security_authentication_type="n/a",spring_security_authorization_decision="unknown",spring_security_object="request"} 0.0
+# HELP spring_security_authorizations_seconds  
+# TYPE spring_security_authorizations_seconds summary
+spring_security_authorizations_seconds_count{error="none",spring_security_authentication_type="OAuth2AuthenticationToken",spring_security_authorization_decision="true",spring_security_object="request"} 2986
+spring_security_authorizations_seconds_sum{error="none",spring_security_authentication_type="OAuth2AuthenticationToken",spring_security_authorization_decision="true",spring_security_object="request"} 0.63296926
+spring_security_authorizations_seconds_count{error="none",spring_security_authentication_type="n/a",spring_security_authorization_decision="true",spring_security_object="request"} 102
+spring_security_authorizations_seconds_sum{error="none",spring_security_authentication_type="n/a",spring_security_authorization_decision="true",spring_security_object="request"} 0.015586624
+# HELP spring_security_authorizations_seconds_max  
+# TYPE spring_security_authorizations_seconds_max gauge
+spring_security_authorizations_seconds_max{error="none",spring_security_authentication_type="OAuth2AuthenticationToken",spring_security_authorization_decision="true",spring_security_object="request"} 0.00574625
+spring_security_authorizations_seconds_max{error="none",spring_security_authentication_type="n/a",spring_security_authorization_decision="true",spring_security_object="request"} 0.003621833
+# HELP spring_security_filterchains_access_exceptions_after_total  
+# TYPE spring_security_filterchains_access_exceptions_after_total counter
+spring_security_filterchains_access_exceptions_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_access_exceptions_before_total  
+# TYPE spring_security_filterchains_access_exceptions_before_total counter
+spring_security_filterchains_access_exceptions_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_filterchains_active_seconds  
+# TYPE spring_security_filterchains_active_seconds summary
+spring_security_filterchains_active_seconds_count{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 0
+spring_security_filterchains_active_seconds_sum{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 0.0
+spring_security_filterchains_active_seconds_count{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 0
+spring_security_filterchains_active_seconds_sum{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 0.0
+# HELP spring_security_filterchains_active_seconds_max  
+# TYPE spring_security_filterchains_active_seconds_max gauge
+spring_security_filterchains_active_seconds_max{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 0.0
+spring_security_filterchains_active_seconds_max{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 0.0
+# HELP spring_security_filterchains_authentication_anonymous_after_total  
+# TYPE spring_security_filterchains_authentication_anonymous_after_total counter
+spring_security_filterchains_authentication_anonymous_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_authentication_anonymous_before_total  
+# TYPE spring_security_filterchains_authentication_anonymous_before_total counter
+spring_security_filterchains_authentication_anonymous_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_filterchains_authorization_after_total  
+# TYPE spring_security_filterchains_authorization_after_total counter
+spring_security_filterchains_authorization_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_authorization_before_total  
+# TYPE spring_security_filterchains_authorization_before_total counter
+spring_security_filterchains_authorization_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_filterchains_context_async_after_total  
+# TYPE spring_security_filterchains_context_async_after_total counter
+spring_security_filterchains_context_async_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_context_async_before_total  
+# TYPE spring_security_filterchains_context_async_before_total counter
+spring_security_filterchains_context_async_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_filterchains_context_holder_after_total  
+# TYPE spring_security_filterchains_context_holder_after_total counter
+spring_security_filterchains_context_holder_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_context_holder_before_total  
+# TYPE spring_security_filterchains_context_holder_before_total counter
+spring_security_filterchains_context_holder_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_filterchains_context_servlet_after_total  
+# TYPE spring_security_filterchains_context_servlet_after_total counter
+spring_security_filterchains_context_servlet_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_context_servlet_before_total  
+# TYPE spring_security_filterchains_context_servlet_before_total counter
+spring_security_filterchains_context_servlet_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_filterchains_csrf_after_total  
+# TYPE spring_security_filterchains_csrf_after_total counter
+spring_security_filterchains_csrf_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_csrf_before_total  
+# TYPE spring_security_filterchains_csrf_before_total counter
+spring_security_filterchains_csrf_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_filterchains_header_after_total  
+# TYPE spring_security_filterchains_header_after_total counter
+spring_security_filterchains_header_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_header_before_total  
+# TYPE spring_security_filterchains_header_before_total counter
+spring_security_filterchains_header_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_filterchains_oauth2_authentication_after_total  
+# TYPE spring_security_filterchains_oauth2_authentication_after_total counter
+spring_security_filterchains_oauth2_authentication_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_oauth2_authentication_before_total  
+# TYPE spring_security_filterchains_oauth2_authentication_before_total counter
+spring_security_filterchains_oauth2_authentication_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_filterchains_oauth2_authnrequest_after_total  
+# TYPE spring_security_filterchains_oauth2_authnrequest_after_total counter
+spring_security_filterchains_oauth2_authnrequest_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_oauth2_authnrequest_before_total  
+# TYPE spring_security_filterchains_oauth2_authnrequest_before_total counter
+spring_security_filterchains_oauth2_authnrequest_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_filterchains_requestcache_after_total  
+# TYPE spring_security_filterchains_requestcache_after_total counter
+spring_security_filterchains_requestcache_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_requestcache_before_total  
+# TYPE spring_security_filterchains_requestcache_before_total counter
+spring_security_filterchains_requestcache_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_filterchains_seconds  
+# TYPE spring_security_filterchains_seconds summary
+spring_security_filterchains_seconds_count{error="none",spring_security_filterchain_position="13",spring_security_filterchain_size="13",spring_security_reached_filter_name="AuthorizationFilter",spring_security_reached_filter_section="before"} 3088
+spring_security_filterchains_seconds_sum{error="none",spring_security_filterchain_position="13",spring_security_filterchain_size="13",spring_security_reached_filter_name="AuthorizationFilter",spring_security_reached_filter_section="before"} 26.563176949
+spring_security_filterchains_seconds_count{error="none",spring_security_filterchain_position="13",spring_security_filterchain_size="13",spring_security_reached_filter_name="DisableEncodeUrlFilter",spring_security_reached_filter_section="after"} 3077
+spring_security_filterchains_seconds_sum{error="none",spring_security_filterchain_position="13",spring_security_filterchain_size="13",spring_security_reached_filter_name="DisableEncodeUrlFilter",spring_security_reached_filter_section="after"} 0.241491721
+# HELP spring_security_filterchains_seconds_max  
+# TYPE spring_security_filterchains_seconds_max gauge
+spring_security_filterchains_seconds_max{error="none",spring_security_filterchain_position="13",spring_security_filterchain_size="13",spring_security_reached_filter_name="AuthorizationFilter",spring_security_reached_filter_section="before"} 0.046620959
+spring_security_filterchains_seconds_max{error="none",spring_security_filterchain_position="13",spring_security_filterchain_size="13",spring_security_reached_filter_name="DisableEncodeUrlFilter",spring_security_reached_filter_section="after"} 0.00201625
+# HELP spring_security_filterchains_session_management_after_total  
+# TYPE spring_security_filterchains_session_management_after_total counter
+spring_security_filterchains_session_management_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_session_management_before_total  
+# TYPE spring_security_filterchains_session_management_before_total counter
+spring_security_filterchains_session_management_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_filterchains_session_urlencoding_after_total  
+# TYPE spring_security_filterchains_session_urlencoding_after_total counter
+spring_security_filterchains_session_urlencoding_after_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="after"} 3077.0
+# HELP spring_security_filterchains_session_urlencoding_before_total  
+# TYPE spring_security_filterchains_session_urlencoding_before_total counter
+spring_security_filterchains_session_urlencoding_before_total{spring_security_filterchain_position="0",spring_security_filterchain_size="0",spring_security_reached_filter_name="none",spring_security_reached_filter_section="before"} 3088.0
+# HELP spring_security_http_secured_requests_active_seconds  
+# TYPE spring_security_http_secured_requests_active_seconds summary
+spring_security_http_secured_requests_active_seconds_count 11
+spring_security_http_secured_requests_active_seconds_sum 0.746272787
+# HELP spring_security_http_secured_requests_active_seconds_max  
+# TYPE spring_security_http_secured_requests_active_seconds_max gauge
+spring_security_http_secured_requests_active_seconds_max 0.075942542
+# HELP spring_security_http_secured_requests_seconds  
+# TYPE spring_security_http_secured_requests_seconds summary
+spring_security_http_secured_requests_seconds_count{error="none"} 3077
+spring_security_http_secured_requests_seconds_sum{error="none"} 91.966545879
+# HELP spring_security_http_secured_requests_seconds_max  
+# TYPE spring_security_http_secured_requests_seconds_max gauge
+spring_security_http_secured_requests_seconds_max{error="none"} 0.540119459
+# HELP system_cpu_count The number of processors available to the Java virtual machine
+# TYPE system_cpu_count gauge
+system_cpu_count 8.0
+# HELP system_cpu_usage The "recent cpu usage" of the system the application is running in
+# TYPE system_cpu_usage gauge
+system_cpu_usage 0.1511526584462831
+# HELP system_load_average_1m The sum of the number of runnable entities queued to available processors and the number of runnable entities running on the available processors averaged over a period of time
+# TYPE system_load_average_1m gauge
+system_load_average_1m 4.4970703125
+# HELP tasks_scheduled_execution_active_seconds  
+# TYPE tasks_scheduled_execution_active_seconds summary
+tasks_scheduled_execution_active_seconds_count{code_function="deliverCommittedMessages",code_namespace="com.billim.domain.chat.controller.ChatDatabaseRelay",exception="none",outcome="UNKNOWN"} 0
+tasks_scheduled_execution_active_seconds_sum{code_function="deliverCommittedMessages",code_namespace="com.billim.domain.chat.controller.ChatDatabaseRelay",exception="none",outcome="UNKNOWN"} 0.0
+tasks_scheduled_execution_active_seconds_count{code_function="expireRequests",code_namespace="com.billim.domain.rental.service.RentalExpirationJob",exception="none",outcome="UNKNOWN"} 0
+tasks_scheduled_execution_active_seconds_sum{code_function="expireRequests",code_namespace="com.billim.domain.rental.service.RentalExpirationJob",exception="none",outcome="UNKNOWN"} 0.0
+tasks_scheduled_execution_active_seconds_count{code_function="sendHeartbeats",code_namespace="com.billim.domain.chat.controller.ChatWebSocketHandler",exception="none",outcome="UNKNOWN"} 0
+tasks_scheduled_execution_active_seconds_sum{code_function="sendHeartbeats",code_namespace="com.billim.domain.chat.controller.ChatWebSocketHandler",exception="none",outcome="UNKNOWN"} 0.0
+# HELP tasks_scheduled_execution_active_seconds_max  
+# TYPE tasks_scheduled_execution_active_seconds_max gauge
+tasks_scheduled_execution_active_seconds_max{code_function="deliverCommittedMessages",code_namespace="com.billim.domain.chat.controller.ChatDatabaseRelay",exception="none",outcome="UNKNOWN"} 0.0
+tasks_scheduled_execution_active_seconds_max{code_function="expireRequests",code_namespace="com.billim.domain.rental.service.RentalExpirationJob",exception="none",outcome="UNKNOWN"} 0.0
+tasks_scheduled_execution_active_seconds_max{code_function="sendHeartbeats",code_namespace="com.billim.domain.chat.controller.ChatWebSocketHandler",exception="none",outcome="UNKNOWN"} 0.0
+# HELP tasks_scheduled_execution_seconds  
+# TYPE tasks_scheduled_execution_seconds summary
+tasks_scheduled_execution_seconds_count{code_function="deliverCommittedMessages",code_namespace="com.billim.domain.chat.controller.ChatDatabaseRelay",error="none",exception="none",outcome="SUCCESS"} 123
+tasks_scheduled_execution_seconds_sum{code_function="deliverCommittedMessages",code_namespace="com.billim.domain.chat.controller.ChatDatabaseRelay",error="none",exception="none",outcome="SUCCESS"} 0.08127471
+tasks_scheduled_execution_seconds_count{code_function="expireRequests",code_namespace="com.billim.domain.rental.service.RentalExpirationJob",error="none",exception="none",outcome="SUCCESS"} 1
+tasks_scheduled_execution_seconds_sum{code_function="expireRequests",code_namespace="com.billim.domain.rental.service.RentalExpirationJob",error="none",exception="none",outcome="SUCCESS"} 0.096997292
+tasks_scheduled_execution_seconds_count{code_function="sendHeartbeats",code_namespace="com.billim.domain.chat.controller.ChatWebSocketHandler",error="none",exception="none",outcome="SUCCESS"} 12
+tasks_scheduled_execution_seconds_sum{code_function="sendHeartbeats",code_namespace="com.billim.domain.chat.controller.ChatWebSocketHandler",error="none",exception="none",outcome="SUCCESS"} 0.014157333
+# HELP tasks_scheduled_execution_seconds_max  
+# TYPE tasks_scheduled_execution_seconds_max gauge
+tasks_scheduled_execution_seconds_max{code_function="deliverCommittedMessages",code_namespace="com.billim.domain.chat.controller.ChatDatabaseRelay",error="none",exception="none",outcome="SUCCESS"} 0.012234208
+tasks_scheduled_execution_seconds_max{code_function="expireRequests",code_namespace="com.billim.domain.rental.service.RentalExpirationJob",error="none",exception="none",outcome="SUCCESS"} 0.0
+tasks_scheduled_execution_seconds_max{code_function="sendHeartbeats",code_namespace="com.billim.domain.chat.controller.ChatWebSocketHandler",error="none",exception="none",outcome="SUCCESS"} 0.001790333
+# HELP tomcat_sessions_active_current_sessions  
+# TYPE tomcat_sessions_active_current_sessions gauge
+tomcat_sessions_active_current_sessions 0.0
+# HELP tomcat_sessions_active_max_sessions  
+# TYPE tomcat_sessions_active_max_sessions gauge
+tomcat_sessions_active_max_sessions 0.0
+# HELP tomcat_sessions_alive_max_seconds  
+# TYPE tomcat_sessions_alive_max_seconds gauge
+tomcat_sessions_alive_max_seconds 0.0
+# HELP tomcat_sessions_created_sessions_total  
+# TYPE tomcat_sessions_created_sessions_total counter
+tomcat_sessions_created_sessions_total 0.0
+# HELP tomcat_sessions_expired_sessions_total  
+# TYPE tomcat_sessions_expired_sessions_total counter
+tomcat_sessions_expired_sessions_total 0.0
+# HELP tomcat_sessions_rejected_sessions_total  
+# TYPE tomcat_sessions_rejected_sessions_total counter
+tomcat_sessions_rejected_sessions_total 0.0

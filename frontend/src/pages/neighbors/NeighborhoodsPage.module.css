@@ -1,0 +1,13 @@
+.nbhd {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.nbhd-muted {
+  color: var(--ink-muted);
+}
+
+.nbhd-desc {
+  margin: 0;
+}

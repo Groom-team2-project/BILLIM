@@ -1,0 +1,15 @@
+name: billim-chat-redis
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    restart: unless-stopped
+    ports:
+      # 2대 전환 시 2번 서버가 사설망으로 접근. 외부 차단은 보안 그룹(6379 ← 앱 보안 그룹 자기 참조만)
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10

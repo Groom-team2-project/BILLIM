@@ -1,0 +1,98 @@
+package com.billim.domain.chat.repository;
+
+import com.billim.domain.chat.entity.ChatMessage;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+import java.util.Optional;
+
+public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> {
+
+    Optional<ChatMessage> findByRoomIdAndSenderIdAndClientMessageId(
+            Long roomId,
+            Long senderId,
+            String clientMessageId
+    );
+
+    Optional<ChatMessage> findByRoomIdAndEventId(Long roomId, Long eventId);
+
+    List<ChatMessage> findByRoomIdOrderBySequenceDesc(Long roomId, Pageable pageable);
+
+    // 방별 최대 순번을 먼저 구해 메시지 행마다 최대값 집계가 반복되는 실행 계획 방지.
+    @Query(value = """
+        select message.* from messages message
+        join (
+            select room_id, max(sequence) as latest_sequence
+            from messages where room_id in (:roomIds)
+            group by room_id
+        ) latest on message.room_id = latest.room_id
+                and message.sequence = latest.latest_sequence
+        """, nativeQuery = true)
+    List<ChatMessage> findLatestMessagesInRooms(@Param("roomIds") List<Long> roomIds);
+
+    @Query("""
+        select message.roomId as roomId, count(message) as unreadCount
+        from ChatMessage message, ChatParticipant participant
+        where participant.memberId = :memberId
+          and participant.roomId in :roomIds
+          and message.roomId = participant.roomId
+          and message.sequence > participant.lastReadSequence
+          and message.senderId <> :memberId
+          and message.type = :type
+        group by message.roomId
+        """)
+    List<RoomUnreadCount> countUnreadMessagesInRooms(
+        @Param("roomIds") List<Long> roomIds,
+        @Param("memberId") Long memberId,
+        @Param("type") ChatMessage.Type type
+    );
+
+    interface RoomUnreadCount {
+        Long getRoomId();
+        long getUnreadCount();
+    }
+
+    List<ChatMessage> findByRoomIdAndSequenceGreaterThanOrderBySequenceAsc(
+            Long roomId,
+            long afterSequence,
+            Pageable pageable
+    );
+
+    List<ChatMessage> findByRoomIdAndSequenceLessThanOrderBySequenceDesc(
+            Long roomId,
+            long beforeSequence,
+            Pageable pageable
+    );
+
+    @Query("""
+        select count(message)
+        from ChatMessage message, ChatParticipant participant
+        where participant.memberId = :memberId
+          and message.roomId = participant.roomId
+          and message.sequence > participant.lastReadSequence
+          and message.senderId <> :memberId
+          and message.type = :type
+        """)
+    long countUnreadMessages(
+        @Param("memberId") Long memberId,
+        @Param("type") ChatMessage.Type type
+    );
+
+    @Query("""
+        select  count(message)
+        from    ChatMessage message
+        where   message.roomId = :roomId
+          and   message.sequence > :lastReadSequence
+          and   message.senderId <> :memberId
+          and   message.type = :type
+    """)
+    long countUnreadMessagesInRoom(
+        @Param("roomId") Long roomId,
+        @Param("lastReadSequence") long lastReadSequence,
+        @Param("memberId") Long memberId,
+        @Param("type") ChatMessage.Type type
+    );
+}

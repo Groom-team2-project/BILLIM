@@ -1,0 +1,218 @@
+package com.billim.domain.item.service;
+
+import com.billim.domain.item.dto.MediaFileResponse;
+import com.billim.domain.item.entity.Item;
+import com.billim.domain.item.entity.MediaFile;
+import com.billim.domain.item.entity.MediaStatus;
+import com.billim.domain.item.repository.ItemImageRepository;
+import com.billim.domain.item.repository.ItemRepository;
+import com.billim.domain.item.repository.MediaFileRepository;
+import com.billim.domain.safety.service.MemberRowLock;
+import com.billim.domain.safety.service.SanctionService;
+import com.billim.global.exception.BusinessException;
+import com.billim.global.exception.ErrorCode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+
+import java.io.IOException;
+import java.nio.file.NoSuchFileException;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Optional;
+import java.util.List;
+import java.util.UUID;
+import java.util.function.IntConsumer;
+
+// 사진 업로드·읽기·미연결 삭제 (API 명세 B_014~B_016)
+@Service
+public class MediaService {
+
+    private static final Logger log = LoggerFactory.getLogger(MediaService.class);
+
+    public record MediaContent(byte[] bytes, String mimeType) {
+    }
+
+    private final MediaFileRepository mediaFileRepository;
+    private final ItemImageRepository itemImageRepository;
+    private final ItemRepository itemRepository;
+    private final ImageInspector inspector;
+    private final MediaStorage storage;
+    private final ItemAccessPolicy accessPolicy;
+    private final MemberRowLock memberRowLock;
+    private final SanctionService sanctions;
+    private final ItemIdempotency idempotency;
+    private final Clock clock;
+
+    public MediaService(MediaFileRepository mediaFileRepository, ItemImageRepository itemImageRepository,
+                        ItemRepository itemRepository, ImageInspector inspector, MediaStorage storage,
+                        ItemAccessPolicy accessPolicy, MemberRowLock memberRowLock, SanctionService sanctions,
+                        ItemIdempotency idempotency, Clock clock) {
+        this.mediaFileRepository = mediaFileRepository;
+        this.itemImageRepository = itemImageRepository;
+        this.itemRepository = itemRepository;
+        this.inspector = inspector;
+        this.storage = storage;
+        this.accessPolicy = accessPolicy;
+        this.memberRowLock = memberRowLock;
+        this.sanctions = sanctions;
+        this.idempotency = idempotency;
+        this.clock = clock;
+    }
+
+    /** 검사·재인코딩 → 파일 원자 저장 → 메타데이터 기록. 커밋 실패 시 방금 쓴 파일 삭제 */
+    @Transactional
+    public MediaFileResponse upload(long memberId, String idempotencyKey, byte[] data, String declaredMime) {
+        Instant now = clock.instant();
+        // 같은 회원의 동시 요청 직렬화 후 재전송 확인. 같은 키·같은 파일이면 처음 응답 그대로(파일 재저장 없음)
+        memberRowLock.lock(memberId);
+        String requestHash = ItemIdempotency.hashOfFile(declaredMime, data);
+        Optional<MediaFileResponse> replay = idempotency.replay(memberId, ItemIdempotency.UPLOAD_MEDIA,
+                idempotencyKey, requestHash, 201, MediaFileResponse.class, now);
+        if (replay.isPresent()) {
+            return replay.get();
+        }
+        if (sanctions.isRestricted(memberId)) {   // 유효 인증·제한 없음 (B_014)
+            throw new BusinessException(ErrorCode.MEMBER_RESTRICTED);
+        }
+        ImageInspector.Result r = inspector.inspect(data, declaredMime);
+        String key = "%04d/%02d/%s.%s".formatted(
+                now.atZone(ZoneOffset.UTC).getYear(), now.atZone(ZoneOffset.UTC).getMonthValue(),
+                UUID.randomUUID(), r.extension());
+        try {
+            storage.save(key, r.bytes());
+            storage.save(thumbnailKey(key), r.thumbnailBytes());
+        } catch (IOException e) {
+            deleteQuietly(key);
+            log.error("사진 저장 실패", e);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR);
+        }
+        // 이후 커밋이 실패해도 방금 쓴 파일이 고아로 남지 않게 롤백 시 지운다.
+        afterCompletion(status -> {
+            if (status != TransactionSynchronization.STATUS_COMMITTED) {
+                deleteQuietly(key);
+            }
+        });
+        try {
+            MediaFile saved = mediaFileRepository.saveAndFlush(
+                    MediaFile.temp(memberId, key, r.mimeType(), r.bytes().length, r.width(), r.height(), now));
+            MediaFileResponse response = MediaFileResponse.from(saved);
+            idempotency.record(memberId, ItemIdempotency.UPLOAD_MEDIA, idempotencyKey, requestHash, 201, response, now);
+            return response;
+        } catch (RuntimeException e) {
+            deleteQuietly(key);   // 메타데이터 기록 실패 시 즉시 정리
+            throw e;
+        }
+    }
+
+    /** TEMP는 업로더만. ATTACHED는 물건 조회 권한이 있는 회원만. 그 외는 존재를 숨기는 404 */
+    @Transactional(readOnly = true)
+    public MediaContent read(long memberId, long mediaId) {
+        MediaFile m = readableMedia(memberId, mediaId);
+        try {
+            return new MediaContent(storage.read(m.getStorageKey()), m.getMimeType());
+        } catch (IOException e) {
+            log.error("사진 파일 읽기 실패 mediaId={}", mediaId, e);
+            throw notFound();
+        }
+    }
+
+    /** 권한 검사를 마친 뒤 128px 이하의 별도 JPEG 파일만 읽는다. 이전 사진은 첫 요청 때 생성한다. */
+    @Transactional(readOnly = true)
+    public MediaContent thumbnail(long memberId, long mediaId) {
+        MediaFile m = readableMedia(memberId, mediaId);
+        String key = thumbnailKey(m.getStorageKey());
+        try {
+            return new MediaContent(storage.read(key), "image/jpeg");
+        } catch (NoSuchFileException missing) {
+            try {
+                byte[] small = inspector.thumbnail(storage.read(m.getStorageKey()), m.getMimeType());
+                try {
+                    storage.save(key, small);
+                } catch (IOException e) {
+                    log.warn("썸네일 저장 실패 mediaId={}", mediaId, e);
+                }
+                return new MediaContent(small, "image/jpeg");
+            } catch (IOException | BusinessException e) {
+                log.error("썸네일 생성 실패 mediaId={}", mediaId, e);
+                throw notFound();
+            }
+        } catch (IOException e) {
+            log.error("썸네일 파일 읽기 실패 mediaId={}", mediaId, e);
+            throw notFound();
+        }
+    }
+
+    private MediaFile readableMedia(long memberId, long mediaId) {
+        MediaFile m = mediaFileRepository.findById(mediaId)
+                .filter(f -> f.getStatus() != MediaStatus.DELETED)
+                .orElseThrow(MediaService::notFound);
+        if (m.getStatus() == MediaStatus.TEMP) {
+            if (!m.getUploaderId().equals(memberId)) {
+                throw notFound();
+            }
+        } else {
+            Long itemId = itemImageRepository.findItemIdByMediaFileId(mediaId).orElseThrow(MediaService::notFound);
+            Item item = itemRepository.findById(itemId).orElseThrow(MediaService::notFound);
+            // TODO(C): 물건을 볼 수 없게 된 뒤에도 기존 대여 당사자(요청자·소유자)는 사진을 읽을 수 있어야 한다.
+            if (!accessPolicy.canView(item, memberId)) {
+                throw notFound();
+            }
+        }
+        return m;
+    }
+
+    /** 업로더 자신의 TEMP만. ATTACHED는 409 MEDIA_IN_USE. 파일 삭제 실패는 DB 상태(DELETED)로 남겨 정리 때 재시도 */
+    @Transactional
+    public void deleteTemp(long memberId, long mediaId) {
+        Instant now = clock.instant();
+        MediaFile m = mediaFileRepository.findByIdForUpdate(mediaId)
+                .filter(f -> f.getStatus() != MediaStatus.DELETED && f.getUploaderId().equals(memberId))
+                .orElseThrow(MediaService::notFound);
+        m.deleteTemp(now);
+        String key = m.getStorageKey();
+        // DB 상태(DELETED)가 확정된 뒤에만 파일을 지운다. 실패하면 정리 작업이 재시도
+        afterCompletion(status -> {
+            if (status == TransactionSynchronization.STATUS_COMMITTED) {
+                deleteQuietly(key);
+            }
+        });
+    }
+
+    // 트랜잭션이 없으면(단위 테스트 등) 커밋된 것으로 간주해 즉시 실행
+    private static void afterCompletion(IntConsumer action) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    action.accept(status);
+                }
+            });
+        } else {
+            action.accept(TransactionSynchronization.STATUS_COMMITTED);
+        }
+    }
+
+    private void deleteQuietly(String key) {
+        for (String target : List.of(key, thumbnailKey(key))) {
+            try {
+                storage.delete(target);
+            } catch (IOException e) {
+                log.warn("사진 파일 삭제 실패, 정리 작업에서 재시도 필요 key={}", target, e);
+            }
+        }
+    }
+
+    // 정리 작업도 같은 규칙으로 썸네일을 지운다
+    static String thumbnailKey(String key) {
+        return key + ".thumb.jpg";
+    }
+
+    private static BusinessException notFound() {
+        return new BusinessException(ErrorCode.RESOURCE_NOT_FOUND);
+    }
+}

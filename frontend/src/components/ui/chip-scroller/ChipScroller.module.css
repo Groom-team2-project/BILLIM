@@ -1,0 +1,70 @@
+.chipscroll {
+  position: relative;
+  min-width: 0;
+}
+
+/* 화살표 뒤 페이드 — 가려진 칩이 자연스럽게 흐려짐 */
+.chipscroll--left::before,
+.chipscroll--right::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 44px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.chipscroll--left::before {
+  left: -2px;
+  background: linear-gradient(to right, var(--surface) 30%, transparent);
+}
+
+.chipscroll--right::after {
+  right: -2px;
+  background: linear-gradient(to left, var(--surface) 30%, transparent);
+}
+
+.chipscroll-track {
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;
+  margin: -2px;
+  cursor: grab;
+  scroll-behavior: smooth;
+}
+
+.chipscroll-track:active {
+  cursor: grabbing;
+}
+
+.chipscroll-track::-webkit-scrollbar {
+  display: none;
+}
+
+.chipscroll-nav {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-float);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.chipscroll-nav--prev {
+  left: -2px;
+}
+
+.chipscroll-nav--next {
+  right: -2px;
+}

@@ -1,0 +1,45 @@
+{
+  "elapsedSeconds": 1.8487858772277832,
+  "sqlBefore": {
+    "select": 373,
+    "update": 2,
+    "insert": 21,
+    "delete": 2
+  },
+  "sqlAfter": {
+    "select": 567,
+    "update": 2,
+    "insert": 61,
+    "delete": 2
+  },
+  "sqlDelta": {
+    "insert": 40,
+    "delete": 0,
+    "select": 194,
+    "update": 0
+  },
+  "sqlTotal": 234,
+  "requests": 10,
+  "sqlPerRequest": 23.4,
+  "actuatorSamples": 1,
+  "actuatorErrors": [],
+  "serverSamples": [
+    {
+      "time": 1793189481.971088,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.998344E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 3404640.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 8.200052E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1683456.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 9385856.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 2.5708928E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8352672E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.33807296E8",
+        "process_cpu_usage 0.0",
+        "system_cpu_usage 0.5017361111111112"
+      ]
+    }
+  ],
+  "k6ExitCode": 99
+}

@@ -1,0 +1,157 @@
+{
+  "timestamp": "2026-11-02T12:10:41.631Z",
+  "commit": "975146719084a9fdbb025bbb07dd4d494c2404a3",
+  "sourceSha256": {
+    "backend/src/main/java/com/billim/domain/rental/service/AppointmentService.java": "d3766bac949a81d6de951e1814d4fdc0303375b0041da35eb6ab125ff86183c0",
+    "backend/src/main/java/com/billim/domain/rental/service/AppointmentCommandService.java": "5d8ed1096518b4dbe33d98e8b906c85f6bf6954bc530fa08661d790972f24413",
+    "backend/src/test/java/com/billim/domain/rental/service/AppointmentCommandQueryDbTest.java": "ad4496a7db6ffa94e317f60b0712d4ddc5764ae867b050ccd5fdd5c6c1a997ca"
+  },
+  "tests": 4,
+  "measurement": "Hibernate prepareStatementCount, service transaction including commit; HTTP/authentication excluded",
+  "rows": [
+    {
+      "action": "propose",
+      "populatedOther": false,
+      "sql": 16,
+      "kind": "PICKUP"
+    },
+    {
+      "action": "accept",
+      "populatedOther": false,
+      "sql": 18,
+      "kind": "PICKUP"
+    },
+    {
+      "action": "change-proposal",
+      "populatedOther": false,
+      "sql": 18,
+      "kind": "PICKUP"
+    },
+    {
+      "action": "withdraw",
+      "populatedOther": false,
+      "sql": 18,
+      "kind": "PICKUP"
+    },
+    {
+      "action": "replacement-proposal",
+      "populatedOther": false,
+      "sql": 18,
+      "kind": "PICKUP"
+    },
+    {
+      "action": "replace-confirmed",
+      "populatedOther": false,
+      "sql": 20,
+      "kind": "PICKUP"
+    },
+    {
+      "action": "propose",
+      "populatedOther": true,
+      "sql": 16,
+      "kind": "PICKUP"
+    },
+    {
+      "action": "accept",
+      "populatedOther": true,
+      "sql": 18,
+      "kind": "PICKUP"
+    },
+    {
+      "action": "change-proposal",
+      "populatedOther": true,
+      "sql": 18,
+      "kind": "PICKUP"
+    },
+    {
+      "action": "withdraw",
+      "populatedOther": true,
+      "sql": 18,
+      "kind": "PICKUP"
+    },
+    {
+      "action": "replacement-proposal",
+      "populatedOther": true,
+      "sql": 18,
+      "kind": "PICKUP"
+    },
+    {
+      "action": "replace-confirmed",
+      "populatedOther": true,
+      "sql": 20,
+      "kind": "PICKUP"
+    },
+    {
+      "action": "propose",
+      "populatedOther": false,
+      "sql": 16,
+      "kind": "RETURN"
+    },
+    {
+      "action": "accept",
+      "populatedOther": false,
+      "sql": 18,
+      "kind": "RETURN"
+    },
+    {
+      "action": "change-proposal",
+      "populatedOther": false,
+      "sql": 18,
+      "kind": "RETURN"
+    },
+    {
+      "action": "withdraw",
+      "populatedOther": false,
+      "sql": 18,
+      "kind": "RETURN"
+    },
+    {
+      "action": "replacement-proposal",
+      "populatedOther": false,
+      "sql": 18,
+      "kind": "RETURN"
+    },
+    {
+      "action": "replace-confirmed",
+      "populatedOther": false,
+      "sql": 20,
+      "kind": "RETURN"
+    },
+    {
+      "action": "propose",
+      "populatedOther": true,
+      "sql": 16,
+      "kind": "RETURN"
+    },
+    {
+      "action": "accept",
+      "populatedOther": true,
+      "sql": 18,
+      "kind": "RETURN"
+    },
+    {
+      "action": "change-proposal",
+      "populatedOther": true,
+      "sql": 18,
+      "kind": "RETURN"
+    },
+    {
+      "action": "withdraw",
+      "populatedOther": true,
+      "sql": 18,
+      "kind": "RETURN"
+    },
+    {
+      "action": "replacement-proposal",
+      "populatedOther": true,
+      "sql": 18,
+      "kind": "RETURN"
+    },
+    {
+      "action": "replace-confirmed",
+      "populatedOther": true,
+      "sql": 20,
+      "kind": "RETURN"
+    }
+  ]
+}

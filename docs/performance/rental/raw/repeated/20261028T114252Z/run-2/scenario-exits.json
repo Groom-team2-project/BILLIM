@@ -1,0 +1,10 @@
+{
+  "list": 0,
+  "approval-warmup": 0,
+  "approval": 0,
+  "idempotency-warmup": 0,
+  "idempotency": 0,
+  "appointment-warmup": 0,
+  "appointment": 0,
+  "create": 1
+}

@@ -1,0 +1,23 @@
+{
+  "finishedAt": "2026-10-28T11:14:14.792370+00:00",
+  "commit": "02173f106bb9531e029a2bba8e3ba077507704c6",
+  "databaseRentalsBefore": 4203,
+  "preparedItems": 10,
+  "users": 10,
+  "ownerAccounts": 10,
+  "expectedCreates": 10,
+  "actualCreates": 10,
+  "requestedCount": 10,
+  "versionZeroCount": 10,
+  "uniqueItems": 10,
+  "uniqueBorrowers": 10,
+  "histories": 10,
+  "events": 10,
+  "idempotencyRecords": 10,
+  "replayUniqueRentals": 10,
+  "databaseChecksPassed": true,
+  "k6ExitCodes": {
+    "replay": 99
+  },
+  "allThresholdsPassed": false
+}

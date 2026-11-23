@@ -1,0 +1,46 @@
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-1);
+}
+
+.steps-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  color: var(--ink-muted);
+}
+
+.steps-bar {
+  display: block;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--surface-sunken);
+}
+
+.steps-item--done .steps-bar,
+.steps-item--now .steps-bar {
+  background: var(--line-control);
+}
+
+.steps-item--done[data-step="requested"] .steps-bar,
+.steps-item--now[data-step="requested"] .steps-bar { background: var(--status-requested-mark); }
+.steps-item--done[data-step="approved"] .steps-bar,
+.steps-item--now[data-step="approved"] .steps-bar { background: var(--status-approved-mark); }
+.steps-item--done[data-step="active"] .steps-bar,
+.steps-item--now[data-step="active"] .steps-bar { background: var(--status-active-mark); }
+.steps-item--done[data-step="returned"] .steps-bar,
+.steps-item--now[data-step="returned"] .steps-bar { background: var(--status-returned-mark); }
+.steps-item--now[data-step="overdue"] .steps-bar { background: var(--status-overdue-mark); }
+
+.steps-item--now {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.steps-item--now[data-step="overdue"] {
+  color: var(--status-overdue-fg);
+}

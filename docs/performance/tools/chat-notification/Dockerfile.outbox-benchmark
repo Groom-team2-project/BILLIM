@@ -1,0 +1,10 @@
+FROM docker:cli
+
+RUN apk add --no-cache python3
+
+WORKDIR /scripts
+
+COPY run-outbox-benchmark.sh /usr/local/bin/run-outbox-benchmark
+RUN chmod +x /usr/local/bin/run-outbox-benchmark
+
+ENTRYPOINT ["/usr/local/bin/run-outbox-benchmark"]

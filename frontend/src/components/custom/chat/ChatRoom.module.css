@@ -1,0 +1,212 @@
+/* 채팅방 — 프로토타입 nb-room */
+
+.chat-room {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: var(--bg);
+}
+
+/* 상대 정보 헤더 — 데스크톱 2열에서만 */
+.chat-room-head {
+  display: none;
+}
+
+.chat-room-head-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-room-muted {
+  color: var(--ink-muted);
+}
+
+.chat-room-mobile-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.chat-rental-card {
+  align-self: center;
+  width: min(100%, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--line-control);
+  border-radius: var(--radius-lg);
+}
+
+.chat-rental-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.chat-rental-card-head strong { min-width: 0; overflow-wrap: anywhere; }
+
+.chat-rental-card-dates,
+.chat-rental-card-note { margin: 0; }
+
+.chat-rental-card-note { color: var(--ink-muted); }
+
+.chat-rental-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chat-rental-card-actions > * { flex: 1 1 130px; }
+
+.chat-rental-card:focus-visible { outline: 2px solid var(--action); outline-offset: 2px; }
+
+/* 스크롤 영역 + 메시지 목록 (nb-room__scroll + nb-msgs) */
+.chat-room-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--space-4);
+  overflow-anchor: none;
+}
+
+.chat-room-messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: none;
+  min-width: 0;
+}
+
+.chat-latest {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface);
+}
+
+.chat-suggest {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-muted);
+}
+
+@media (min-width: 760px) {
+  .chat-room {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .chat-room-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: none;
+    padding: 12px var(--space-4);
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .chat-room-scroll {
+    padding: var(--space-5) var(--space-6);
+  }
+}
+
+.chat-safety {
+  margin: 4px 0;
+}
+
+.chat-retry {
+  align-self: flex-end;
+  display: flex;
+  gap: 6px;
+}
+
+.chat-message-group { display: flex; flex-direction: column; gap: 10px; }
+
+.chat-context-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.chat-rental-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.chat-rental-picker select {
+  width: 170px;
+  max-width: 35vw;
+  min-height: var(--size-touch);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: var(--space-2);
+}
+
+.chat-activity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  min-width: 0;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.chat-activity-title { flex: none; color: var(--ink-muted); }
+
+.chat-activity-links {
+  display: flex;
+  gap: var(--space-2);
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.chat-activity-link {
+  flex: none;
+  min-height: var(--size-touch);
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink);
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-full);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.chat-activity-link:hover,
+.chat-activity-link:focus-visible { border-color: var(--line-control); }
+
+@media (max-width: 759px) {
+  .chat-context-actions { flex-direction: column; align-items: stretch; }
+  .chat-rental-picker { flex-direction: column; align-items: flex-start; gap: 0; }
+  .chat-rental-picker select { width: 125px; }
+}

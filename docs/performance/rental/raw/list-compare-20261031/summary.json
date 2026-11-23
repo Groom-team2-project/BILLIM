@@ -1,0 +1,214 @@
+[
+  {
+    "variant": "before",
+    "case": "borrowed",
+    "singleRequestSql": 24,
+    "requests": {
+      "median": 1300,
+      "min": 1300,
+      "max": 1320,
+      "stddev": 9.428
+    },
+    "throughput": {
+      "median": 43.194,
+      "min": 43.168,
+      "max": 43.733,
+      "stddev": 0.26
+    },
+    "p50Ms": {
+      "median": 24.078,
+      "min": 21.473,
+      "max": 25.298,
+      "stddev": 1.596
+    },
+    "p95Ms": {
+      "median": 43.761,
+      "min": 42.423,
+      "max": 52.582,
+      "stddev": 4.507
+    },
+    "p99Ms": {
+      "median": 62.313,
+      "min": 49.718,
+      "max": 75.141,
+      "stddev": 10.379
+    },
+    "sqlPerRequest": {
+      "median": 24.031,
+      "min": 24.03,
+      "max": 24.031,
+      "stddev": 0.0
+    },
+    "sqlPerRequestExcludingScrape": {
+      "median": 24.0,
+      "min": 24.0,
+      "max": 24.0,
+      "stddev": 0.0
+    },
+    "actuatorSamples": {
+      "median": 10,
+      "min": 10,
+      "max": 10,
+      "stddev": 0.0
+    }
+  },
+  {
+    "variant": "before",
+    "case": "owner-requested",
+    "singleRequestSql": 204,
+    "requests": {
+      "median": 1180,
+      "min": 1180,
+      "max": 1180,
+      "stddev": 0.0
+    },
+    "throughput": {
+      "median": 39.185,
+      "min": 39.021,
+      "max": 39.249,
+      "stddev": 0.096
+    },
+    "p50Ms": {
+      "median": 47.634,
+      "min": 47.597,
+      "max": 48.526,
+      "stddev": 0.429
+    },
+    "p95Ms": {
+      "median": 80.865,
+      "min": 75.299,
+      "max": 83.492,
+      "stddev": 3.416
+    },
+    "p99Ms": {
+      "median": 123.396,
+      "min": 107.877,
+      "max": 154.171,
+      "stddev": 19.239
+    },
+    "sqlPerRequest": {
+      "median": 204.034,
+      "min": 204.034,
+      "max": 204.034,
+      "stddev": 0.0
+    },
+    "sqlPerRequestExcludingScrape": {
+      "median": 204.0,
+      "min": 204.0,
+      "max": 204.0,
+      "stddev": 0.0
+    },
+    "actuatorSamples": {
+      "median": 10,
+      "min": 10,
+      "max": 10,
+      "stddev": 0.0
+    }
+  },
+  {
+    "variant": "after",
+    "case": "borrowed",
+    "singleRequestSql": 5,
+    "requests": {
+      "median": 1330,
+      "min": 1322,
+      "max": 1340,
+      "stddev": 7.364
+    },
+    "throughput": {
+      "median": 44.295,
+      "min": 43.737,
+      "max": 44.576,
+      "stddev": 0.349
+    },
+    "p50Ms": {
+      "median": 19.718,
+      "min": 16.149,
+      "max": 20.035,
+      "stddev": 1.762
+    },
+    "p95Ms": {
+      "median": 37.589,
+      "min": 36.05,
+      "max": 39.819,
+      "stddev": 1.547
+    },
+    "p99Ms": {
+      "median": 51.27,
+      "min": 47.05,
+      "max": 56.929,
+      "stddev": 4.048
+    },
+    "sqlPerRequest": {
+      "median": 5.03,
+      "min": 5.03,
+      "max": 5.03,
+      "stddev": 0.0
+    },
+    "sqlPerRequestExcludingScrape": {
+      "median": 5.0,
+      "min": 5.0,
+      "max": 5.0,
+      "stddev": 0.0
+    },
+    "actuatorSamples": {
+      "median": 10,
+      "min": 10,
+      "max": 10,
+      "stddev": 0.0
+    }
+  },
+  {
+    "variant": "after",
+    "case": "owner-requested",
+    "singleRequestSql": 128,
+    "requests": {
+      "median": 1230,
+      "min": 1220,
+      "max": 1230,
+      "stddev": 4.714
+    },
+    "throughput": {
+      "median": 40.902,
+      "min": 40.486,
+      "max": 40.911,
+      "stddev": 0.198
+    },
+    "p50Ms": {
+      "median": 38.444,
+      "min": 38.145,
+      "max": 38.575,
+      "stddev": 0.18
+    },
+    "p95Ms": {
+      "median": 63.207,
+      "min": 62.19,
+      "max": 73.135,
+      "stddev": 4.937
+    },
+    "p99Ms": {
+      "median": 92.649,
+      "min": 80.664,
+      "max": 126.988,
+      "stddev": 19.632
+    },
+    "sqlPerRequest": {
+      "median": 128.033,
+      "min": 128.033,
+      "max": 128.033,
+      "stddev": 0.0
+    },
+    "sqlPerRequestExcludingScrape": {
+      "median": 128.0,
+      "min": 128.0,
+      "max": 128.0,
+      "stddev": 0.0
+    },
+    "actuatorSamples": {
+      "median": 10,
+      "min": 10,
+      "max": 10,
+      "stddev": 0.0
+    }
+  }
+]

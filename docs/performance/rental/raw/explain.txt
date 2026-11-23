@@ -1,0 +1,8 @@
+SQL: SELECT * FROM rentals WHERE borrower_id=981000 ORDER BY created_at DESC,id DESC LIMIT 20;
+type: ALL
+possible_keys: idx_rentals_borrower_status_created
+key: NULL
+rows: 1000
+Extra: Using where; Using filesort
+
+실행 계획 확인은 부하 측정과 별도 시점. 실제 ORM 쿼리와 같은 필터·정렬의 SELECT * 조회 기준.

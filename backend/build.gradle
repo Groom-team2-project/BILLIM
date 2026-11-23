@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '4.1.1'
+    id 'org.springframework.boot' version '4.1.2'
     id 'io.spring.dependency-management' version '1.1.7'
 }
 
@@ -21,13 +21,19 @@ repositories {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-client'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
     implementation 'org.flywaydb:flyway-mysql'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'   // 3.x가 Spring Boot 4 대응
+    implementation 'net.javacrumbs.shedlock:shedlock-spring:7.10.1'   // 다중 인스턴스 배치 중복 실행 방지. 7.x가 Spring Boot 4 대응
+    implementation 'net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.10.1'
+    implementation 'com.ibm.icu:icu4j:78.3'   // 표시 이름 사칭 판정의 혼동 문자 골격(UTS #39 SpoofChecker)
+    implementation 'com.twelvemonkeys.imageio:imageio-webp:3.12.0'   // WebP 디코딩 (JDK 기본 ImageIO는 WebP 미지원). 팀 논의 필요
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
     runtimeOnly 'com.mysql:mysql-connector-j'
@@ -50,4 +56,6 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // 통합 테스트 컨텍스트가 MySQL 컨테이너를 계속 보유하지 않도록 상한 설정
+    systemProperty 'spring.test.context.cache.maxSize', '4'
 }

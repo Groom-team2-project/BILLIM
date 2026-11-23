@@ -1,0 +1,113 @@
+package com.billim.domain.member.entity;
+
+import com.billim.global.entity.BaseTimeEntity;
+import com.billim.global.exception.BusinessException;
+import com.billim.global.exception.ErrorCode;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import java.time.Instant;
+
+/** members */
+@Entity
+@Table(name = "members")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class Member extends BaseTimeEntity {
+
+    public static final int DISPLAY_NAME_MIN = 2;
+    public static final int DISPLAY_NAME_MAX = 30;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = DISPLAY_NAME_MAX)
+    private String displayName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private MemberRole role;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private MemberStatus status;
+
+    /** communities.id. FK 없음, 유효 소속 일치는 서비스 검사 */
+    @Column
+    private Long activeCommunityId;
+
+    @Column
+    private Instant withdrawnAt;
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
+    private Member(String displayName) {
+        this.displayName = requireValidDisplayName(displayName);
+        this.role = MemberRole.USER;
+        this.status = MemberStatus.ACTIVE;
+    }
+
+    /** 첫 소셜 로그인 가입 */
+    public static Member register(String displayName) {
+        return new Member(displayName);
+    }
+
+    /** 관리자 전용 로그인 계정 생성 — 소셜 가입과 달리 처음부터 ADMIN */
+    public static Member registerAdmin(String displayName) {
+        Member member = new Member(displayName);
+        member.role = MemberRole.ADMIN;
+        return member;
+    }
+
+    /** 관리자 전용 로그인 계정의 role 불변식 복원 — DB 수동 변경으로 어긋난 경우 */
+    public void promoteToAdmin() {
+        this.role = MemberRole.ADMIN;
+    }
+
+    public void changeDisplayName(String displayName) {
+        this.displayName = requireNotReserved(requireValidDisplayName(displayName));
+    }
+
+    public boolean isActive() {
+        return status == MemberStatus.ACTIVE;
+    }
+
+    private static String requireValidDisplayName(String value) {
+        String trimmed = value == null ? "" : value.strip();
+        if (trimmed.length() < DISPLAY_NAME_MIN || trimmed.length() > DISPLAY_NAME_MAX) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,
+                    "표시 이름은 %d~%d자로 입력해 주세요.".formatted(DISPLAY_NAME_MIN, DISPLAY_NAME_MAX));
+        }
+        if (DisplayNamePolicy.hasForbiddenChar(trimmed)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "표시 이름에 사용할 수 없는 문자가 있습니다.");
+        }
+        if (!DisplayNamePolicy.hasVisibleChar(trimmed)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "표시 이름에는 보이는 글자가 필요합니다.");
+        }
+        return trimmed;
+    }
+
+    /**
+     * 회원이 직접 입력하는 이름 수정 전용. 소셜 가입 닉네임은 MemberAuthService가 보정 단계에서 대체.
+     * 생성 경로에 두지 않는 이유: 관리자 전용 계정과 운영 데이터 생성은 운영 주체 이름을 정당하게 사용.
+     */
+    private static String requireNotReserved(String value) {
+        if (value != null && DisplayNamePolicy.isReserved(value)) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "운영자로 오인될 수 있는 이름은 사용할 수 없습니다.");
+        }
+        return value;
+    }
+}

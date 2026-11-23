@@ -1,0 +1,38 @@
+/* 앱 셸 골격 — 헤더·본문·탭은 header/·nav/ 모듈 */
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+@media (max-width: 759px) {
+  .shell-main--sub {
+    padding-bottom: var(--space-6);
+  }
+}
+
+.shell-main {
+  flex: 1;
+  width: 100%;
+  padding: var(--space-4) var(--space-4) calc(var(--size-tabbar) + var(--space-6));
+}
+
+@media (min-width: 760px) {
+  .shell-main {
+    max-width: var(--size-content);
+    margin: 0 auto;
+    padding: var(--space-8) var(--space-6);
+  }
+}
+
+/* 자체 헤더가 있는 하위 화면 — 창(.page-window)이 자기 여백을 가짐 */
+.shell-main--window {
+  padding: 0;
+}
+
+@media (min-width: 760px) {
+  .shell-main--window {
+    padding: 40px var(--space-6);
+  }
+}

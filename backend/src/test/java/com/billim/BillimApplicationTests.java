@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Import;
         "spring.security.oauth2.client.registration.kakao.client-id=test-client-id",
         "spring.security.oauth2.client.registration.kakao.client-secret=test-client-secret"
 })
+@MockChatRedisListener
 class BillimApplicationTests {
 
     @Test

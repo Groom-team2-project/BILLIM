@@ -1,0 +1,32 @@
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-touch);
+  padding: 0 var(--space-4);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-full);
+  color: var(--ink-muted);
+  cursor: text;
+}
+
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: var(--ink);
+}
+
+.search-field input::placeholder {
+  color: var(--ink-muted);
+}
+
+.search-field input:focus {
+  outline: none;
+}
+
+.search-field:focus-within {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}

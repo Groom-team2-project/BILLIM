@@ -1,0 +1,33 @@
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: var(--space-3) var(--space-2);
+}
+
+.category-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--size-touch);
+  color: var(--ink);
+}
+
+.category-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+/* 데스크톱도 5열 고정 — 5개씩 두 줄 (프로토타입 동일) */
+@media (min-width: 760px) {
+  .category-grid {
+    grid-template-columns: repeat(5, 120px);
+    justify-content: start;
+  }
+}

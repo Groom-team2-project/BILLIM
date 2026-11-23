@@ -37,3 +37,6 @@ out/
 
 ### dotenv ###
 .env
+
+### 로컬 런타임 데이터 (사진 저장 경로 MEDIA_STORAGE_PATH 기본값) ###
+data/

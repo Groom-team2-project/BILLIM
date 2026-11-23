@@ -1,0 +1,63 @@
+/* 안내·경고 — 프로토타입 nb-alert (테두리 없이 sunken 배경) */
+
+.alert {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.alert-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.alert-title {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 700;
+}
+
+.alert-text {
+  font-size: 13px;
+  line-height: 19px;
+  color: var(--ink-muted);
+}
+
+.alert-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.alert--warning {
+  background: var(--status-requested-bg);
+}
+
+.alert--warning .alert-title,
+.alert--warning > svg {
+  color: var(--status-requested-fg);
+}
+
+.alert--warning .alert-text {
+  color: var(--ink);
+}
+
+.alert--danger {
+  background: var(--status-overdue-bg);
+}
+
+.alert--danger .alert-title,
+.alert--danger > svg {
+  color: var(--status-overdue-fg);
+}
+
+.alert--danger .alert-text {
+  color: var(--ink);
+}

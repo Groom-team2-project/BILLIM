@@ -1,0 +1,17 @@
+{
+  "commit": "f3fe34d756c693740edb1df8189eb9b1c23ce16c",
+  "members": 21,
+  "items": 1000,
+  "rentals": 1000,
+  "borrowerRentals": 1000,
+  "statuses": {
+    "REQUESTED": 250,
+    "REJECTED": 250,
+    "CANCELED": 250,
+    "EXPIRED": 250
+  },
+  "role": "BORROWER",
+  "page": 0,
+  "size": 20,
+  "pauseSeconds": 1
+}

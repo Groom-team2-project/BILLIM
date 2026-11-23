@@ -1,7 +1,7 @@
 # API 명세서
 
-> 버전 : v0.1.0\
-> 수정일 : 2026.09.29
+> 버전 : v0.1.28\
+> 수정일 : 2026.11.11
 
 ## 0. 공통 규약
 
@@ -20,17 +20,18 @@
 ### 0.2 인증 방식
 
 - 쿠키 세션 인증. 개발은 같은 사이트 HTTPS 또는 로컬 프록시 구성을 권장하고 운영 쿠키는 Secure·HttpOnly·SameSite=Lax.
-- 로그인 흐름: 로그인 전 `GET /auth/csrf` → `/auth/kakao` 최상위 이동 → callback → `/auth/complete` → `GET /auth/csrf`와 `/members/me`. 인증 코드와 제공자 토큰을 브라우저 저장소에 보관하지 않는다.
+- 로그인 흐름: 로그인 전 `GET /auth/csrf` → `/auth/kakao` 또는 `/auth/naver` 최상위 이동 → callback → `/auth/complete` → `GET /auth/csrf`와 `/members/me`. 인증 코드와 제공자 토큰을 브라우저 저장소에 보관하지 않는다. 계정은 제공자별 별개 — 동일인이 두 제공자로 로그인하면 서로 다른 회원.
 - POST/PUT/PATCH/DELETE는 `X-CSRF-TOKEN` 필수. OpenAPI의 cookie+csrf는 둘 다 필요한 AND 조건. OAuth callback은 state로 별도 검증한다.
 - 로그인 세션은 제재돼도 기존 거래 정리를 위해 유효할 수 있다. 각 action은 계정 제재·소속·차단·당사자 정책을 별도로 확인한다.
-- 익명 허용은 `/auth/csrf`, `/auth/kakao`, callback, `/policies/{policyKey}`만. ADMIN API는 전역 ADMIN 역할.
+- 익명 허용은 `/auth/csrf`, `/auth/kakao`, `/auth/naver`, callback, `/auth/admin/login`, `/policies/{policyKey}`만. ADMIN API는 전역 ADMIN 역할.
+- 익명 엔드포인트는 IP별 분당 요청 제한이 있다 — `/auth/csrf` 30회, `/auth/kakao`·`/auth/naver`·`/auth/admin/login` 합산 10회. 초과 시 429 `RATE_LIMITED`와 `Retry-After`(초)를 반환하며, 재시도는 그 시간 뒤에 한다. 익명 요청마다 세션·state 행이 생기므로 남용 차단 목적.
 - 공개 조회가 허용되지 않는 타인 대상은 404, 이미 인지 가능한 대상의 명령 권한 부족은 403으로 처리한다.
 - 응답 `allowedActions`·`access`는 UI 안내이며 서버 권한 검사를 대체하지 않는다. 로딩/토스트/모달/테마에는 별도 API가 없다.
 
 ### 0.3 동시성·멱등성
 
 - expectedVersion 불일치 409. API에 적힌 expectedVersion은 해당 대상 또는 약속 슬롯의 version이다.
-- 로그아웃을 제외한 POST에는 UUID `Idempotency-Key` 필수. 인증·조회 권한 재확인 후 같은 키/같은 요청은 최초 성공 결과·코드 재사용, 다른 내용은 409. 실패는 캐시하지 않고 24시간 보존.
+- 로그아웃·채팅 연결권 발급을 제외한 POST에는 UUID `Idempotency-Key` 필수. 인증·조회 권한 재확인 후 같은 키/같은 요청은 최초 성공 결과·코드 재사용, 다른 내용은 409. 실패는 캐시하지 않고 24시간 보존. 연결권은 일회성 임시 자격으로 요청마다 새로 발급하며 성공 응답 캐시 금지.
 - 채팅은 추가로 clientMessageId를 영구 고유 키로 사용한다. 변경 없는 PUT read/block, DELETE block은 반복에 안전하다.
 
 ### 0.4 오류 응답
@@ -47,7 +48,8 @@
 ```
 
 - conflictingRentalIds는 물건 소유자에게만 반환한다. 타인의 요청 생성 오류에는 거래 ID를 포함하지 않는다.
-- currentVersion은 VERSION_CONFLICT 시 제공하며, 재조회 후 사용자가 의도를 확인해 재시도한다.
+- currentVersion은 조건부다. `expectedVersion` 선검사에서 걸린 경우에만 담기고, 커밋 시점의 낙관적 잠금 충돌에서는 생략한다. 밀린 트랜잭션에서는 현재 버전을 읽을 수 없다.
+- 그래서 클라이언트는 `currentVersion` 존재 여부가 아니라 `code`가 `VERSION_CONFLICT`인지로 판정한다. 복구는 재조회이고 버전 값은 필요하지 않다.
 - 코드별 HTTP 상태·발생 조건 전체 목록: [에러 코드](에러%20코드.md)
 
 ### 0.5 상태값 요약
@@ -73,11 +75,15 @@
 | [A_002](#22-a_002-카카오-로그인-시작) | 이지은 | P0 | GET | /api/v1/auth/kakao | 카카오 로그인 시작 |
 | [A_003](#23-a_003-카카오-로그인-콜백) | 이지은 | P0 | GET | /api/v1/auth/kakao/callback | 카카오 로그인 콜백 |
 | [A_004](#24-a_004-로그아웃) | 이지은 | P0 | POST | /api/v1/auth/logout | 로그아웃 |
+| [A_008](#25-a_008-네이버-로그인-시작) | 이지은 | P2 | GET | /api/v1/auth/naver | 네이버 로그인 시작 |
+| [A_009](#26-a_009-네이버-로그인-콜백) | 이지은 | P2 | GET | /api/v1/auth/naver/callback | 네이버 로그인 콜백 |
+| [A_010](#27-a_010-관리자-전용-로그인) | 이지은 | P2 | POST | /api/v1/auth/admin/login | 관리자 전용 로그인 |
+| [A_011](#28-a_011-다른-기기-로그아웃) | 이지은 | P2 | POST | /api/v1/auth/logout-others | 다른 기기 로그아웃 |
 | [A_005](#31-a_005-내-회원활성-소속-조회) | 이지은 | P0 | GET | /api/v1/members/me | 내 회원·활성 소속 조회 |
 | [A_006](#32-a_006-내-표시-이름-수정) | 이지은 | P1 | PATCH | /api/v1/members/me | 내 표시 이름 수정 |
 | [A_007](#33-a_007-이웃-공개-프로필) | 이지은 | P1 | GET | /api/v1/members/{memberId} | 이웃 공개 프로필 |
 | [C_008](#34-c_008-회원-거래-신뢰-지표) | 박소빈 | P1 | GET | /api/v1/members/{memberId}/trust | 회원 거래 신뢰 지표 |
-| [E_009](#41-e_009-동네-이름-검색) | 노현섭 | P0 | GET | /api/v1/communities | 동네 이름 검색 |
+| [E_009](#41-e_009-동네-검색) | 노현섭 | P0 | GET | /api/v1/communities | 동네 검색 |
 | [E_010](#42-e_010-동네-정보-조회) | 노현섭 | P0 | GET | /api/v1/communities/{communityId} | 동네 정보 조회 |
 | [E_011](#43-e_011-위치-인증-및-활성-동네-선택) | 노현섭 | P0 | POST | /api/v1/communities/{communityId}/verifications | 위치 인증 및 활성 동네 선택 |
 | [E_012](#44-e_012-공용-거래-장소-목록) | 노현섭 | P0 | GET | /api/v1/communities/{communityId}/places | 공용 거래 장소 목록 |
@@ -85,6 +91,7 @@
 | [B_014](#52-b_014-사진-업로드) | 주정현 | P0 | POST | /api/v1/media | 사진 업로드 |
 | [B_015](#53-b_015-권한-있는-사진-읽기) | 주정현 | P0 | GET | /api/v1/media/{mediaId}/content | 권한 있는 사진 읽기 |
 | [B_016](#54-b_016-미연결-업로드-삭제) | 주정현 | P0 | DELETE | /api/v1/media/{mediaId} | 미연결 업로드 삭제 |
+| [B_028](#55-b_028-권한-있는-축소-사진-읽기) | 박선우 | P1 | GET | /api/v1/media/{mediaId}/thumbnail | 권한 있는 축소 사진 읽기 |
 | [B_017](#61-b_017-물건-검색-목록) | 주정현 | P0 | GET | /api/v1/items | 물건 검색 목록 |
 | [B_018](#62-b_018-물건-검색-지도-집계) | 주정현 | P0 | GET | /api/v1/items/map | 물건 검색 지도 집계 |
 | [B_019](#63-b_019-물건-등록) | 주정현 | P0 | POST | /api/v1/items | 물건 등록 |
@@ -126,6 +133,7 @@
 | [E_055](#124-e_055-신고-접수) | 노현섭 | P1 | POST | /api/v1/reports | 신고 접수 |
 | [E_056](#125-e_056-내-신고-목록) | 노현섭 | P1 | GET | /api/v1/members/me/reports | 내 신고 목록 |
 | [E_057](#126-e_057-내-신고-결과-상세) | 노현섭 | P1 | GET | /api/v1/reports/{reportId} | 내 신고 결과 상세 |
+| [E_072](#127-e_072-내가-받은-운영-조치-내역) | 노현섭 | P1 | GET | /api/v1/members/me/sanctions | 내가 받은 운영 조치 내역 |
 | [E_058](#131-e_058-운영-신고-목록) | 노현섭 | P1 | GET | /api/v1/admin/reports | 운영 신고 목록 |
 | [E_059](#132-e_059-신고-증거와-처리-상세) | 노현섭 | P1 | GET | /api/v1/admin/reports/{reportId} | 신고 증거와 처리 상세 |
 | [E_060](#133-e_060-신고-처리제재-결정) | 노현섭 | P1 | POST | /api/v1/admin/reports/{reportId}/resolve | 신고 처리·제재 결정 |
@@ -140,6 +148,10 @@
 | [E_069](#136-e_069-동네-운영-통계) | 노현섭 | P2 | GET | /api/v1/admin/statistics | 동네 운영 통계 |
 | [E_070](#147-e_070-정책안내-정적-문서) | 노현섭 | P1 | GET | /api/v1/policies/{policyKey} | 정책·안내 정적 문서 |
 | [E_071](#45-e_071-현재-위치로-주변-동네-찾기) | 노현섭 | P0 | POST | /api/v1/communities/nearby | 현재 위치로 주변 동네 찾기 |
+| [E_073](#46-e_073-동네-선택-단계-옵션) | 노현섭 | P1 | GET | /api/v1/communities/regions | 동네 선택 단계 옵션 |
+| [E_074](#47-e_074-내-동네-목록) | 노현섭 | P1 | GET | /api/v1/members/me/communities | 내 동네 목록 |
+| [E_075](#48-e_075-현재-동네-변경) | 노현섭 | P1 | POST | /api/v1/members/me/communities/{communityId}/select | 현재 동네 변경 |
+| [E_076](#49-e_076-저장-동네-이탈) | 노현섭 | P1 | DELETE | /api/v1/members/me/communities/{communityId} | 저장 동네 이탈 |
 
 ## 2. 인증 (auth)
 
@@ -188,6 +200,47 @@
 - 관련 테이블: auth_sessions
 - 목업 연결: profile
 
+### 2.5 A_008 네이버 로그인 시작
+
+- `GET /api/v1/auth/naver` · 이지은 · P2
+- 설명: 카카오 시작(A_002)과 같은 흐름 — 허용된 네이버 인증 주소로 302 이동. 등록 ID만 다름.
+- 요청 본문: 없음
+- 성공 응답: 302 리다이렉트
+- 관련 테이블: auth_sessions, oauth_login_attempts
+- 목업 연결: login
+
+### 2.6 A_009 네이버 로그인 콜백
+
+- `GET /api/v1/auth/naver/callback` · 이지은 · P2
+- 설명: 카카오 콜백(A_003)과 동일한 Query·검증·응답 규칙. 계정은 제공자별 별개 — 같은 사람이 카카오로 가입했어도 네이버 콜백은 새 회원 가입.
+- 요청 본문: 없음
+- 성공 응답: 302 리다이렉트
+- 관련 테이블: members, social_accounts, auth_sessions, oauth_login_attempts
+- 목업 연결: login
+
+### 2.7 A_010 관리자 전용 로그인
+
+- `POST /api/v1/auth/admin/login` · 이지은 · P2
+- 설명: 소셜 계정 없이 서버 환경 변수 자격증명(`ADMIN_LOGIN_ID`·`ADMIN_PASSWORD_HASH`, bcrypt 해시)으로 ADMIN 세션 발급. 둘 중 하나라도 비면 404 — 배포 설정만으로 켜고 끈다. 자격증명 불일치는 401이며 ID·비밀번호 중 무엇이 틀렸는지 비노출. 성공 시 소셜 콜백과 같은 세션 회전, 이후 `/auth/csrf`와 `/members/me` 재조회. 로그인 전 세션의 CSRF 필요. 관리자 회원은 social_accounts(provider=LOCAL)로 식별하는 members 행 하나를 재사용. 계정 단위 잠금: 15분 안에 5회 실패 시 15분간 429 `RATE_LIMITED`(올바른 자격증명 포함, `Retry-After` 없음 — 남은 시간은 메시지). IP별 요청 제한과 별개.
+
+| Body | 필수 | 타입 | 의미 |
+| --- | --- | --- | --- |
+| loginId | Y | string | 관리자 로그인 ID |
+| password | Y | string | 비밀번호 원문 — 서버는 해시만 보관 |
+
+- 성공 응답: 204 본문 없음
+- 관련 테이블: members, social_accounts, auth_sessions
+- 목업 연결: admin
+
+### 2.8 A_011 다른 기기 로그아웃
+
+- `POST /api/v1/auth/logout-others` · 이지은 · P2
+- 설명: 현재 세션을 제외한 같은 회원의 사용 가능한 세션 전부 폐기. 현재 세션·CSRF 토큰은 유지. 세션 복원이 요청마다 DB 조회라 폐기 즉시 모든 인스턴스에서 해당 쿠키는 401. 로그인 필요(`/auth/**` 중 예외), 로그인된 세션의 CSRF 필요.
+- 요청 본문: 없음
+- 성공 응답: 200 LogoutOthers
+- 관련 테이블: auth_sessions
+- 목업 연결: profile
+
 ## 3. 회원 (members)
 
 > `members`, `community_memberships`, `sanctions`, `blocks`, `rentals`
@@ -195,7 +248,7 @@
 ### 3.1 A_005 내 회원·활성 소속 조회
 
 - `GET /api/v1/members/me` · 이지은 · P0
-- 설명: 유효 로그인만 필요. 미인증/제재 상태도 자신의 onboarding·제한 상태를 조회할 수 있다.
+- 설명: 유효 로그인만 필요. 미인증/제재 상태도 자신의 onboarding·제한 상태를 조회할 수 있다. 유효한 활성 소속이 없으면 activeMembership을 생략하고 onboardingRequired는 참이다(인증 만료 포함).
 - 요청 본문: 없음
 - 성공 응답: 200 MyProfile
 - 관련 테이블: members, community_memberships, sanctions
@@ -204,7 +257,7 @@
 ### 3.2 A_006 내 표시 이름 수정
 
 - `PATCH /api/v1/members/me` · 이지은 · P1
-- 설명: 본인 ACTIVE 회원. 2~30자, version 불일치 409. 사진 편집은 범위 밖.
+- 설명: 본인 ACTIVE 회원. 2~30자, version 불일치 409. 사진 편집은 범위 밖. 제어·서식 문자(폭 없는 공백·방향 제어·ZWJ 등)·한글 채움 문자, 보이는 글자 없는 이름, 운영자 사칭 이름(관리자·운영자·운영진·운영팀 포함, admin·billim은 바로 앞이 영문자가 아닐 때 — 전각·대소문자·공백·기호 정규화와 혼동 문자 골격(UTS #39) 변환 후 비교)은 400 `INVALID_REQUEST`. 소셜 가입 닉네임은 거부 대신 금지 문자 제거, 보이는 글자 없는 이름·사칭 이름은 기본 이름(`이웃` + 숫자 4자리)으로 대체.
 - 요청 본문: UpdateProfile
 - 성공 응답: 200 MyProfile
 - 관련 테이블: members
@@ -213,8 +266,9 @@
 ### 3.3 A_007 이웃 공개 프로필
 
 - `GET /api/v1/members/{memberId}` · 이지은 · P1
-- 설명: 동일 유효 활성 동네의 회원 또는 기존 거래 당사자. 기존 거래 없이 차단 관계면 404. 소셜 식별자·개인 연락처 미노출.
+- 설명: 동일 유효 활성 동네의 회원 또는 기존 거래 당사자. 기존 거래 없이 차단 관계면 404. 소셜 식별자·개인 연락처 미노출. 본인 조회 가능.
 - 요청 본문: 없음
+- 오류: 탈퇴 조회자는 401 UNAUTHENTICATED, memberId가 양수가 아니면 400 INVALID_REQUEST, 없는 회원·타 동네·차단 관계는 404 RESOURCE_NOT_FOUND
 - 성공 응답: 200 PublicProfile
 - 관련 테이블: members, community_memberships, blocks, rentals
 - 목업 연결: profileOther
@@ -225,6 +279,7 @@
 - 설명: 공개 프로필과 동일 권한. 완료·빌려준 횟수와 확정 반납 약속의 서버 확인 기준 준수 분자/분모. 본인 조회 가능.
 - 요청 본문: 없음
 - 성공 응답: 200 TrustMetrics
+- 집계: completedCount는 RETURNED 거래의 빌림·빌려줌 합계, lentCount는 그중 빌려준 건수. 반납 준수는 본인이 빌린 RETURNED 거래 중 returnPromiseKept가 NULL이 아닌 건만 분모에 포함하고 true인 건을 분자로 집계. 거래 0건은 모든 수치 0.
 - 관련 테이블: rentals
 - 목업 연결: profile, profileOther, detail
 
@@ -232,16 +287,26 @@
 
 > `communities`, `community_memberships`, `members`, `community_places`
 
-### 4.1 E_009 동네 이름 검색
+### 4.1 E_009 동네 검색
 
 - `GET /api/v1/communities` · 노현섭 · P0
-- 설명: 로그인 필요, 미인증 허용. 활성 커뮤니티 이름순,id순. 위치 없이 검색 가능.
+- 설명: 로그인 필요, 미인증 허용. 활성 커뮤니티 이름순,id순. 위치 없이 검색 가능. 검색어(2자 이상)에 해당하는 행정동이 아직 동네로 없으면 첫 페이지 조회에서 등록하므로 일부만 입력해도 전국 행정동이 후보에 나온다. 지도 연동이 없거나 실패하면 등록된 동네만 반환한다.
+- **지역 범위(E_073에서 고른 값)로 좁힐 수 있다.** 위에서 아래로 채워야 하고, 위를 비우고 아래만 주면 400 `INVALID_REQUEST`다. 범위를 주면 보충 등록을 하지 않는다 — 범위 옵션 자체가 이미 등록된 동네에서 나온 값이라 그 밖을 지도에서 찾아올 이유가 없다.
+- 범위와 `keyword`를 함께 주면 범위 안에서 찾는다. `keyword`는 이름과 공개 주소를 함께 보므로, 이름에 없는 글자도 주소에 있으면 걸린다.
 
 | Query | 필수 | 타입 | 의미 |
 | --- | --- | --- | --- |
-| keyword | N | string | 이름 부분 검색; 생략하면 활성 동네 목록 |
+| keyword | N | string | 이름·공개 주소 부분 검색; 생략하면 범위 안 전체 |
+| sido | N | string | 시·도. 최대 40자 |
+| sigungu | N | string | 시·군·구. sido 필요 |
+| gu | N | string | 구가 있는 시의 구. sigungu 필요 |
+| dong | N | string | 읍·면·동. sido 필요 |
+| hasMembers | N | boolean | 기본 false. true면 가입자가 있는 동네만 |
 | page | N | integer | 0부터 시작; 기본 0 |
 | size | N | integer | 기본 20; 최대 50 |
+
+- **`hasMembers`**: 검색어에 걸린 행정동을 동네로 자동 등록하므로 아무도 없는 동네가 쌓인다. true면 ACTIVE 소속이 하나라도 있는 동네만 남긴다. 기준에 **인증 만료는 보지 않는다** — `verifiedMemberCount`(유효 인증 회원 수)와 다르다. 전원 만료된 동네도 가입자는 있고 재인증하면 돌아오므로, 목록에서 지우면 그 동네에 공지를 쓸 수 없게 된다.
+- 가입 흐름은 `hasMembers`를 쓰지 않는다. 첫 이웃이 될 동네를 골라야 하기 때문이다. 관리자 화면이 쓴다.
 
 - 요청 본문: 없음
 - 성공 응답: 200 CommunityPage
@@ -257,10 +322,15 @@
 - 관련 테이블: communities
 - 목업 연결: verify
 
-### 4.3 E_011 위치 인증 및 활성 동네 선택
+### 4.3 E_011 위치 인증 및 동네 추가
 
 - `POST /api/v1/communities/{communityId}/verifications` · 노현섭 · P0
-- 설명: 현재 위치는 이 요청에서만 사용. 범위 밖 403 LOCATION_OUTSIDE, 정확도 초과 422 LOCATION_INACCURATE. 성공 시 이전 소속 LEFT, 선택 소속 ACTIVE, members.active_community_id 갱신. 좌표는 DB·로그·멱등 응답에 저장하지 않는다. 최초/재인증 모두 200.
+- 설명: 현재 위치는 이 요청에서만 사용. 판정은 행정동·반경 병행이다. 현재 좌표의 행정동이 동네의 행정동과 같으면 통과하고(정확도 상한 미적용), 다르거나 지도 연동이 응답하지 않으면 기존 반경 판정으로 다시 본다. 반경 판정에서 범위 밖 403 LOCATION_OUTSIDE, 정확도 초과 422 LOCATION_INACCURATE. 좌표는 DB·로그·멱등 응답에 저장하지 않는다. 최초/재인증 모두 200.
+- **저장 동네에 더한다.** 저장 동네는 **최대 2개**다(V23). 성공 시 선택 소속이 ACTIVE가 되고 `members.active_community_id`가 방금 인증한 동네로 바뀐다 — 즉 **현재 동네**가 된다.
+  - 예전에는 이전 소속을 LEFT로 내려 하나만 남겼다. 이제 쌓인다.
+  - 이미 저장한 동네를 다시 인증하면 새 행을 만들지 않고 인증 시각·만료만 갱신한다. 슬롯은 유지된다.
+  - 이미 2개면 **409 `COMMUNITY_LIMIT_EXCEEDED`**. 어느 동네를 뺄지는 회원이 정한다(E_076). 자동으로 밀어내면 모르는 사이에 그 동네 거래 권한을 잃는다.
+- 용어: **저장 동네**(ACTIVE 소속, 최대 2) / **현재 동네**(`members.active_community_id`, 하나). 거래·채팅 권한은 저장 동네 전체를, 홈 피드·물건 목록은 현재 동네를 기준으로 한다. (도메인 가이드 결정 '저장 동네와 현재 동네')
 - 요청 본문: VerifyLocationRequest
 - 성공 응답: 200 Membership
 - 관련 테이블: members, communities, community_memberships
@@ -269,7 +339,7 @@
 ### 4.4 E_012 공용 거래 장소 목록
 
 - `GET /api/v1/communities/{communityId}/places` · 노현섭 · P0
-- 설명: 유효 활성 동네 또는 해당 동네의 기존 거래 당사자. 현재 active 장소만 이름순,id순 반환.
+- 설명: 유효 활성 동네 또는 해당 동네의 기존 거래 당사자. 현재 active 장소만 이름순,id순 반환. 활성 장소가 0개면 지도 제공자의 공공기관(주민센터·파출소 등)으로 자동 보충한 뒤 반환한다. 보충에 실패하면 빈 목록이며 오류가 아니다.
 - 요청 본문: 없음
 - 성공 응답: 200 PlaceList
 - 관련 테이블: community_places, community_memberships
@@ -278,11 +348,70 @@
 ### 4.5 E_071 현재 위치로 주변 동네 찾기
 
 - `POST /api/v1/communities/nearby` · 노현섭 · P0
-- 설명: 로그인 필요·인증 전 허용. 요청 좌표와 활성 동네 중심의 거리를 계산해 가까운 순,id순으로 최대 20개 반환. 추가 후보가 있으면 truncated=true; 이름 검색으로 보완. 좌표와 정확도는 일시 사용하고 저장/로그 금지. 이 조회 자체는 소속 인증이 아니다.
+- 설명: 로그인 필요·인증 전 허용. 요청 좌표의 행정동이 아직 동네로 없으면 이 시점에 등록하므로 전국 어디서 불러도 최소한 자기 행정동은 후보에 나온다. 좌표 사각형(반경 20km)으로 후보를 줄인 뒤 거리를 계산해 가까운 순,id순으로 최대 20개 반환. 사각형 안에 추가 후보가 있으면 truncated=true; 이름 검색으로 보완. 좌표와 정확도는 일시 사용하고 저장/로그 금지. 이 조회 자체는 소속 인증이 아니다.
 - 요청 본문: VerifyLocationRequest
 - 성공 응답: 200 NearbyCommunities
 - 관련 테이블: communities
 - 목업 연결: join
+
+### 4.6 E_073 동네 선택 단계 옵션
+
+- `GET /api/v1/communities/regions` · 노현섭 · P1
+- 설명: 로그인 필요, 미인증 허용. 동네를 시·도 → 시·군·구 → (구가 있는 시만) 구 → 읍·면·동으로 좁혀 고르는 데 쓴다. 평면 목록은 동네가 늘면 쓸 수 없다 — 전국 행정동이 등록되면 수천 곳이라 이름을 미리 알지 못하면 찾을 수 없고 목록 앞쪽만 닿는다.
+- **담는 것**: 요청한 단계에서 고를 수 있는 값. 중복 없이 가나다순.
+- **전국 행정동 목록이 아니다.** 등록된 활성 동네의 공개 주소에서만 모은다. 아직 아무도 인증하지 않은 행정동은 나오지 않고, 그 동네로 처음 들어가는 길은 이름 검색(E_009)이다. 관리자 화면은 통계·공지 대상이 있는 동네만 골라야 하므로 이 범위가 맞다.
+- 단계는 **공개 주소**에서 읽는다. 동네 이름이 아니다 — 행정동 동네는 이름이 곧 행정동이지만 아파트 단지처럼 경계가 다른 동네는 이름이 단지명이다. 그래서 운영 seed로 넣는 동네도 공개 주소를 `시도 시군구[ 구] 읍면동` 형식으로 맞춰야 단계 선택에 나타난다.
+- 해당 단계가 없는 지역은 빈 배열이다. 구가 없는 자치구(`GU`), 시·군·구가 없는 세종특별자치시(`SIGUNGU`)가 그렇다. 화면은 빈 배열이면 그 단계를 건너뛴다.
+
+| Query | 필수 | 타입 | 의미 |
+| --- | --- | --- | --- |
+| level | Y | string | 값: SIDO, SIGUNGU, GU, DONG |
+| sido | N | string | SIGUNGU·GU·DONG에 필수. 최대 40자 |
+| sigungu | N | string | GU에 필수 |
+| gu | N | string | DONG을 구 안으로 좁힐 때 |
+| hasMembers | N | boolean | 기본 false. true면 가입자가 있는 동네에서만 단계를 모은다. 기준은 E_009와 같다 |
+
+- 요청 본문: 없음
+- 성공 응답: 200 RegionOptions
+- 오류: 400 `INVALID_REQUEST` — `level`이 없거나 값이 아닐 때, 상위 단계가 비었을 때, 단계를 위에서 아래로 채우지 않았을 때
+- 관련 테이블: communities
+- 목업 연결: admin(대시보드·공지 관리)
+
+### 4.7 E_074 내 동네 목록
+
+- `GET /api/v1/members/me/communities` · 노현섭 · P1
+- 설명: 본인만. **저장 동네**(최대 2)와 **현재 동네**를 함께 준다. 슬롯 순서라 대체로 추가한 순서다.
+- 인증이 만료된 저장 동네도 담는다 — 재인증 대상이라 화면에 보여야 한다. `isValid`로 구분한다.
+- 동네 행이 사라진 소속은 이름을 조립할 수 없어 목록에서 빠진다.
+- 요청 본문: 없음
+- 성공 응답: 200 MyCommunities
+- 관련 테이블: community_memberships, communities, members
+- 목업 연결: neighborhoods, home(내 동네 설정)
+
+### 4.8 E_075 현재 동네 변경
+
+- `POST /api/v1/members/me/communities/{communityId}/select` · 노현섭 · P1
+- 설명: 본인만. 현재 동네를 **저장 동네 중 다른 쪽으로** 바꾼다. 홈 피드·물건 목록의 기준이 바뀐다.
+- 저장 동네가 아니면 **404** — 없는 동네와 남의 소속을 구분해 알려 주지 않는다.
+- 인증이 만료된 저장 동네로도 전환된다. 전환은 피드 기준을 바꾸는 일이고, 거래는 각 명령 API가 유효 소속을 다시 검사한다.
+- **소속은 바뀌지 않는다.** 전환해도 양쪽 동네의 거래·채팅 권한은 그대로다.
+- 요청 본문: 없음
+- 성공 응답: 200 MyCommunities (바뀐 전체 상태)
+- 관련 테이블: members, community_memberships
+- 목업 연결: home(내 동네 설정)
+
+### 4.9 E_076 저장 동네 이탈
+
+- `DELETE /api/v1/members/me/communities/{communityId}` · 노현섭 · P1
+- 설명: 본인만. 저장 동네에서 뺀다. 소속이 LEFT가 되고 슬롯이 비어 다른 동네를 더할 수 있다.
+- **마지막 하나는 뺄 수 없다 — 409 `COMMUNITY_LAST_MEMBERSHIP`.** 마지막까지 빼면 미인증 상태가 되어 아무것도 할 수 없다. 동네를 옮기려면 새 동네를 먼저 인증한 뒤(E_011) 예전 동네를 뺀다.
+- 현재 동네를 뺐으면 **남은 동네가 현재 동네가 된다.** 비워 두면 피드 기준이 사라진다.
+- 저장 동네가 아니면 404.
+- 뺀 동네의 물건·장소·채팅은 더 볼 수 없다. 진행 중인 거래가 있으면 먼저 정리해야 한다.
+- 요청 본문: 없음
+- 성공 응답: 200 MyCommunities (바뀐 전체 상태)
+- 관련 테이블: community_memberships, members
+- 목업 연결: neighborhoods
 
 ## 5. 카테고리·사진 (categories·media)
 
@@ -323,6 +452,15 @@
 - 성공 응답: 204 본문 없음
 - 관련 테이블: media_files
 - 목업 연결: register
+
+### 5.5 B_028 권한 있는 축소 사진 읽기
+
+- `GET /api/v1/media/{mediaId}/thumbnail` · 박선우 · P1
+- 설명: B_015와 같은 사진 조회 권한. 긴 변 128px 이하 JPEG 썸네일을 반환한다. 새 업로드는 원본과 함께 별도 파일로 저장하고, 기존 사진은 첫 조회 때 생성해 보관한다. 권한은 매 요청마다 다시 확인하며 private no-cache를 적용한다.
+- 요청 본문: 없음
+- 성공 응답: 200 image/jpeg 바이너리
+- 관련 테이블: media_files, item_images, items
+- 목업 연결: chat
 
 ## 6. 물건 (items)
 
@@ -464,6 +602,7 @@
 
 - 요청 본문: 없음
 - 성공 응답: 200 Availability
+- 구현 상태: 예약 구간 조회·범위 병합·선택 기간 판정 서비스와 컨트롤러 연결. 물건 조회 권한 정책 연결. 삭제·비공개·유효 소속·양방향 차단 검사 적용.
 - 관련 테이블: items, rentals
 - 목업 연결: detail, request
 
@@ -484,19 +623,26 @@
 
 > `rentals`, `rental_status_histories`, `outbox_events`, `appointment_slots`
 
+- 구현 상태: P0 목록·상태별 건수·상세 조회 및 승인·거절·취소·전달·반납 서비스와 컨트롤러 연결. 날짜는 KST·양끝 포함 최대 30일 기준.
+- 생성·변경 명령은 양측 회원을 ID 순서로 잠근 뒤 물건·거래를 잠금. 상태 변경에 따른 회원 외래 키 검사와 상대방 명령의 교착 방지.
+- 거절·취소·전달·반납 명령과 DB 멱등 기록·outbox 이벤트 저장 연결. 같은 요청의 성공 응답은 24시간 재사용. 승인은 양측의 유효 소속·차단·제재·공개 상태·활성 공용 장소를 재검사.
+- 조회 응답의 `allowedActions`는 승인 정책·요청 만료·가능 기간·연체·점유 조건 충족 시 `APPROVE` 포함. 상세 응답은 실제 약속 슬롯·제안 포함. 요청 자동 만료 작업 연결. 기본 60초 간격으로 기한이 지난 REQUESTED 최대 100건 처리. 회원 ID순 → 물건 → 거래 잠금 후 상태·기한 재확인, 시스템 이력(actorId=NULL)·양측 RENTAL_EXPIRED 사건을 같은 트랜잭션에 저장. 실패 요청은 다음 실행에서 재시도. `billim.rental.expiration-delay-ms`로 실행 간격 조정.
+
 ### 8.1 C_028 대여 요청 생성
 
 - `POST /api/v1/rentals` · 박소빈 · P0
-- 설명: 유효 소속·본인 물건 아님·차단 없음. 날짜 양끝 포함, 최대 30일. 물건 잠금 아래 가능 기간/연체/승인 점유 재검사. 동일인의 겹치는 대기 요청 거부, 다른 사람의 대기 요청 겹침 허용.
+- 설명: 유효 소속·본인 물건 아님·차단 없음. 시작일은 KST 오늘부터 허용. 공개(PUBLIC)이며 삭제되지 않은 물건만 신규 요청·승인 허용. 별도 수동 대여 가능 설정 없음. 날짜 양끝 포함, 최대 30일. 물건 잠금 아래 가능 기간/연체/승인 점유 재검사. 동일인의 겹치는 대기 요청 거부, 다른 사람의 대기 요청 겹침 허용.
 - 요청 본문: CreateRental
-- 성공 응답: 201 RentalDetail
-- 관련 테이블: rentals, rental_status_histories, outbox_events
+- 성공 응답: 201 RentalDetail (`chatRoomId` 포함)
+- 관련 테이블: rentals, rental_status_histories, chat_rooms, chat_participants, outbox_events
+- 구현 상태: 요청 서비스·컨트롤러 연결. 멱등 기록·outbox 저장 연결. 공개 상태·양측 활성 회원·유효 소속·양방향 차단·제재·활성 공용 장소 검사 연결.
 - 목업 연결: request
 
 ### 8.2 C_029 내 대여 목록
 
 - `GET /api/v1/rentals` · 박소빈 · P0
 - 설명: role 필수 BORROWER/OWNER. 생성 시각 DESC,id DESC. 소속 변경·인증 만료·차단 후에도 본인 거래 조회. overdueOnly는 ACTIVE 필터와 병용 또는 상태 생략.
+- 조회 구현: 페이지 내 회원·승인 후보 물건·ACTIVE 반납 기한·점유 충돌과 승인 후보의 소속·양방향 차단·유효 제재·공용 장소를 일괄 조회. 단건과 같은 정책 판정 함수를 사용하며 실제 승인 명령은 기존 잠금 아래 개별 재검사 유지. 조회 결과를 요청 밖에 캐시하지 않으며 응답 필드·정렬·허용 행동 계약 유지.
 
 | Query | 필수 | 타입 | 의미 |
 | --- | --- | --- | --- |
@@ -524,7 +670,7 @@
 ### 8.4 C_031 내 거래 상세와 상태 이력
 
 - `GET /api/v1/rentals/{rentalId}` · 박소빈 · P0
-- 설명: 소유자/요청자만. 비공개 물건이라도 거래 당시 제목·장소 스냅샷 유지. 무관한 회원은 404. P1 전 appointments는 빈 배열.
+- 설명: 소유자/요청자만. 비공개 물건이라도 거래 당시 제목·장소 스냅샷 유지. 무관한 회원은 404. appointments는 전달·반납 슬롯과 확정·대기 제안 포함.
 - 요청 본문: 없음
 - 성공 응답: 200 RentalDetail
 - 관련 테이블: rentals, rental_status_histories, appointment_slots
@@ -542,7 +688,7 @@
 ### 8.6 C_033 대여 거절
 
 - `POST /api/v1/rentals/{rentalId}/reject` · 박소빈 · P0
-- 설명: 소유자만 REQUESTED→REJECTED. reason 선택, UI의 이유 보내기 모드는 값 필수. 제한 계정도 거래 정리 허용.
+- 설명: 소유자만 REQUESTED→REJECTED. reason 필수, 공백만 입력 불가, 최대 500자. 제한 계정도 거래 정리 허용.
 - 요청 본문: ReasonCommand
 - 성공 응답: 200 RentalDetail
 - 관련 테이블: rentals, rental_status_histories, outbox_events
@@ -551,7 +697,7 @@
 ### 8.7 C_034 대여 취소
 
 - `POST /api/v1/rentals/{rentalId}/cancel` · 박소빈 · P0
-- 설명: REQUESTED는 요청자만, APPROVED는 양측 가능하고 reason 필수. ACTIVE/종료 상태 거부.
+- 설명: REQUESTED는 요청자만, APPROVED는 양측 가능. 모든 취소에 reason 필수, 공백만 입력 불가, 최대 500자. ACTIVE/종료 상태 거부.
 - 요청 본문: CancelCommand
 - 성공 응답: 200 RentalDetail
 - 관련 테이블: rentals, rental_status_histories, outbox_events
@@ -578,6 +724,8 @@
 ## 9. 약속 (appointments)
 
 > `appointment_slots`, `appointment_proposals`, `outbox_events`
+
+- 구현 상태: 제안·수락·철회에 공통 UUID Idempotency-Key 적용. 활성 회원·거래 당사자 재확인 후 동일 키·동일 본문은 최초 성공 응답·코드 재사용, 본문 변경은 409. 상태 변경·사건·24시간 성공 기록을 동일 트랜잭션에 저장.
 
 ### 9.1 C_037 전달·반납 약속 조회
 
@@ -615,14 +763,26 @@
 - 관련 테이블: appointment_slots, appointment_proposals, outbox_events
 - 목업 연결: chat
 
+### 대여·약속 내부 연동
+
+- `RentalQueryService.getRentalSummary(rentalId, memberId)`: 거래 당사자 검사 후 RentalSummaryResponse 반환. 무관한 회원은 404. 기존 거래는 현재 동네·차단 상태와 무관하게 조회. 거절·취소·전달·반납에도 신규 관계 정책 미적용.
+- 채팅방 개설·재개설 시 기존 대여 연결은 채팅 담당의 후속 연동 대상. 대여의 `RentalRepository.linkChatRoom`은 같은 물건·소유자·요청자의 미연결 거래만 연결하는 내부 기능 제공.
+- 신규 대여 생성 시 같은 물건·소유자·요청자의 기존 채팅방 연결. 방이 없으면 요청 저장과 같은 트랜잭션에서 채팅방·양쪽 참여자를 생성하고 응답에 `chatRoomId` 반환. 이후 채팅 SYSTEM 메시지가 요청을 표시.
+- APPROVED 진입 시 PICKUP/RETURN 슬롯 생성. V13은 기존 APPROVED/ACTIVE/RETURNED 거래의 누락 슬롯만 보충.
+- C_038~040은 회원 ID순 → 물건 → 거래 → 슬롯 순으로 직렬화하고 슬롯 version 비교. 제안·수락·철회와 슬롯 버전·outbox 사건을 같은 트랜잭션에 저장.
+- 제안 교체·철회는 기존 확정 약속 유지. 새 제안 수락 시 이전 확정은 SUPERSEDED. 수락 시 활성 공용 장소와 KST 날짜·미래 시각·대여 상태 재검사.
+- 채팅방 응답의 거래 요약 호출·기존 대여 연결·권한 판정과 약속 카드·버튼 화면 연결은 채팅 도메인 담당 범위.
+
 ## 10. 채팅 (chat)
 
 > `chat_rooms`, `chat_participants`, `rentals`, `messages`, `blocks`, `sanctions`
 
+> D_041~D_043은 대여 요약·기존 거래 연결·채팅 접근 제한 판정을 연동해 기본 활성화한다. 운영에서 `billim.chat.rooms.enabled=false`로 비활성화할 수 있다. 메시지 조회·전송 등 다른 채팅 API에는 이 설정을 적용하지 않는다.
+
 ### 10.1 D_041 물건 문의 채팅방 열기
 
 - `POST /api/v1/chat/rooms` · 박선우 · P1
-- 설명: 물건 공개 조회 권한·본인 물건 아님·차단 없음. item+requester UNIQUE로 방 재사용. 동일 당사자 기존 대여 연결. 생성/재사용 모두 200. 기존 거래 당사자의 기존 방 접근은 상세 API 사용.
+- 설명: PUBLIC·미삭제 물건·본인 물건 아님·차단 없음·물건 동네의 유효한 저장 소속 필요. 현재 선택 동네와 달라도 해당 저장 동네 소속이 유효하면 허용하며 현재 동네 ID만으로 허용하지 않음. 일반 문의는 양측 유효 제재 없음 필요. 제재 중에는 동일 물건·소유자·요청자의 제재 전 승인된 APPROVED/ACTIVE 거래가 있으면 요청자가 방 생성/재사용 가능. 채팅방 없는 과거 거래도 같은 승인 시점 판정 적용. 다른 방에 연결된 거래는 예외 제외하며 허용 거래만 방에 연결. item+requester UNIQUE로 방 재사용. 일반 문의에서는 동일 당사자 기존 대여 연결. 생성/재사용 모두 200. 기존 방의 양측 당사자 접근은 상세 API 사용. 제재 중 메시지는 허용 거래 rentalId 필수이며 일반 대화 금지 유지.
 - 요청 본문: CreateRoom
 - 성공 응답: 200 ChatRoom
 - 관련 테이블: chat_rooms, chat_participants, rentals
@@ -647,7 +807,7 @@
 ### 10.3 D_043 채팅방 정보·연결 거래
 
 - `GET /api/v1/chat/rooms/{roomId}` · 박선우 · P1
-- 설명: 참여자만. 차단 후 읽기는 가능하고 access에 전송 제한과 기존 거래 예외 반환.
+- 설명: 참여자만. 차단·제재 후 읽기는 가능하고 access에 전송 제한과 기존 거래 예외 반환. 채팅 권한은 현재 선택 동네가 아닌 물건 동네의 유효 소속 기준. 현재 동네 전환만으로 전송 권한을 잃지 않으며 소속 이탈·인증 만료 시 COMMUNITY_CHANGED 반환. 양측 중 한 명이라도 유효 제재 중이면 일반 대화 금지. 양측의 현재 유효한 모든 제재 시작 전에 승인된 APPROVED/ACTIVE 거래만 `allowedRentalIds`에 포함. 장소·시간 약속 수락 여부는 예외 기준에 미포함. 상세·목록에 동일 기준 적용.
 - 요청 본문: 없음
 - 성공 응답: 200 ChatRoom
 - 관련 테이블: chat_rooms, rentals, blocks, sanctions
@@ -662,7 +822,7 @@
 | --- | --- | --- | --- |
 | afterSequence | N | integer | 이 값 초과 새 메시지 |
 | beforeSequence | N | integer | 이 값 미만 이전 메시지 |
-| limit | N | integer | 기본 50 |
+| limit | N | integer | 기본 50; 최소 1, 최대 50 |
 
 - 요청 본문: 없음
 - 성공 응답: 200 MessagePage
@@ -672,11 +832,30 @@
 ### 10.5 D_045 텍스트 메시지 전송
 
 - `POST /api/v1/chat/rooms/{roomId}/messages` · 박선우 · P1
-- 설명: 참여자·전송 가능 검사. 차단/제재 예외에는 APPROVED/ACTIVE 거래 rentalId 필수. 방 잠금으로 sequence 할당. clientMessageId 동일+같은 내용이면 기존 메시지, 다른 내용 409 MESSAGE_KEY_REUSED. 시스템 메시지를 클라이언트가 생성할 수 없음.
+- 설명: 참여자·전송 가능 검사. 물건 동네의 유효 소속 검사로 저장 동네 양쪽 전송 허용. 현재 동네 선택만으로 허용하지 않으며 소속 이탈·인증 만료 시 COMMUNITY_VERIFICATION_REQUIRED. 양측 중 한 명이라도 유효 제재 중이면 양방향 일반 메시지 금지(403 MEMBER_RESTRICTED). 차단/제재 예외에는 방에 연결된 APPROVED/ACTIVE 거래 rentalId 필수. 제재 중에는 승인 시각이 양측의 현재 유효한 모든 제재 시작보다 앞선 거래만 허용(동시·이후 승인, 승인 시각 누락은 불허). 완료·취소 거래는 예외 제외, 제재 만료·해제 시 해당 제재의 제한 제거. 물건 공개 상태 별도 검사 유지. 방 잠금으로 sequence 할당. clientMessageId 동일+같은 내용이면 기존 메시지, 다른 내용 409 MESSAGE_KEY_REUSED. 시스템 메시지를 클라이언트가 생성할 수 없음.
 - 요청 본문: SendMessage
 - 성공 응답: 201 Message
 - 관련 테이블: messages, chat_rooms
 - 목업 연결: chat
+
+#### 실시간 메시지 수신
+
+- 동일 출처 WebSocket 연결: `/ws/chat?roomId={roomId}`. 쿠키 세션 인증 및 해당 방 참여 권한 필요.
+- 별도 WSS 출처 연결: `/ws/chat?roomId={roomId}&ticket={ticket}`. 아래 API로 받은 일회용 연결권 사용. 쿠키·회원 ID를 직접 전달하지 않음. 프론트 출처 정확히 일치하는 Origin만 허용. 연결권이 있으면 쿠키 인증으로 우회하지 않음.
+- 클라이언트의 메시지 작성은 D_045 REST API 사용. WebSocket으로 텍스트를 보내면 연결 종료.
+- 새 메시지 저장 트랜잭션 커밋 후 방 참여자에게 D_045의 `Message` 응답 전체를 JSON으로 전달. 전달 시 인증 세션과 참여 권한 재확인.
+- 연결 끊김 등으로 놓친 메시지는 D_044의 `afterSequence`로 다시 조회. Redis 중계 활성화 시 인스턴스 간 전달, DB 재확인으로 누락 복구.
+
+#### 별도 WSS 연결권 발급
+
+- `POST /api/v1/chat/rooms/{roomId}/socket-tickets` · 쿠키 세션 + CSRF 필수. 본문 없음.
+- 참여 권한·로그인 세션 유효성 확인 후 발급. 같은 세션·방은 1초에 한 번 발급 가능.
+- 성공: `200 { "ticket": "256비트 URL-safe 난수", "expiresAt": "2026-10-27T12:00:30Z" }`, `Cache-Control: no-store`.
+- 유효기간 30초. Redis에는 SHA-256 해시 키와 방·회원·인증 세션 ID만 저장. GETDEL로 인스턴스 간 동시 사용에서도 한 번만 소비.
+- 연결 시 방 일치·현재 세션·회원·참여 권한 재확인. 만료·재사용·방 변조·세션 폐기 시 401, 허용하지 않은 Origin 또는 중복 ticket 파라미터는 403. 잘못되거나 중복된 roomId는 400.
+- 발급 API: 비참여자 404 RESOURCE_NOT_FOUND, 유효하지 않은 세션 401 UNAUTHENTICATED, 연속 발급 429 RATE_LIMITED, 비활성화·Redis 장애 503 DEPENDENCY_UNAVAILABLE.
+- 기본 비활성화. `CHAT_SOCKET_TICKET_ENABLED=true`, 정확한 프론트 출처의 `CHAT_SOCKET_ALLOWED_ORIGINS` 설정 필요. 활성화 시 Redis 필수. JWT·쿠키 속성 변경 없음.
+- ticket은 연결 중 메모리에서만 사용. 브라우저 저장소·로그·분석 도구·접근 로그의 URL 쿼리에 기록 금지. WebSocket 재연결마다 새로 발급.
 
 ### 10.6 D_046 채팅 읽은 위치 갱신
 
@@ -807,11 +986,32 @@
 ### 12.6 E_057 내 신고 결과 상세
 
 - `GET /api/v1/reports/{reportId}` · 노현섭 · P1
-- 설명: 신고자만. 제재 대상에게는 회원 제한 상태/별도 결과 알림의 최소 사유만 제공, 신고자 정보 비공개.
+- 설명: 신고자만. `publicReason`은 운영자가 공개용으로 쓰는 사유이므로 신고자에게 처리 결과로 내려간다. `internalNote`와 신고자 정보는 관리자 API에만 담는다. 제재 대상에게는 회원 제한 상태와 **최소 사유만** 제공하고 신고자 정보는 비공개다 — 그 전달 경로는 **E_072**다.
 - 요청 본문: 없음
 - 성공 응답: 200 Report
 - 관련 테이블: reports, report_actions
 - 목업 연결: reports
+
+### 12.7 E_072 내가 받은 운영 조치 내역
+
+- `GET /api/v1/members/me/sanctions` · 노현섭 · P1
+- 설명: 본인만. E_057이 정한 "제재 대상에게 제공하는 최소 사유"의 전달 경로다. 처리 결과 알림이 "내 프로필에서 확인"으로 안내하는 화면이 쓴다. 제재 상태여도 조회할 수 있다 — 제한된 이유를 모르면 이의를 제기할 수 없다.
+- **`sanctions`가 아니라 `report_actions`를 읽는다.** 경고(WARN)는 제재 행을 만들지 않아 제재 테이블만 보면 보이지 않는다. 반려(DISMISS)는 목록에서 제외한다(대상에게 알리지도 않는 조치라, 넣으면 신고당한 사실만 알려 주게 된다).
+- **담는 것**: 조치 종류, `publicReason`, 제재 기간, 그리고 **어떤 대상으로 조치됐는지**(`targetType`·`targetLabel`·`evidenceText`). 대상 정보는 모두 **대상 본인의 것**이다 — 본인이 등록한 물건의 제목·설명, 본인이 보낸 메시지 본문. 접수 시점 스냅샷이라 물건이 지워진 뒤에도 남는다.
+- **담지 않는 것**: 신고자 정보, `internalNote`, 신고 사유 코드.
+- **알려진 노출**: 대상 정보를 보여주면 대상이 어떤 거래로 조치됐는지 알게 되고, 그 거래의 상대가 한 명이면 **신고자를 추정할 수 있다**. 메시지 신고는 대화 상대가 곧 신고자라 추정이 아니라 특정이다. 대상이 무엇 때문에 조치됐는지 알아야 한다는 쪽을 택한 팀 결정이다.
+- 정렬: 조치 시각 내림차순
+
+| Query | 필수 | 타입 | 의미 |
+| --- | --- | --- | --- |
+| page | N | integer | 기본 0 |
+| size | N | integer | 기본 20, 최대 50 |
+
+- 요청 본문: 없음
+- 성공 응답: 200 MySanctionPage
+- 오류: 401 UNAUTHENTICATED
+- 관련 테이블: report_actions, reports, sanctions
+- 목업 연결: profile
 
 ## 13. 관리자 (admin)
 
@@ -880,7 +1080,10 @@
 ### 13.6 E_069 동네 운영 통계
 
 - `GET /api/v1/admin/statistics` · 노현섭 · P2
-- 설명: ADMIN만. from/to 최대 31일 KST 포함. 현재 누적 등록/활성/미처리와 기간 신규/성사율/일자별 요청·인기 완료 건수를 구분. 구체 집계 정의는 설계 규칙 7절.
+- 설명: ADMIN만. from/to 최대 31일 KST 포함. 현재 누적 등록/활성/미처리와 기간 신규/성사율/일자별 요청·인기 완료 건수를 구분. 구체 집계 정의는 도메인 가이드 결정 '운영 통계'.
+- 집계 기준: 누적은 `registeredItems`·`activeRentals`(APPROVED·ACTIVE)·`pendingReports`·`categoryCounts`. 기간은 나머지이고 모두 **그 기간에 생성된 대여 요청**을 같은 모집단으로 쓴다. 물건은 `visibility='DELETED'`만 제외한다. 카테고리 합계는 `registeredItems`와 일치한다.
+- 오류: 400 INVALID_REQUEST (from > to, 기간 31일 초과, 필수 쿼리 누락·형식 오류) · 403 FORBIDDEN (ADMIN 아님) · 404 RESOURCE_NOT_FOUND (없는 동네)
+- **비활성 동네는 404가 아니다.** E_010과 다르다 — 운영자는 비활성화한 동네의 지표를 사후에 확인해야 한다. 동네 선택 목록(E_009)이 활성 동네만 주므로 화면에서는 고를 수 없고, 직접 호출만 가능하다.
 
 | Query | 필수 | 타입 | 의미 |
 | --- | --- | --- | --- |
@@ -1001,7 +1204,11 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 ### CsrfToken
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
-| csrfToken | string | Y | 최대 길이 64 |
+| csrfToken | string | Y | 최대 길이 128. BREACH 방어로 요청마다 값이 달라지는 마스킹 토큰이며, 세션의 원본 토큰은 유지된다. 받은 값을 `X-CSRF-TOKEN` 헤더로 되돌려주면 되고 캐싱해 재사용할 수 있다 |
+### LogoutOthers
+| 필드 | 타입 | 필수 | 제약·의미 |
+| --- | --- | --- | --- |
+| revokedCount | integer(int32) | Y | 최소 0. 폐기한 세션 수. 이미 만료·폐기된 세션 제외 |
 ### MemberSummary
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
@@ -1071,6 +1278,32 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | --- | --- | --- | --- |
 | items | Community[] | Y | — |
 | truncated | boolean | Y | — |
+### RegionOptions
+동네 선택 한 단계의 고를 수 있는 값 (E_073). 등록된 활성 동네의 공개 주소에서 모은다.
+
+| 필드 | 타입 | 필수 | 제약·의미 |
+| --- | --- | --- | --- |
+| level | string | Y | 값: SIDO, SIGUNGU, GU, DONG. 요청한 단계 |
+| items | string[] | Y | 중복 없이 가나다순. 해당 단계가 없는 지역은 빈 배열 |
+### MyCommunities
+내 동네 상태 (E_074 ~ E_076). 저장 동네는 최대 2개, 현재 동네는 하나다.
+
+| 필드 | 타입 | 필수 | 제약·의미 |
+| --- | --- | --- | --- |
+| items | MyCommunity[] | Y | 저장 동네. 슬롯 순서. 최대 2개 |
+| currentCommunityId | string | N | 현재 동네. 저장 동네가 없으면 null |
+### MyCommunity
+저장 동네 한 건.
+
+| 필드 | 타입 | 필수 | 제약·의미 |
+| --- | --- | --- | --- |
+| communityId | string | Y | ID 문자열 |
+| communityName | string | Y | — |
+| displayAddress | string | Y | 공개 주소 |
+| isCurrent | boolean | Y | 지금 피드 기준이 되는 동네인지 |
+| isValid | boolean | Y | 인증이 만료되지 않았는지. false면 재인증해야 거래할 수 있다 |
+| verifiedAt | string(date-time) | Y | 마지막 인증 시각 |
+| verificationExpiresAt | string(date-time) | Y | 인증 만료 |
 ### Place
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
@@ -1089,7 +1322,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | --- | --- | --- | --- |
 | latitude | number | Y | 최소 -90; 최대 90 |
 | longitude | number | Y | 최소 -180; 최대 180 |
-| accuracyMeters | number | Y | 최소 0; 최대 100 |
+| accuracyMeters | number | Y | 최소 0. 상한은 서버 설정(기본 5000)이며 초과는 422 LOCATION_INACCURATE. 행정동이 일치해 통과하는 경우에는 보지 않는다 |
 ### Category
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
@@ -1185,7 +1418,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | distanceMeters | integer(int32) | Y | 최소 0 |
 | distanceBasis | string | Y | 값: COMMUNITY_CENTER |
 | version | integer(int64) | Y | 최소 0 |
-| allowedActions | string[] | Y | — |
+| allowedActions | string[] | Y | 값: EDIT, CHANGE_VISIBILITY, DELETE. 소유자에게만 세 값을 내려주고 타인은 빈 배열 |
 | createdAt | string(date-time) | Y | — |
 ### DateRange
 | 필드 | 타입 | 필수 | 제약·의미 |
@@ -1280,7 +1513,7 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | version | integer(int64) | Y | 최소 0 |
 | confirmedProposal | AppointmentProposal | N | — |
 | pendingProposal | AppointmentProposal | N | — |
-| allowedActions | string[] | Y | — |
+| allowedActions | string[] | Y | PROPOSE(제안·변경), ACCEPT(상대 제안 수락), WITHDRAW(내 대기 제안 철회). PICKUP은 APPROVED, RETURN은 APPROVED/ACTIVE에서 미래 시각 선택 가능한 날짜에 PROPOSE. ACCEPT는 같은 조건에 미래이며 슬롯 날짜와 일치하는 상대 대기 제안이 있을 때. WITHDRAW는 내 PROPOSED 제안이 있을 때. 서버의 실행 시 재검사는 별도 수행 |
 ### AppointmentSlots
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
@@ -1312,12 +1545,12 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
 | expectedVersion | integer(int64) | Y | 최소 0 |
-| reason | string | N | 최대 길이 500 |
+| reason | string | Y | 공백만 입력 불가; 최대 길이 500 |
 ### CancelCommand
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
 | expectedVersion | integer(int64) | Y | 최소 0 |
-| reason | string | N | 최대 길이 500 |
+| reason | string | Y | 공백만 입력 불가; 최대 길이 500 |
 ### ProposeAppointment
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |
@@ -1355,7 +1588,9 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | --- | --- | --- | --- |
 | id | string | Y | ID 문자열 |
 | itemId | string | Y | ID 문자열 |
+| communityId | string | Y | 방의 물건이 등록된 동네 ID. 비공개 물건·동네 변경 후에도 기존 거래 약속 장소 조회에 사용 |
 | itemTitle | string | Y | 최대 길이 100 |
+| itemThumbnailUrl | string | N | 조회 권한이 있는 대표 사진의 128px 이하 JPEG 썸네일 URL. 사진이 없거나 볼 수 없으면 생략 |
 | otherMember | MemberSummary | Y | — |
 | unreadCount | integer(int32) | Y | 최소 0 |
 | lastMessagePreview | string | N | 최대 길이 200 |
@@ -1508,6 +1743,33 @@ Upload는 multipart/form-data이며 필드 file 하나가 필수다. MIME·용�
 | endsAt | string(date-time) | N | — |
 | revokedAt | string(date-time) | N | — |
 | isEffective | boolean | Y | — |
+### MySanction
+대상 본인에게 내려가는 조치 한 건. 신고자·`internalNote`·신고 사유 코드는 담지 않는다.
+대상 정보는 접수 시점 스냅샷이며 모두 대상 본인의 것이다.
+
+| 필드 | 타입 | 필수 | 제약·의미 |
+| --- | --- | --- | --- |
+| id | string | Y | report_actions.id의 문자열 |
+| action | string | Y | 값: WARN, SUSPEND_7D, SUSPEND_30D, BAN (DISMISS는 목록에 없음) |
+| publicReason | string | Y | 최대 길이 500. 운영자가 쓴 최소 사유 |
+| decidedAt | string(date-time) | Y | 조치 시각 |
+| targetType | string | Y | 값: MEMBER, ITEM, MESSAGE |
+| targetId | string | N | 물건·메시지 ID. 회원 신고는 대상이 본인이라 생략 |
+| targetLabel | string | N | 물건 제목. 메시지 신고는 그 대화가 붙은 물건의 제목 |
+| evidenceText | string | N | 최대 길이 3000. 물건 설명 또는 신고된 메시지 본문 |
+| kind | string | N | 값: SUSPEND, BAN. 경고는 제재 행이 없어 생략 |
+| startsAt | string(date-time) | N | 경고는 생략 |
+| endsAt | string(date-time) | N | 영구 정지·경고는 생략 |
+| revokedAt | string(date-time) | N | 해제되지 않았으면 생략 |
+| isEffective | boolean | Y | 조회 시점에 이용을 제한하는지. 경고는 항상 false |
+### MySanctionPage
+| 필드 | 타입 | 필수 | 제약·의미 |
+| --- | --- | --- | --- |
+| items | MySanction[] | Y | — |
+| page | integer(int32) | Y | 최소 0 |
+| size | integer(int32) | Y | 최소 1 |
+| totalElements | integer(int64) | Y | 최소 0 |
+| hasNext | boolean | Y | — |
 ### SanctionPage
 | 필드 | 타입 | 필수 | 제약·의미 |
 | --- | --- | --- | --- |

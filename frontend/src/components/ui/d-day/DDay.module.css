@@ -1,0 +1,17 @@
+.dday {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--surface-sunken);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.dday--late {
+  background: var(--status-overdue-bg);
+  color: var(--status-overdue-fg);
+}

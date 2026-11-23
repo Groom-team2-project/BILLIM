@@ -1,0 +1,38 @@
+시나리오 list 시작
+smoke: VU 1, 5s
+smoke 통과
+warmup: VU 10, 30s
+warmup 통과
+baseline: VU 10, 3m
+baseline 통과
+측정 완료. 세션 폐기 완료. 결과: performance/rental/local/
+시나리오 approval-warmup 시작
+approval 요청·응답 및 DB 정합성 검증 통과
+임시 세션 폐기·인증 fixture 삭제 완료
+시나리오 approval 시작
+approval 요청·응답 및 DB 정합성 검증 통과
+임시 세션 폐기·인증 fixture 삭제 완료
+시나리오 idempotency-warmup 시작
+idempotency 요청·응답 및 DB 정합성 검증 통과
+임시 세션 폐기·인증 fixture 삭제 완료
+시나리오 idempotency 시작
+idempotency 요청·응답 및 DB 정합성 검증 통과
+임시 세션 폐기·인증 fixture 삭제 완료
+시나리오 appointment-warmup 시작
+약속 20개·요청 40건, 응답 및 DB 정합성 검증 통과
+임시 세션 2개 폐기·인증 fixture 삭제 완료
+시나리오 appointment 시작
+약속 20개·요청 40건, 응답 및 DB 정합성 검증 통과
+임시 세션 2개 폐기·인증 fixture 삭제 완료
+시나리오 create 시작
+smoke: 10명 1s
+smoke: 검증 실패 기록, 후속 측정 계속
+warmup: 10명 30s
+warmup: 검증 실패 기록, 후속 측정 계속
+baseline: 10명 3m
+baseline: 통과
+replay: 1명 
+replay: 검증 실패 기록, 후속 측정 계속
+정상 생성 1989건·이력·이벤트·멱등 기록 일치. 성능 기준 통과 여부는 각 구간 결과 확인.
+임시 세션 10개 폐기·인증 fixture 삭제 완료
+시나리오 create: 검증 실패도 원본 보존 후 계속

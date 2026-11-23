@@ -1,0 +1,75 @@
+{
+  "elapsedSeconds": 10.631514072418213,
+  "sqlDelta": {
+    "insert": 0,
+    "update": 0,
+    "delete": 0,
+    "select": 52496
+  },
+  "requests": 410,
+  "sqlPerRequest": 128.0390243902439,
+  "k6ExitCode": 0,
+  "actuatorSamples": [
+    {
+      "at": 1793434829.086087,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 8.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 2.066852E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 1176136.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.976556E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1697536.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 1.983808E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.474304E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8571048E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.40438904E8",
+        "process_cpu_usage 0.05561023622047244"
+      ]
+    },
+    {
+      "at": 1793434832.273716,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 2.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 1.5766456E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 885912.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 6.9768968E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1697536.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 2.1590272E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.6326528E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8575728E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.40656808E8",
+        "process_cpu_usage 0.20240480961923846"
+      ]
+    },
+    {
+      "at": 1793434835.461407,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 3.1866384E7",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 396656.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 7.0281216E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1697536.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 2.2423808E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.6466048E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8575728E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.4068056E8",
+        "process_cpu_usage 0.13775307661770544"
+      ]
+    },
+    {
+      "at": 1793434838.621387,
+      "metrics": [
+        "hikaricp_connections_active{pool=\"HikariPool-1\"} 0.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Eden Space\"} 4080248.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Survivor Space\"} 304928.0",
+        "jvm_memory_used_bytes{area=\"heap\",id=\"Tenured Gen\"} 7.0291984E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-nmethods'\"} 1697536.0",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'non-profiled nmethods'\"} 2.281984E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"CodeHeap 'profiled nmethods'\"} 4.6576768E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Compressed Class Space\"} 1.8575728E7",
+        "jvm_memory_used_bytes{area=\"nonheap\",id=\"Metaspace\"} 1.40707288E8",
+        "process_cpu_usage 0.10665597433841219"
+      ]
+    }
+  ],
+  "actuatorErrors": []
+}

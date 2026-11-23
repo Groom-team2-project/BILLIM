@@ -1,0 +1,62 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /tmp/billim-appointment-verify-20261107/appointment-race.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 10 max VUs, 10m30s max duration (incl. graceful stop):
+              * race: 1 iterations for each of 10 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✗ 'rate==1' rate=70.00%
+
+    unexpected_responses
+    ✗ 'rate==0' rate=30.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 40     55.812136/s
+    checks_succeeded...: 70.00% 28 out of 40
+    checks_failed......: 30.00% 12 out of 40
+
+    ✓ 수락·철회 중 한 건만 성공
+    ✗ 나머지 한 건은 최신 버전 충돌
+      ↳  40% — ✓ 8 / ✗ 12
+
+    CUSTOM
+    change_success_duration........: avg=302.25ms min=115.46ms med=277.67ms max=507.83ms p(90)=488.05ms p(95)=499.62ms p(99)=506.19ms
+    unexpected_responses...........: 30.00% 12 out of 40
+    version_conflict_duration......: avg=345.09ms min=125.88ms med=428.5ms  max=513.82ms p(90)=511.5ms  p(95)=512.66ms p(99)=513.59ms
+    withdraw_successes.............: 20     27.906068/s
+
+    HTTP
+    http_req_duration..............: avg=298.01ms min=115.46ms med=251.46ms max=513.82ms p(90)=488.05ms p(95)=507.97ms p(99)=512.53ms
+      { expected_response:true }...: avg=302.25ms min=115.46ms med=277.67ms max=507.83ms p(90)=488.05ms p(95)=499.62ms p(99)=506.19ms
+    http_req_failed................: 50.00% 20 out of 40
+    http_reqs......................: 40     55.812136/s
+
+    EXECUTION
+    iteration_duration.............: avg=638.41ms min=555.14ms med=633.64ms max=714.17ms p(90)=690.58ms p(95)=702.37ms p(99)=711.81ms
+    iterations.....................: 10     13.953034/s
+
+    NETWORK
+    data_received..................: 19 kB  27 kB/s
+    data_sent......................: 17 kB  24 kB/s
+
+
+
+
+running (00m00.7s), 00/10 VUs, 10 complete and 0 interrupted iterations
+race ✓ [ 100% ] 10 VUs  00m00.7s/10m0s  10/10 iters, 1 per VU
+time="2026-11-07T10:33:19+09:00" level=error msg="thresholds on metrics 'checks, unexpected_responses' have been crossed"

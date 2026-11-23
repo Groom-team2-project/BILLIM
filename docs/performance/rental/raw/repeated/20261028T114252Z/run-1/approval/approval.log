@@ -1,0 +1,64 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /Users/sobean/IdeaProjects/BILLIM/performance/rental/concurrent-approval.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 1 max VUs, 10m30s max duration (incl. graceful stop):
+              * default: 1 iterations shared among 1 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+
+running (00m01.0s), 0/1 VUs, 1 complete and 0 interrupted iterations
+default ✓ [ 100% ] 1 VUs  00m01.0s/10m0s  1/1 shared iters
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate==1' rate=100.00%
+
+    unexpected_responses
+    ✓ 'rate==0' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 40      40.262917/s
+    checks_succeeded...: 100.00% 40 out of 40
+    checks_failed......: 0.00%   0 out of 40
+
+    ✓ 동일 물건 승인 1건
+    ✓ 겹치는 요청 충돌 9건
+
+    CUSTOM
+    approved_duration..............: avg=19.53ms  min=10.17ms  med=13.76ms  max=67.57ms  p(90)=27.55ms  p(95)=35.35ms  p(99)=61.13ms 
+    approved_responses.............: 20     20.131458/s
+    date_conflict_duration.........: avg=35.58ms  min=12.32ms  med=29.79ms  max=125.07ms p(90)=56.08ms  p(95)=83.93ms  p(99)=115.52ms
+    date_conflict_responses........: 180    181.183126/s
+    unexpected_responses...........: 0.00%  0 out of 200
+
+    HTTP
+    http_req_duration..............: avg=33.98ms  min=10.17ms  med=28.67ms  max=125.07ms p(90)=54.72ms  p(95)=79.68ms  p(99)=114.61ms
+      { expected_response:true }...: avg=19.53ms  min=10.17ms  med=13.76ms  max=67.57ms  p(90)=27.55ms  p(95)=35.35ms  p(99)=61.13ms 
+    http_req_failed................: 90.00% 180 out of 200
+    http_reqs......................: 200    201.314584/s
+
+    EXECUTION
+    iteration_duration.............: avg=992.72ms min=992.72ms med=992.72ms max=992.72ms p(90)=992.72ms p(95)=992.72ms p(99)=992.72ms
+    iterations.....................: 1      1.006573/s
+
+    NETWORK
+    data_received..................: 124 kB 125 kB/s
+    data_sent......................: 86 kB  86 kB/s
+
+
+
+
+running (00m01.0s), 0/1 VUs, 1 complete and 0 interrupted iterations
+default ✓ [ 100% ] 1 VUs  00m01.0s/10m0s  1/1 shared iters

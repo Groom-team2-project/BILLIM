@@ -1,0 +1,170 @@
+[
+  {
+    "variant": "before",
+    "count": 10,
+    "firstCardMs": {
+      "median": 321.4,
+      "min": 317.2,
+      "max": 327.7,
+      "stddev": 4.32
+    },
+    "readyMs": {
+      "median": 337.7,
+      "min": 328.5,
+      "max": 345.4,
+      "stddev": 6.91
+    },
+    "requests": {
+      "median": 12,
+      "min": 12,
+      "max": 12,
+      "stddev": 0.0
+    },
+    "cards": {
+      "median": 5,
+      "min": 5,
+      "max": 5,
+      "stddev": 0.0
+    }
+  },
+  {
+    "variant": "before",
+    "count": 100,
+    "firstCardMs": {
+      "median": 2000.5,
+      "min": 1944.9,
+      "max": 2006.9,
+      "stddev": 27.84
+    },
+    "readyMs": {
+      "median": 2024.1,
+      "min": 1966,
+      "max": 2028.2,
+      "stddev": 28.4
+    },
+    "requests": {
+      "median": 102,
+      "min": 102,
+      "max": 102,
+      "stddev": 0.0
+    },
+    "cards": {
+      "median": 50,
+      "min": 50,
+      "max": 50,
+      "stddev": 0.0
+    }
+  },
+  {
+    "variant": "before",
+    "count": 1000,
+    "firstCardMs": {
+      "median": 23091.1,
+      "min": 22924.9,
+      "max": 23092.4,
+      "stddev": 78.66
+    },
+    "readyMs": {
+      "median": 23271.3,
+      "min": 23108.6,
+      "max": 23298.2,
+      "stddev": 83.76
+    },
+    "requests": {
+      "median": 1020,
+      "min": 1020,
+      "max": 1020,
+      "stddev": 0.0
+    },
+    "cards": {
+      "median": 500,
+      "min": 500,
+      "max": 500,
+      "stddev": 0.0
+    }
+  },
+  {
+    "variant": "after",
+    "count": 10,
+    "firstCardMs": {
+      "median": 116.3,
+      "min": 116,
+      "max": 116.4,
+      "stddev": 0.17
+    },
+    "readyMs": {
+      "median": 236.7,
+      "min": 229.8,
+      "max": 236.7,
+      "stddev": 3.25
+    },
+    "requests": {
+      "median": 7,
+      "min": 7,
+      "max": 7,
+      "stddev": 0.0
+    },
+    "cards": {
+      "median": 5,
+      "min": 5,
+      "max": 5,
+      "stddev": 0.0
+    }
+  },
+  {
+    "variant": "after",
+    "count": 100,
+    "firstCardMs": {
+      "median": 133.2,
+      "min": 128.3,
+      "max": 135.8,
+      "stddev": 3.11
+    },
+    "readyMs": {
+      "median": 616.1,
+      "min": 603.6,
+      "max": 616.4,
+      "stddev": 5.96
+    },
+    "requests": {
+      "median": 22,
+      "min": 22,
+      "max": 22,
+      "stddev": 0.0
+    },
+    "cards": {
+      "median": 20,
+      "min": 20,
+      "max": 20,
+      "stddev": 0.0
+    }
+  },
+  {
+    "variant": "after",
+    "count": 1000,
+    "firstCardMs": {
+      "median": 133.1,
+      "min": 131.9,
+      "max": 133.6,
+      "stddev": 0.71
+    },
+    "readyMs": {
+      "median": 616.4,
+      "min": 607.6,
+      "max": 625.3,
+      "stddev": 7.23
+    },
+    "requests": {
+      "median": 22,
+      "min": 22,
+      "max": 22,
+      "stddev": 0.0
+    },
+    "cards": {
+      "median": 20,
+      "min": 20,
+      "max": 20,
+      "stddev": 0.0
+    }
+  }
+]

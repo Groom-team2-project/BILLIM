@@ -1,0 +1,4 @@
+FROM docker:cli
+RUN apk add --no-cache python3
+WORKDIR /scripts
+ENTRYPOINT ["python3", "/scripts/rich-benchmark.py"]

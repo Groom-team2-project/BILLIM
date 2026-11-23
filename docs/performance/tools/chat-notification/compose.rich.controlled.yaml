@@ -1,0 +1,5 @@
+services:
+  mysql:
+    command:
+      - --innodb-buffer-pool-dump-at-shutdown=OFF
+      - --innodb-buffer-pool-load-at-startup=OFF

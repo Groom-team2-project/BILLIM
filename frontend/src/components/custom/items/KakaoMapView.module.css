@@ -1,0 +1,64 @@
+.kmap {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-sunken);
+}
+
+.kmap-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.kmap-note {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 2;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--ink-muted);
+}
+
+/* 마커 — 도식 지도(MapView)의 장소 핀과 같은 모양 */
+.kmap-pin {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 4px var(--space-2) 4px 4px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--line-control);
+  background: var(--surface);
+  color: var(--ink);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.kmap-pin-count {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background: var(--action);
+  color: var(--on-action);
+}
+
+.kmap-pin[aria-pressed="true"] {
+  background: var(--action);
+  border-color: var(--action);
+  color: var(--on-action);
+}
+
+.kmap-pin[aria-pressed="true"] .kmap-pin-count {
+  background: var(--on-action);
+  color: var(--action);
+}
+
+.kmap-fallback-note {
+  margin-top: var(--space-2);
+  color: var(--ink-muted);
+}

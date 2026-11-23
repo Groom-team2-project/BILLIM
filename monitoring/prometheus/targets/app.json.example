@@ -1,0 +1,14 @@
+[
+  {
+    "targets": ["<1번 서버 사설 IP>:9090"],
+    "labels": { "env": "prod", "server": "app-1" }
+  },
+  {
+    "targets": ["<2번 서버 사설 IP>:9090"],
+    "labels": { "env": "prod", "server": "app-2" }
+  },
+  {
+    "targets": ["<복제 환경 앱 사설 IP>:9090"],
+    "labels": { "env": "replica", "server": "replica-1" }
+  }
+]

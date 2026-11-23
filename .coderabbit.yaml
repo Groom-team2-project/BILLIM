@@ -6,6 +6,13 @@ language: "ko-KR"
 reviews:
   auto_review:
     enabled: true
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        - `CONTRIBUTING.md`의 코딩 컨벤션과 협업 규칙을 기준으로 검토하세요.
+        - 이슈·PR 제목은 `type: 한국어 요약` 형식을 사용하세요. (type: feat, fix, refactor, test, docs, ci, chore)
+        - 제목은 `추가했습니다`가 아니라 `추가`처럼 명사형으로 끝냅니다.
+        - 리뷰와 제안은 한국어로 간결하게 작성하세요.
   path_filters:
     # 빌드 산출물과 자동 생성 파일은 리뷰 제외
     - "!**/build/**"

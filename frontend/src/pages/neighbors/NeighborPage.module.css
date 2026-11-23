@@ -1,0 +1,21 @@
+.neighbor-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.neighbor-actions > * {
+  flex: 1;
+}
+
+.neighbor-report {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--size-touch);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--status-overdue-mark);
+  color: var(--status-overdue-fg);
+  background: transparent;
+}

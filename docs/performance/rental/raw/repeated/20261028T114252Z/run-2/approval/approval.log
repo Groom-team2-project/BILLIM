@@ -1,0 +1,66 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /Users/sobean/IdeaProjects/BILLIM/performance/rental/concurrent-approval.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 1 max VUs, 10m30s max duration (incl. graceful stop):
+              * default: 1 iterations shared among 1 VUs (maxDuration: 10m0s, gracefulStop: 30s)
+
+
+running (00m01.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+default   [   0% ] 1 VUs  00m01.0s/10m0s  0/1 shared iters
+
+
+  █ THRESHOLDS 
+
+    checks
+    ✓ 'rate==1' rate=100.00%
+
+    unexpected_responses
+    ✓ 'rate==0' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 40      37.454867/s
+    checks_succeeded...: 100.00% 40 out of 40
+    checks_failed......: 0.00%   0 out of 40
+
+    ✓ 동일 물건 승인 1건
+    ✓ 겹치는 요청 충돌 9건
+
+    CUSTOM
+    approved_duration..............: avg=20.6ms  min=11.06ms med=15.63ms max=96.82ms  p(90)=26.12ms p(95)=34.36ms p(99)=84.33ms 
+    approved_responses.............: 20     18.727433/s
+    date_conflict_duration.........: avg=39.32ms min=13.79ms med=32.62ms max=156.17ms p(90)=60.8ms  p(95)=76.02ms p(99)=150.63ms
+    date_conflict_responses........: 180    168.546901/s
+    unexpected_responses...........: 0.00%  0 out of 200
+
+    HTTP
+    http_req_duration..............: avg=37.45ms min=11.06ms med=31ms    max=156.17ms p(90)=59.14ms p(95)=75.3ms  p(99)=150.02ms
+      { expected_response:true }...: avg=20.6ms  min=11.06ms med=15.63ms max=96.82ms  p(90)=26.12ms p(95)=34.36ms p(99)=84.33ms 
+    http_req_failed................: 90.00% 180 out of 200
+    http_reqs......................: 200    187.274334/s
+
+    EXECUTION
+    iteration_duration.............: avg=1.06s   min=1.06s   med=1.06s   max=1.06s    p(90)=1.06s   p(95)=1.06s   p(99)=1.06s   
+    iterations.....................: 1      0.936372/s
+    vus............................: 1      min=1          max=1
+    vus_max........................: 1      min=1          max=1
+
+    NETWORK
+    data_received..................: 124 kB 116 kB/s
+    data_sent......................: 86 kB  80 kB/s
+
+
+
+
+running (00m01.1s), 0/1 VUs, 1 complete and 0 interrupted iterations
+default ✓ [ 100% ] 1 VUs  00m01.1s/10m0s  1/1 shared iters
