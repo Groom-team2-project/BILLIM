@@ -1,0 +1,12 @@
+### cache=off 20:00:24
+cache=off noparam {"groups":["liveness","readiness"],"status":"UP"}
+rps=411.0 avg=65.03 p95=122.74 p99=172.07 fail=0.0000 n=47268
+### cache=on 20:04:03
+cache=on ?cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048                                                                        {"groups":["liveness","readiness"],"status":"UP"}
+rps=419.8 avg=63.65 p95=118.93 p99=169.30 fail=0.0000 n=48288
+### cache=off 20:07:42
+cache=off noparam {"groups":["liveness","readiness"],"status":"UP"}
+rps=398.1 avg=67.12 p95=130.72 p99=186.40 fail=0.0000 n=45786
+### cache=on 20:11:21
+cache=on ?cachePrepStmts=true&prepStmtCacheSize=250&prepStmtCacheSqlLimit=2048                                                                        {"groups":["liveness","readiness"],"status":"UP"}
+rps=416.0 avg=64.22 p95=121.06 p99=166.86 fail=0.0000 n=47854

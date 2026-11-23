@@ -200,6 +200,19 @@ management:
     web:
       exposure:
         include: health, info, prometheus
+  metrics:
+    distribution:
+      # 응답시간 구간(_bucket) 노출 — 없으면 p95 알림·대시보드가 빈 결과로 항상 정상 판정
+      percentiles-histogram:
+        http.server.requests: true
+      # SLO 패널이 le="0.5"를 직접 조회 — 자동 구간에는 정확히 0.5가 없음
+      slo:
+        http.server.requests: 500ms
+      # 구간 수 제한 — 기본 범위(1ms~30s)는 시계열 과다
+      minimum-expected-value:
+        http.server.requests: 5ms
+      maximum-expected-value:
+        http.server.requests: 10s
 
 ---
 # ===================================================================

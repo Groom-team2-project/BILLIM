@@ -1,0 +1,38 @@
+# JFR 프로파일 집계 — 1번 서버, member-read.js VU 30, settings=profile, 90초
+# 캐시 끔. JFR 부하 포함 처리량 261.0 /s (JFR 없을 때 약 400 /s)
+k6: rps=261.0 avg=106.68 p95=266.48 p99=533.72 fail=0.0000
+top cpu% (15초 간격): 190 190 200 172.7 181.8 190
+samples 3638
+== 귀속(스택 꼭대기에서 처음 만나는 범주)
+ 32.3% MySQL 드라이버(SQL 파싱·결과 처리)
+ 20.8% Hibernate·JPA
+ 15.0% 기타(JDK·스레드 등)
+  8.2% DB 통신 암호화(TLS)
+  5.9% Tomcat·HTTP
+  5.4% Micrometer 지표
+  4.1% Spring MVC
+  3.5% Spring 트랜잭션·AOP
+  2.1% Spring Security
+  1.0% 앱 코드
+  0.9% 로깅
+  0.6% Hikari 풀
+== 세부(스택에 등장)
+ 13.5% SQL 문장 파싱(QueryInfo 생성)
+  6.3% 결과 행 읽기
+  6.0% Hibernate 결과 매핑
+  3.2% TLS 암호화
+  1.4% Hibernate SQL 생성·계획
+  1.3% Hikari 반납·검사
+== 상위 메서드(leaf)
+  6.1% com/mysql/cj/util/StringInspector.indexOfNextChar
+  2.7% com/sun/crypto/provider/GHASH.processBlocks
+  2.6% com/mysql/cj/QueryInfo.<init>
+GC: 일시 정지 32회, 합계 327 ms / 90초
+
+# 캐시 켬 — 같은 조건, JFR 60초
+samples 2419
+ 25.1% Hibernate·JPA
+ 18.4% 기타(JDK·스레드 등)
+ 14.7% MySQL 드라이버 (QueryInfo 생성 집계에서 사라짐)
+  9.0% DB 통신 암호화(TLS)
+top cpu% (JFR 없이, VU 30): 110 100 170
