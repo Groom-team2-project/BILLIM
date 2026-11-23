@@ -1,0 +1,36 @@
+### VU80 cache=off 20:18:34
+cache=off noparam {"groups":["liveness",
+cpu%=181.8 active{=9.0 pending=14.0 
+cpu%=190.0 active{=10.0 pending=69.0 
+cpu%=200.0 active{=10.0 pending=70.0 
+cpu%=200.0 active{=10.0 pending=70.0 
+cpu%=180.0 active{=10.0 pending=70.0 
+cpu%=154.5 active{=10.0 pending=70.0 
+rps=392.6 avg=181.75 p95=409.91 p99=581.28 fail=0.0000 n=45158
+### VU80 cache=on 20:22:16
+cache=on ?cachePrepStmts=true&prepStmtCa
+cpu%=172.7 active{=10.0 pending=15.0 
+cpu%=200.0 active{=10.0 pending=71.0 
+cpu%=190.0 active{=9.0 pending=71.0 
+cpu%=190.0 active{=8.0 pending=69.0 
+cpu%=100.0 active{=10.0 pending=68.0 
+cpu%=120.0 active{=10.0 pending=68.0 
+rps=425.1 avg=167.81 p95=358.04 p99=511.47 fail=0.0000 n=48892
+### VU80 cache=off 20:25:52
+cache=off noparam {"groups":["liveness",
+cpu%=181.8 active{=9.0 pending=12.0 
+cpu%=200.0 active{=9.0 pending=71.0 
+cpu%=160.0 active{=9.0 pending=71.0 
+cpu%=118.2 active{=9.0 pending=70.0 
+cpu%=140.0 active{=9.0 pending=72.0 
+cpu%=100.0 active{=10.0 pending=70.0 
+rps=383.8 avg=185.87 p95=428.06 p99=620.71 fail=0.0000 n=44144
+### VU80 cache=on 20:29:32
+cache=on ?cachePrepStmts=true&prepStmtCa
+cpu%=181.8 active{=9.0 pending=14.0 
+cpu%=172.7 active{=9.0 pending=70.0 
+cpu%=172.7 active{=10.0 pending=70.0 
+cpu%=200.0 active{=10.0 pending=67.0 
+cpu%=110.0 active{=10.0 pending=70.0 
+cpu%=80.0 active{=10.0 pending=70.0 
+rps=422.1 avg=168.99 p95=362.54 p99=518.34 fail=0.0000 n=48558
